@@ -347,6 +347,8 @@
     <div class="tabs">
       <button class="tab active" onclick="switchTab('pl',this)">Profit &amp; Loss</button>
       <button class="tab" onclick="switchTab('bs',this)">Balance Sheet</button>
+      <button class="tab" onclick="switchTab('rpl',this)">✦ Restated P&amp;L</button>
+      <button class="tab" onclick="switchTab('rbs',this)">✦ Restated BS</button>
       <button class="tab" onclick="switchTab('cf',this)">Cash Flow</button>
       <button class="tab" onclick="switchTab('metrics',this)">Operating Metrics</button>
       <button class="tab" onclick="switchTab('coa',this)">Chart of Accounts</button>
@@ -369,6 +371,38 @@
         <button class="btn btn-secondary btn-sm" onclick="exportSingleCSV('bs')">Export CSV</button>
       </div>
       <div id="bsContent"></div>
+    </div>
+
+    <!-- Restated P&L Tab -->
+    <div id="tab-rpl" class="table-card" style="display:none;">
+      <div class="table-header">
+        <div>
+          <h3>Restated Profit &amp; Loss</h3>
+          <div class="table-meta">P&L restated using your Standard COA mapping</div>
+        </div>
+        <button class="btn btn-secondary btn-sm" onclick="exportSingleCSV('rpl')">Export CSV</button>
+      </div>
+      <div id="rplContent">
+        <div style="padding:20px;color:var(--muted);font-size:13px;">
+          Complete your COA Mapping first, then this tab will show the restated P&L grouped by your standard categories.
+        </div>
+      </div>
+    </div>
+
+    <!-- Restated Balance Sheet Tab -->
+    <div id="tab-rbs" class="table-card" style="display:none;">
+      <div class="table-header">
+        <div>
+          <h3>Restated Balance Sheet</h3>
+          <div class="table-meta">Balance Sheet restated using your Standard COA mapping</div>
+        </div>
+        <button class="btn btn-secondary btn-sm" onclick="exportSingleCSV('rbs')">Export CSV</button>
+      </div>
+      <div id="rbsContent">
+        <div style="padding:20px;color:var(--muted);font-size:13px;">
+          Complete your COA Mapping first, then this tab will show the restated Balance Sheet grouped by your standard categories.
+        </div>
+      </div>
     </div>
 
     <!-- Cash Flow Tab -->
@@ -1072,13 +1106,206 @@ function fmtMoney(val){
 
 // ── Tab switching ──────────────────────────────────────────────────────
 function switchTab(name,btn){
-  ['pl','bs','cf','metrics','coa','map'].forEach(t=>document.getElementById('tab-'+t).style.display='none');
+  ['pl','bs','rpl','rbs','cf','metrics','coa','map'].forEach(t=>document.getElementById('tab-'+t).style.display='none');
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   document.getElementById('tab-'+name).style.display='block';
   btn.classList.add('active');
+  // Render restated views on demand
+  if(name==='rpl') renderRestatedPL();
+  if(name==='rbs') renderRestatedBS();
 }
 
 // ── CSV Exports ────────────────────────────────────────────────────────
+// ── Restated P&L ──────────────────────────────────────────────────────
+function renderRestatedPL(){
+  const el=document.getElementById('rplContent');
+  if(!Object.keys(mappings).length){
+    el.innerHTML='<div class="warn-box" style="margin:16px;">⚠️ No mappings found. Please go to the <strong>COA Mapping</strong> tab and map your accounts first, then come back here.</div>';
+    return;
+  }
+
+  // Build a lookup: AccountID → standard COA category
+  // Also build a name lookup from coaData
+  const accountMap={};
+  coaData.forEach(a=>{ accountMap[a.AccountID]={name:a.Name, type:a.Type, code:a.Code}; });
+
+  // Extract all P&L line items with their Xero account names
+  const lineItems=[];
+  if(plReports.length&&plReports[0].Rows){
+    plReports[0].Rows.forEach(section=>{
+      if(!section.Rows)return;
+      section.Rows.forEach(row=>{
+        if(row.RowType==='Row'&&row.Cells){
+          const name=row.Cells[0]?.Value||'';
+          const amt=parseFloat(row.Cells[1]?.Value)||0;
+          if(name&&amt!==0) lineItems.push({name, amt, section:section.Title||''});
+        }
+      });
+    });
+  }
+
+  // Match line items to mappings by account name
+  const grouped={};
+  lineItems.forEach(item=>{
+    // Find account in COA by name
+    const account=coaData.find(a=>a.Name===item.name);
+    const mappedCat=account?mappings[account.AccountID]:'';
+    const cat=mappedCat&&mappedCat!=='[ Not mapped ]'?mappedCat:('Unmapped — '+item.section);
+    if(!grouped[cat])grouped[cat]={items:[],total:0};
+    grouped[cat].items.push(item);
+    grouped[cat].total+=item.amt;
+  });
+
+  if(!Object.keys(grouped).length){
+    el.innerHTML='<div class="warn-box" style="margin:16px;">⚠️ No P&L data to restate. Make sure P&L is loaded and accounts are mapped.</div>';
+    return;
+  }
+
+  // Separate into Revenue and Expense groups
+  const revCats=['Revenue - Sales','Revenue - Services','Revenue - Other Income'];
+  const revenues={}, expenses={};
+  Object.entries(grouped).forEach(([cat,data])=>{
+    const isRev=revCats.some(r=>cat.startsWith(r.split(' - ')[0]))||cat.toLowerCase().includes('revenue')||cat.toLowerCase().includes('income');
+    if(isRev) revenues[cat]=data; else expenses[cat]=data;
+  });
+
+  let totalRev=0, totalExp=0;
+  let html='<table><thead><tr><th>Standard COA Category</th><th>Xero Accounts Included</th><th style="text-align:right">Total</th></tr></thead><tbody>';
+
+  // Revenue section
+  html+=`<tr class="section-row"><td colspan="3" style="padding:8px 14px">REVENUE</td></tr>`;
+  Object.entries(revenues).forEach(([cat,data])=>{
+    totalRev+=data.total;
+    const names=data.items.map(i=>i.name).join(', ');
+    html+=`<tr>
+      <td style="padding-left:20px"><strong>${cat}</strong></td>
+      <td style="font-size:11px;color:var(--muted)">${names}</td>
+      <td class="amount ${data.total>=0?'pos':'neg'}">${fmtMoney(data.total)}</td>
+    </tr>`;
+  });
+  html+=`<tr class="subtotal-row"><td style="padding-left:14px"><strong>Total Revenue</strong></td><td></td><td class="amount pos"><strong>${fmtMoney(totalRev)}</strong></td></tr>`;
+
+  // Expenses section
+  html+=`<tr class="section-row"><td colspan="3" style="padding:8px 14px">EXPENSES</td></tr>`;
+  Object.entries(expenses).forEach(([cat,data])=>{
+    if(cat.startsWith('Unmapped'))return;
+    totalExp+=Math.abs(data.total);
+    const names=data.items.map(i=>i.name).join(', ');
+    html+=`<tr>
+      <td style="padding-left:20px"><strong>${cat}</strong></td>
+      <td style="font-size:11px;color:var(--muted)">${names}</td>
+      <td class="amount neg">${fmtMoney(Math.abs(data.total))}</td>
+    </tr>`;
+  });
+  html+=`<tr class="subtotal-row"><td style="padding-left:14px"><strong>Total Expenses</strong></td><td></td><td class="amount neg"><strong>${fmtMoney(totalExp)}</strong></td></tr>`;
+
+  // Unmapped
+  const unmapped=Object.entries(expenses).filter(([cat])=>cat.startsWith('Unmapped'));
+  if(unmapped.length){
+    html+=`<tr class="section-row"><td colspan="3" style="padding:8px 14px;color:var(--danger)">UNMAPPED ACCOUNTS</td></tr>`;
+    unmapped.forEach(([cat,data])=>{
+      const names=data.items.map(i=>i.name).join(', ');
+      html+=`<tr style="background:var(--danger-light)">
+        <td style="padding-left:20px;color:var(--danger)">${cat}</td>
+        <td style="font-size:11px;color:var(--danger)">${names}</td>
+        <td class="amount neg">${fmtMoney(data.total)}</td>
+      </tr>`;
+    });
+  }
+
+  const net=totalRev-totalExp;
+  html+=`<tr class="total-row"><td><strong>NET PROFIT / (LOSS)</strong></td><td></td><td class="amount ${net>=0?'pos':'neg'}"><strong>${fmtMoney(net)}</strong></td></tr>`;
+  html+='</tbody></table>';
+  el.innerHTML=html;
+}
+
+// ── Restated Balance Sheet ─────────────────────────────────────────────
+function renderRestatedBS(){
+  const el=document.getElementById('rbsContent');
+  if(!Object.keys(mappings).length){
+    el.innerHTML='<div class="warn-box" style="margin:16px;">⚠️ No mappings found. Please go to the <strong>COA Mapping</strong> tab and map your accounts first, then come back here.</div>';
+    return;
+  }
+
+  // Extract all BS line items
+  const lineItems=[];
+  if(bsReports.length&&bsReports[0].Rows){
+    bsReports[0].Rows.forEach(section=>{
+      if(!section.Rows)return;
+      section.Rows.forEach(row=>{
+        if(row.RowType==='Row'&&row.Cells){
+          const name=row.Cells[0]?.Value||'';
+          const amt=parseFloat(row.Cells[1]?.Value)||0;
+          if(name&&amt!==0) lineItems.push({name, amt, section:section.Title||''});
+        }
+      });
+    });
+  }
+
+  // Group by standard COA category
+  const grouped={};
+  lineItems.forEach(item=>{
+    const account=coaData.find(a=>a.Name===item.name);
+    const mappedCat=account?mappings[account.AccountID]:'';
+    const cat=mappedCat&&mappedCat!=='[ Not mapped ]'?mappedCat:('Unmapped — '+item.section);
+    if(!grouped[cat])grouped[cat]={items:[],total:0};
+    grouped[cat].items.push(item);
+    grouped[cat].total+=item.amt;
+  });
+
+  if(!Object.keys(grouped).length){
+    el.innerHTML='<div class="warn-box" style="margin:16px;">⚠️ No Balance Sheet data to restate. Make sure BS is loaded and accounts are mapped.</div>';
+    return;
+  }
+
+  // Categorise into Assets, Liabilities, Equity
+  const assets={}, liabilities={}, equity={}, unmapped={};
+  Object.entries(grouped).forEach(([cat,data])=>{
+    if(cat.toLowerCase().includes('asset')||cat.toLowerCase().includes('cash')||cat.toLowerCase().includes('receivable')||cat.toLowerCase().includes('inventory')||cat.toLowerCase().includes('prepay')||cat.toLowerCase().includes('property')||cat.toLowerCase().includes('intangible')) assets[cat]=data;
+    else if(cat.toLowerCase().includes('liabilit')||cat.toLowerCase().includes('payable')||cat.toLowerCase().includes('debt')||cat.toLowerCase().includes('accrued')) liabilities[cat]=data;
+    else if(cat.toLowerCase().includes('equity')||cat.toLowerCase().includes('capital')||cat.toLowerCase().includes('retained')) equity[cat]=data;
+    else if(cat.startsWith('Unmapped')) unmapped[cat]=data;
+    else assets[cat]=data; // default to assets
+  });
+
+  let totalAssets=0, totalLiab=0, totalEquity=0;
+  let html='<table><thead><tr><th>Standard COA Category</th><th>Xero Accounts Included</th><th style="text-align:right">Amount</th></tr></thead><tbody>';
+
+  const renderSection=(title, group, colorClass)=>{
+    let sectionTotal=0;
+    html+=`<tr class="section-row"><td colspan="3" style="padding:8px 14px">${title}</td></tr>`;
+    Object.entries(group).forEach(([cat,data])=>{
+      sectionTotal+=data.total;
+      const names=data.items.map(i=>i.name).join(', ');
+      html+=`<tr>
+        <td style="padding-left:20px"><strong>${cat}</strong></td>
+        <td style="font-size:11px;color:var(--muted)">${names}</td>
+        <td class="amount ${data.total>=0?'pos':'neg'}">${fmtMoney(data.total)}</td>
+      </tr>`;
+    });
+    html+=`<tr class="subtotal-row"><td style="padding-left:14px"><strong>Total ${title}</strong></td><td></td><td class="amount"><strong>${fmtMoney(sectionTotal)}</strong></td></tr>`;
+    return sectionTotal;
+  };
+
+  totalAssets=renderSection('ASSETS', assets);
+  totalLiab=renderSection('LIABILITIES', liabilities);
+  totalEquity=renderSection('EQUITY', equity);
+
+  if(Object.keys(unmapped).length){
+    html+=`<tr class="section-row"><td colspan="3" style="padding:8px 14px;color:var(--danger)">UNMAPPED</td></tr>`;
+    Object.entries(unmapped).forEach(([cat,data])=>{
+      html+=`<tr style="background:var(--danger-light)"><td style="padding-left:20px;color:var(--danger)">${cat}</td><td style="font-size:11px;color:var(--danger)">${data.items.map(i=>i.name).join(', ')}</td><td class="amount">${fmtMoney(data.total)}</td></tr>`;
+    });
+  }
+
+  const check=totalAssets-(totalLiab+totalEquity);
+  html+=`<tr class="total-row"><td><strong>TOTAL ASSETS</strong></td><td></td><td class="amount pos"><strong>${fmtMoney(totalAssets)}</strong></td></tr>`;
+  html+=`<tr class="total-row"><td><strong>TOTAL LIABILITIES + EQUITY</strong></td><td></td><td class="amount pos"><strong>${fmtMoney(totalLiab+totalEquity)}</strong></td></tr>`;
+  html+=`<tr style="background:${Math.abs(check)<1?'var(--accent-light)':'var(--danger-light)'}"><td colspan="2" style="font-size:12px;padding:8px 14px;">${Math.abs(check)<1?'✓ Balance sheet balances':'⚠️ Difference (check unmapped accounts)'}</td><td class="amount" style="font-weight:600">${fmtMoney(check)}</td></tr>`;
+  html+='</tbody></table>';
+  el.innerHTML=html;
+}
+
 function exportSingleCSV(type){
   const date=new Date().toISOString().split('T')[0];
   let csv='',filename='';
@@ -1130,6 +1357,22 @@ function exportSingleCSV(type){
       csv+=`"${a.Code||''}","${a.Name||''}","${a.Type||''}","${a.TaxType||''}"\n`;
     });
     filename=`chart_of_accounts_${date}.csv`;
+  } else if(type==='rpl'){
+    csv='Standard COA Category,Xero Accounts,Amount\n';
+    const rplRows=document.querySelectorAll('#rplContent tbody tr');
+    rplRows.forEach(row=>{
+      const cells=row.querySelectorAll('td');
+      if(cells.length===3) csv+=`"${cells[0].textContent.trim()}","${cells[1].textContent.trim()}","${cells[2].textContent.trim()}"\n`;
+    });
+    filename='restated_pl_'+new Date().toISOString().split('T')[0]+'.csv';
+  } else if(type==='rbs'){
+    csv='Standard COA Category,Xero Accounts,Amount\n';
+    const rbsRows=document.querySelectorAll('#rbsContent tbody tr');
+    rbsRows.forEach(row=>{
+      const cells=row.querySelectorAll('td');
+      if(cells.length===3) csv+=`"${cells[0].textContent.trim()}","${cells[1].textContent.trim()}","${cells[2].textContent.trim()}"\n`;
+    });
+    filename='restated_bs_'+new Date().toISOString().split('T')[0]+'.csv';
   } else if(type==='map'){
     const active=coaData.filter(a=>a.Status==='ACTIVE');
     if(!active.length){alert('No COA data to export. Load via Xero API mode.');return;}
