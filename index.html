@@ -311,6 +311,13 @@
         <label>To</label><input type="date" id="dateTo">
         <label>BS As At</label><input type="date" id="dateBS">
       </div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <label>Basis</label>
+        <select id="reportBasis" style="padding:6px 10px;border:1px solid var(--border);border-radius:7px;font-family:var(--mono);font-size:12px;background:var(--surface);color:var(--text);">
+          <option value="ACCRUAL" selected>Accrual</option>
+          <option value="CASH">Cash</option>
+        </select>
+      </div>
       <button class="btn btn-primary btn-sm" onclick="applyDateFilter()" style="margin-left:auto;">Apply →</button>
     </div>
 
@@ -676,7 +683,7 @@ async function autoLoadFromXero(code){
     const fromDate=today.getFullYear()+'-01-01';
     const toDate=today.toISOString().split('T')[0];
     setProgress('Loading Profit & Loss...');
-    const plRes = await fetch(WORKER_URL+'/xero?path=/Reports/ProfitAndLoss?fromDate='+fromDate+'%26toDate='+toDate+'&tenantId='+tenantId, {
+    const plRes = await fetch(WORKER_URL+'/xero?path=/Reports/ProfitAndLoss?fromDate='+fromDate+'%26toDate='+toDate+'%26reportBasis=ACCRUAL&tenantId='+tenantId, {
       headers:{'Authorization':'Bearer '+token}
     });
     const plData = await plRes.json();
@@ -684,12 +691,15 @@ async function autoLoadFromXero(code){
 
     // Step 5: Load Balance Sheet
     setProgress('Loading Balance Sheet...');
-    const bsRes = await fetch(WORKER_URL+'/xero?path=/Reports/BalanceSheet?date='+toDate+'&tenantId='+tenantId, {
+    const bsRes = await fetch(WORKER_URL+'/xero?path=/Reports/BalanceSheet?date='+toDate+'%26reportBasis=ACCRUAL&tenantId='+tenantId, {
       headers:{'Authorization':'Bearer '+token}
     });
     const bsData = await bsRes.json();
     bsReports = bsData.Reports||[];
 
+    // Store token and tenantId for re-fetching
+    sessionStorage.setItem('xero_access_token',token);
+    sessionStorage.setItem('xero_tenant_id',tenantId);
     // All done — launch dashboard
     setProgress('All data loaded!');
     setTimeout(()=>launchDashboard(tenantName,'Live data from Xero — read only'), 600);
@@ -874,12 +884,14 @@ function renderReport(reports,contentId,metaId,metaText,isPL){
 function renderPL(){
   const from=document.getElementById('dateFrom')?.value||(new Date().getFullYear()+'-01-01');
   const to=document.getElementById('dateTo')?.value||new Date().toISOString().split('T')[0];
-  renderReport(plReports,'plContent','plMeta','Period: '+from+' to '+to,true);
+  const basis=document.getElementById('reportBasis')?.value||'ACCRUAL';
+  renderReport(plReports,'plContent','plMeta','Period: '+from+' to '+to+' · '+basis,true);
 }
 
 function renderBS(){
   const asAt=document.getElementById('dateBS')?.value||new Date().toISOString().split('T')[0];
-  renderReport(bsReports,'bsContent','bsMeta','As at: '+asAt,false);
+  const basis=document.getElementById('reportBasis')?.value||'ACCRUAL';
+  renderReport(bsReports,'bsContent','bsMeta','As at: '+asAt+' · '+basis,false);
 }
 
 // ── Indirect Cash Flow ─────────────────────────────────────────────────
@@ -1073,9 +1085,37 @@ function loadStandardCOA(input){
 function applyDateFilter(){
   const from=document.getElementById('dateFrom').value;
   const to=document.getElementById('dateTo').value;
+  const basis=document.getElementById('reportBasis')?.value||'ACCRUAL';
   if(!from||!to){alert('Please select From and To dates.');return;}
   if(from>to){alert('From date cannot be after To date.');return;}
-  renderPL();renderBS();renderCashFlow();
+  // If we have a stored token and tenant, re-fetch from Xero with new params
+  const token=sessionStorage.getItem('xero_access_token');
+  const tid=sessionStorage.getItem('xero_tenant_id');
+  if(token&&tid){
+    refetchReports(token,tid,from,to,basis);
+  } else {
+    renderPL();renderBS();renderCashFlow();
+  }
+}
+
+async function refetchReports(token,tid,from,to,basis){
+  const applyBtn=document.querySelector('[onclick="applyDateFilter()"]');
+  if(applyBtn){applyBtn.textContent='Loading...';applyBtn.disabled=true;}
+  try{
+    const plRes=await fetch(WORKER_URL+'/xero?path=/Reports/ProfitAndLoss?fromDate='+from+'%26toDate='+to+'%26reportBasis='+basis+'&tenantId='+tid,{headers:{'Authorization':'Bearer '+token}});
+    const plData=await plRes.json();
+    if(plData.Reports) plReports=plData.Reports;
+
+    const bsRes=await fetch(WORKER_URL+'/xero?path=/Reports/BalanceSheet?date='+to+'%26reportBasis='+basis+'&tenantId='+tid,{headers:{'Authorization':'Bearer '+token}});
+    const bsData=await bsRes.json();
+    if(bsData.Reports) bsReports=bsData.Reports;
+
+    renderPL();renderBS();renderCashFlow();
+  }catch(e){
+    alert('Could not refresh data: '+e.message);
+  }finally{
+    if(applyBtn){applyBtn.textContent='Apply →';applyBtn.disabled=false;}
+  }
 }
 
 function setPreset(preset,e){
