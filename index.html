@@ -479,10 +479,10 @@ function showMsg(msg,type){
 }
 
 // ── Xero OAuth config ─────────────────────────────────────────────────
-const CLIENT_ID='E9DDC73E89724124ABD6A162A93B0E91';
+const CLIENT_ID='79284ACDD6A44FD7B1070B5AE6F86CDE';
 const WORKER_URL='https://xero-proxy.mira-7c0.workers.dev'; // Will be updated after Cloudflare deploy
 const REDIRECT_URI='https://mira-thrugrace.github.io/coa-mapper/';
-const SCOPES='openid profile email offline_access';
+const SCOPES='openid profile email offline_access accounting.reports.profitandloss.read accounting.reports.balancesheet.read accounting.settings.read';
 
 // ── Xero flow ──────────────────────────────────────────────────────────
 function startXeroLogin(){
