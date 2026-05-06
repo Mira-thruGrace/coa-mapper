@@ -336,12 +336,12 @@
   <div class="tabs">
     <button class="tab active" onclick="switchTab('pl',this)">Profit &amp; Loss</button>
     <button class="tab" onclick="switchTab('bs',this)">Balance Sheet</button>
+    <button class="tab" onclick="switchTab('coa',this)">Chart of Accounts</button>
     <button class="tab" onclick="switchTab('map',this)">COA Mapping</button>
     <button class="tab" onclick="switchTab('rpl',this)">✦ Restated P&amp;L</button>
     <button class="tab" onclick="switchTab('rbs',this)">✦ Restated BS</button>
     <button class="tab" onclick="switchTab('cf',this)">Cash Flow</button>
     <button class="tab" onclick="switchTab('metrics',this)">Operating Metrics</button>
-    <button class="tab" onclick="switchTab('coa',this)">Chart of Accounts</button>
   </div>
 
   <!-- P&L Tab -->
@@ -357,18 +357,52 @@
   </div>
 
   <!-- COA Mapping Tab (in dashboard) -->
-  <div id="tab-map" class="table-card" style="display:none;">
-    <div class="table-header"><div><h3>COA Mapping</h3><div class="table-meta" id="mapMeta">Map your accounts to your sector standard COA</div></div><button class="btn btn-secondary btn-sm" onclick="exportSingleCSV('map')">Export Mapping CSV</button></div>
+  <div id="tab-map" style="display:none;">
 
-    <!-- Sector selection inside mapping tab -->
-    <div style="padding:16px 18px;border-bottom:1px solid var(--border);background:var(--bg);">
-      <div style="font-size:13px;font-weight:600;margin-bottom:10px;">Select your business sector to load the standard COA:</div>
-      <div class="sector-grid" id="sectorGrid" style="margin-bottom:0;"></div>
-      <div id="sectorConfirmed" style="display:none;margin-top:10px;" class="success-box">✓ Sector: <strong id="sectorName"></strong> — Standard COA loaded. Map your accounts below.</div>
+    <!-- Header row -->
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
+      <div>
+        <div style="font-size:16px;font-weight:600;">COA Mapping</div>
+        <div style="font-size:12px;color:var(--muted);">Map each account to your standard Chart of Accounts. P&L and Balance Sheet are mapped separately.</div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="btn btn-secondary btn-sm" onclick="downloadCOATemplate()">⬇ Download COA Template</button>
+        <label class="btn btn-secondary btn-sm" style="cursor:pointer;">
+          📂 Upload COA CSV
+          <input type="file" accept=".csv" id="coaUploadInput" onchange="uploadCOAMapping(this)" style="display:none;">
+        </label>
+        <button class="btn btn-secondary btn-sm" onclick="exportSingleCSV('map')">⬇ Export Mapping</button>
+      </div>
     </div>
 
-    <div id="mappingProgressBar" class="mapping-progress" style="margin:14px 18px;"></div>
-    <div id="mapContent"></div>
+    <!-- Sector selection -->
+    <div class="card" style="margin-bottom:16px;padding:20px;">
+      <div style="font-size:13px;font-weight:600;margin-bottom:10px;">Select your business sector:</div>
+      <div class="sector-grid" id="sectorGrid" style="margin-bottom:0;"></div>
+      <div id="sectorConfirmed" style="display:none;margin-top:10px;" class="success-box">✓ Sector: <strong id="sectorName"></strong> — Standard COA loaded.</div>
+    </div>
+
+    <!-- Progress bars -->
+    <div id="mappingProgressBar" class="mapping-progress" style="margin-bottom:16px;"></div>
+
+    <!-- P&L Mapping Section -->
+    <div class="table-card" style="margin-bottom:16px;">
+      <div class="table-header" style="background:var(--accent-light);">
+        <div><h3>P&L Account Mapping</h3><div class="table-meta" id="plMapMeta">Map income and expense accounts</div></div>
+        <span id="plMapBadge" class="badge badge-unmapped">Incomplete</span>
+      </div>
+      <div id="mapContentPL"></div>
+    </div>
+
+    <!-- Balance Sheet Mapping Section -->
+    <div class="table-card">
+      <div class="table-header" style="background:var(--accent2-light);">
+        <div><h3>Balance Sheet Account Mapping</h3><div class="table-meta" id="bsMapMeta">Map asset, liability, and equity accounts</div></div>
+        <span id="bsMapBadge" class="badge badge-unmapped">Incomplete</span>
+      </div>
+      <div id="mapContentBS"></div>
+    </div>
+
   </div>
 
   <!-- Restated P&L Tab -->
@@ -1032,39 +1066,136 @@ function renderMapping(){
   }
 
   const accounts=getAccountsList();
-  if(!accounts.length){document.getElementById('mapContent').innerHTML='<p style="padding:20px;color:var(--muted);">No accounts loaded.</p>';return;}
+  const noAccMsg='<p style="padding:20px;color:var(--muted);font-size:13px;">No accounts loaded yet. Connect to Xero or upload a CSV first.</p>';
+  if(!accounts.length){
+    document.getElementById('mapContentPL').innerHTML=noAccMsg;
+    document.getElementById('mapContentBS').innerHTML=noAccMsg;
+    return;
+  }
 
   updateMappingProgressBar();
 
-  if(!selectedSector){document.getElementById('mapContent').innerHTML='<div class="warn-box" style="margin:16px;">Please select a sector above to enable COA mapping.</div>';return;}
-  const s=SECTORS[selectedSector];
-  const allCats=[];
-  s.pl.forEach(g=>g.items.forEach(item=>allCats.push(item)));
-  s.bs.forEach(g=>g.items.forEach(item=>allCats.push(item)));
-  allCats.push('[ Not mapped ]');
+  if(!selectedSector){
+    const warn='<div class="warn-box" style="margin:16px;">Please select a sector above to enable COA mapping.</div>';
+    document.getElementById('mapContentPL').innerHTML=warn;
+    document.getElementById('mapContentBS').innerHTML=warn;
+    return;
+  }
 
-  const mapped=accounts.filter(a=>mappings[a.id]&&mappings[a.id]!=='[ Not mapped ]').length;
-  let html=`<div style="padding:12px 18px;border-bottom:1px solid var(--border);font-size:12px;color:var(--muted);">
-    <span class="badge badge-mapped">${mapped} Mapped</span> &nbsp;
-    <span class="badge badge-unmapped">${accounts.length-mapped} Unmapped</span>
-    <span style="margin-left:8px;">of ${accounts.length} accounts · Sector: ${SECTORS[selectedSector].name}</span>
-  </div>`;
-  html+='<table><thead><tr><th>Code</th><th>Account Name</th><th>Type</th><th>'+SECTORS[selectedSector].name+' Standard COA</th><th>Status</th></tr></thead><tbody>';
-  accounts.forEach(a=>{
-    const key=a.id;
-    const cur=mappings[key]||'';
-    const isMapped=cur&&cur!=='[ Not mapped ]';
-    const opts=allCats.map(s=>`<option value="${s}"${cur===s?' selected':''}>${s}</option>`).join('');
-    html+=`<tr>
-      <td><span style="font-family:var(--mono);font-size:11px;color:var(--muted)">${a.code||'—'}</span></td>
-      <td><strong>${a.name}</strong></td>
-      <td>${getTypeBadge(a.type||'')}</td>
-      <td><select class="mapping-select" data-account-id="${key}" onchange="updateMapping(this)"><option value="">— Select —</option>${opts}</select></td>
-      <td>${isMapped?'<span class="badge badge-mapped">Mapped</span>':'<span class="badge badge-unmapped">Unmapped</span>'}</td>
-    </tr>`;
-  });
-  html+='</tbody></table>';
-  document.getElementById('mapContent').innerHTML=html;
+  const s=SECTORS[selectedSector];
+
+  // Build separate category lists
+  const plCats=[];
+  s.pl.forEach(g=>g.items.forEach(item=>plCats.push(item)));
+  plCats.push('[ Not mapped ]');
+
+  const bsCats=[];
+  s.bs.forEach(g=>g.items.forEach(item=>bsCats.push(item)));
+  bsCats.push('[ Not mapped ]');
+
+  // Separate accounts into P&L and BS buckets
+  const plAccountNames=new Set();
+  const bsAccountNames=new Set();
+  if(plReports.length&&plReports[0].Rows){
+    plReports[0].Rows.forEach(sec=>{if(sec.Rows)sec.Rows.forEach(row=>{if(row.RowType==='Row'&&row.Cells)plAccountNames.add(row.Cells[0]?.Value||'');});});
+  }
+  if(bsReports.length&&bsReports[0].Rows){
+    bsReports[0].Rows.forEach(sec=>{if(sec.Rows)sec.Rows.forEach(row=>{if(row.RowType==='Row'&&row.Cells)bsAccountNames.add(row.Cells[0]?.Value||'');});});
+  }
+
+  const plAccounts=accounts.filter(a=>plAccountNames.has(a.name)||plAccountNames.has(a.id));
+  const bsAccounts=accounts.filter(a=>bsAccountNames.has(a.name)||bsAccountNames.has(a.id));
+  // Accounts in neither report — add to both
+  const bothAccounts=accounts.filter(a=>!plAccountNames.has(a.name)&&!bsAccountNames.has(a.name)&&!plAccountNames.has(a.id)&&!bsAccountNames.has(a.id));
+
+  function buildMappingTable(accs, cats, sectorName){
+    if(!accs.length) return '<p style="padding:16px;color:var(--muted);font-size:13px;">No accounts found for this section.</p>';
+    const mapped=accs.filter(a=>mappings[a.id]&&mappings[a.id]!=='[ Not mapped ]').length;
+    let html=`<div style="padding:10px 18px;border-bottom:1px solid var(--border);font-size:12px;color:var(--muted);">
+      <span class="badge badge-mapped">${mapped} Mapped</span> &nbsp;
+      <span class="badge badge-unmapped">${accs.length-mapped} Unmapped</span>
+      <span style="margin-left:8px;">of ${accs.length} accounts</span>
+    </div>`;
+    html+='<table><thead><tr><th>Code</th><th>Account Name</th><th>Type</th><th>'+sectorName+' Standard COA</th><th>Status</th></tr></thead><tbody>';
+    accs.forEach(a=>{
+      const key=a.id;
+      const cur=mappings[key]||'';
+      const isMapped=cur&&cur!=='[ Not mapped ]';
+      const opts=cats.map(s=>`<option value="${s}"${cur===s?' selected':''}>${s}</option>`).join('');
+      html+=`<tr>
+        <td><span style="font-family:var(--mono);font-size:11px;color:var(--muted)">${a.code||'—'}</span></td>
+        <td><strong>${a.name}</strong></td>
+        <td>${getTypeBadge(a.type||'')}</td>
+        <td><select class="mapping-select" data-account-id="${key}" onchange="updateMapping(this)"><option value="">— Select —</option>${opts}</select></td>
+        <td>${isMapped?'<span class="badge badge-mapped">Mapped</span>':'<span class="badge badge-unmapped">Unmapped</span>'}</td>
+      </tr>`;
+    });
+    html+='</tbody></table>';
+    return html;
+  }
+
+  const sName=SECTORS[selectedSector].name;
+  document.getElementById('mapContentPL').innerHTML=buildMappingTable([...plAccounts,...bothAccounts], plCats, sName);
+  document.getElementById('mapContentBS').innerHTML=buildMappingTable(bsAccounts, bsCats, sName);
+
+  // Update section badges
+  const plMapped=[...plAccounts,...bothAccounts].filter(a=>mappings[a.id]&&mappings[a.id]!=='[ Not mapped ]').length;
+  const plTotal=[...plAccounts,...bothAccounts].length;
+  const bsMapped=bsAccounts.filter(a=>mappings[a.id]&&mappings[a.id]!=='[ Not mapped ]').length;
+  const bsTotal=bsAccounts.length;
+  const plBadge=document.getElementById('plMapBadge');
+  if(plBadge){plBadge.textContent=plMapped===plTotal&&plTotal>0?'Complete':'Incomplete';plBadge.className=plMapped===plTotal&&plTotal>0?'badge badge-mapped':'badge badge-unmapped';}
+  const bsBadge=document.getElementById('bsMapBadge');
+  if(bsBadge){bsBadge.textContent=bsMapped===bsTotal&&bsTotal>0?'Complete':'Incomplete';bsBadge.className=bsMapped===bsTotal&&bsTotal>0?'badge badge-mapped':'badge badge-unmapped';}
+  document.getElementById('plMapMeta').textContent=plMapped+' of '+plTotal+' accounts mapped';
+  document.getElementById('bsMapMeta').textContent=bsMapped+' of '+bsTotal+' accounts mapped';
+}
+
+// ── COA CSV upload/download ────────────────────────────────────────────
+function downloadCOATemplate(){
+  const accounts=getAccountsList();
+  let csv='Account Name,Account Code,Account Type,Standard COA Category\n';
+  if(accounts.length){
+    accounts.forEach(a=>csv+=`"${a.name}","${a.code||''}","${a.type||''}","${mappings[a.id]||''}"
+`);
+  } else {
+    csv+='"Example Account","1001","REVENUE",""
+"Example Expense","5001","EXPENSE",""
+';
+  }
+  dlCSV(csv,'coa_mapping_template.csv');
+}
+
+function uploadCOAMapping(input){
+  const file=input.files[0];
+  if(!file)return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    try{
+      const lines=e.target.result.split(/\r?\n/).filter(l=>l.trim());
+      if(lines.length<2){showMsg('COA CSV must have at least a header and one row.','error');return;}
+      const headers=lines[0].split(',').map(h=>h.trim().replace(/"/g,'').toLowerCase());
+      const nameIdx=headers.findIndex(h=>h.includes('account')||h.includes('name'));
+      const catIdx=headers.findIndex(h=>h.includes('standard')||h.includes('category')||h.includes('coa'));
+      if(nameIdx===-1||catIdx===-1){showMsg('COA CSV must have "Account Name" and "Standard COA Category" columns.','error');return;}
+      let loaded=0;
+      lines.slice(1).forEach(line=>{
+        const cols=splitCSVLine(line);
+        const name=(cols[nameIdx]||'').trim().replace(/"/g,'');
+        const cat=(cols[catIdx]||'').trim().replace(/"/g,'');
+        if(!name||!cat)return;
+        // Match to account by name
+        const account=coaData.find(a=>a.Name===name)||{AccountID:name};
+        const key=account.AccountID||name;
+        if(cat&&cat!=='[ Not mapped ]'){mappings[key]=cat;loaded++;}
+      });
+      showMsg('✓ COA mapping loaded from CSV — '+loaded+' accounts mapped.','success');
+      renderMapping();
+      updateMappingProgressBar();
+    }catch(err){showMsg('Error reading COA CSV: '+err.message,'error');}
+  };
+  reader.onerror=()=>showMsg('Could not read file. Please try again.','error');
+  reader.readAsText(file);
 }
 
 // ── Mapping progress bar ──────────────────────────────────────────────────────
@@ -1290,102 +1421,178 @@ function renderRestatedBS(){
   el.innerHTML=html;
 }
 
-// ── Cash Flow (Direct Method) ─────────────────────────────────────────────────
+// ── Cash Flow (Indirect Method — fixed) ──────────────────────────────────────
 function renderCashFlow(){
   const cfEl=document.getElementById('cfContent');
 
-  // Extract P&L line items for direct method
-  let totalRevenue=0,totalCOGS=0,totalOpex=0,netProfit=0,depreciation=0;
-  const revenueItems=[],cogsItems=[],opexItems=[];
+  if(!plReports.length&&!bsReports.length){
+    cfEl.innerHTML='<div class="warn-box" style="margin:16px;">Load P&L and Balance Sheet data to generate the Cash Flow statement.</div>';
+    return;
+  }
+
+  // ── Step 1: Extract net profit from P&L SummaryRows ──
+  let netProfit=0, depreciation=0;
+  const plLineItems=[];
 
   if(plReports.length&&plReports[0].Rows){
     plReports[0].Rows.forEach(section=>{
       if(!section.Rows)return;
       section.Rows.forEach(row=>{
         if(row.RowType==='Row'&&row.Cells){
-          const name=(row.Cells[0]?.Value||'');
-          const amt=parseFloat(row.Cells[1]?.Value)||0;
-          const nameLower=name.toLowerCase();
-          if(/depreciation|amortisation|amortization/.test(nameLower)){depreciation+=Math.abs(amt);}
-          if(section.Title){
-            const secLower=section.Title.toLowerCase();
-            if(/income|revenue/.test(secLower)){revenueItems.push({name,amt});totalRevenue+=amt;}
-            else if(/cost of|direct cost/.test(secLower)){cogsItems.push({name,amt});totalCOGS+=Math.abs(amt);}
-            else if(amt!==0){opexItems.push({name,amt});totalOpex+=Math.abs(amt);}
-          }
+          const name=row.Cells[0]?.Value||'';
+          const rawAmt=row.Cells[1]?.Value||'0';
+          const amt=parseFloat(String(rawAmt).replace(/,/g,''))||0;
+          plLineItems.push({name,amt,section:section.Title||''});
+          if(/depreciation|amortisation|amortization/i.test(name)) depreciation+=Math.abs(amt);
         }
         if(row.RowType==='SummaryRow'&&row.Cells){
           const name=(row.Cells[0]?.Value||'').toLowerCase();
-          const amt=parseFloat(row.Cells[1]?.Value)||0;
-          if(/net profit|net loss|profit for|net income/.test(name))netProfit=amt;
+          const rawAmt=row.Cells[1]?.Value||'0';
+          const amt=parseFloat(String(rawAmt).replace(/,/g,''))||0;
+          if(/net profit|net loss|profit for the|net income/i.test(name)) netProfit=amt;
         }
       });
     });
   }
 
-  // Extract BS figures for working capital changes
-  let cashEnd=0,changeAR=0,changeInventory=0,changePrepayments=0,changeAP=0,changeAccruals=0;
+  // If net profit not found in SummaryRows, calculate from revenue minus expenses
+  if(netProfit===0&&plLineItems.length>0){
+    let rev=0,exp=0;
+    plLineItems.forEach(item=>{
+      if(/income|revenue/i.test(item.section)) rev+=item.amt;
+      else if(item.amt<0) exp+=item.amt;
+    });
+    if(rev!==0) netProfit=rev+exp; // expenses are negative in Xero
+  }
+
+  // ── Step 2: Extract Balance Sheet figures ──
+  const bsItems={};
+  const bsItemsList=[];
   if(bsReports.length&&bsReports[0].Rows){
     bsReports[0].Rows.forEach(section=>{
       if(!section.Rows)return;
       section.Rows.forEach(row=>{
         if(row.RowType==='Row'&&row.Cells){
-          const name=(row.Cells[0]?.Value||'').toLowerCase();
-          const amt=parseFloat(row.Cells[1]?.Value)||0;
-          if(/cash|bank/.test(name))cashEnd+=amt;
-          if(/receivable|debtor/.test(name))changeAR=amt;
-          if(/inventory|stock/.test(name))changeInventory=amt;
-          if(/prepay/.test(name))changePrepayments=amt;
-          if(/payable|creditor/.test(name))changeAP=amt;
-          if(/accrual/.test(name))changeAccruals=amt;
+          const name=(row.Cells[0]?.Value||'').toLowerCase().trim();
+          const rawAmt=row.Cells[1]?.Value||'0';
+          const amt=parseFloat(String(rawAmt).replace(/,/g,''))||0;
+          const origName=row.Cells[0]?.Value||'';
+          bsItems[name]=amt;
+          bsItemsList.push({name,origName,amt,section:section.Title||''});
         }
       });
     });
   }
 
-  const grossProfit=totalRevenue-totalCOGS;
-  const operatingCF=netProfit+depreciation-changeAR-changeInventory-changePrepayments+changeAP+changeAccruals;
+  // Helper: find BS value by fuzzy name match
+  function bsFind(patterns){
+    for(const pattern of patterns){
+      const regex=new RegExp(pattern,'i');
+      const found=bsItemsList.find(item=>regex.test(item.name));
+      if(found&&found.amt!==0) return found.amt;
+    }
+    return 0;
+  }
+
+  // Working capital items — look for actual account names in BS
+  const cashAndBank   = bsFind(['cash','bank','cash at bank','cash and bank','petty cash']);
+  const accountsRec   = bsFind(['trade receiv','account.*receiv','debtor']);
+  const inventory     = bsFind(['inventor','stock on hand','stock']);
+  const prepayments   = bsFind(['prepay','prepaid']);
+  const otherCurrAsset= bsFind(['other current asset','sundry debtor']);
+  const accountsPay   = bsFind(['trade payab','account.*payab','creditor','trade creditor']);
+  const accruedLiab   = bsFind(['accrual','accrued','accrued liabilit']);
+  const deferredRev   = bsFind(['deferred revenue','unearned revenue']);
+  const taxLiab       = bsFind(['tax payable','income tax payable','gst payable']);
+  const otherCurrLiab = bsFind(['other current liab','sundry creditor']);
+
+  // PPE and intangibles for investing section
+  const ppe           = bsFind(['property.*plant','equipment','fixed asset','capital equipment']);
+  const intangibles   = bsFind(['intangible','goodwill','software asset']);
+
+  // Long term debt for financing
+  const longTermDebt  = bsFind(['long.term.*loan','term loan','long.term.*debt','bank loan']);
+  const shareCapital  = bsFind(['share capital','paid.in capital','contributed capital']);
+
+  // ── Step 3: Calculate operating CF (indirect method) ──
+  // Sign convention: increases in assets = cash outflow (negative)
+  //                  increases in liabilities = cash inflow (positive)
+  // Since we only have end-period BS (no opening BS), we show the balances as proxies
+  const operatingCF = netProfit
+    + depreciation
+    - accountsRec        // increase in AR = cash outflow
+    - inventory          // increase in inventory = cash outflow
+    - prepayments        // increase in prepayments = cash outflow
+    - otherCurrAsset     // increase in other current assets = outflow
+    + accountsPay        // increase in AP = cash inflow
+    + accruedLiab        // increase in accruals = cash inflow
+    + deferredRev        // increase in deferred revenue = cash inflow
+    + taxLiab;           // increase in tax payable = cash inflow
 
   document.getElementById('sumCF').textContent=fmtMoney(operatingCF);
   document.getElementById('sumCF').className='summary-value '+(operatingCF>=0?'blue':'red');
 
+  // Build cf rows helper
+  const cfRow=(label,val,indent=false,subheader=false)=>{
+    if(subheader) return `<div class="cf-row" style="background:var(--bg);font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.4px;"><span>${label}</span><span></span></div>`;
+    const cls=indent?'cf-row indent':'cf-row';
+    const amtCls=val===0?'amount':`amount ${val>0?'pos':'neg'}`;
+    return `<div class="${cls}"><span>${label}</span><span class="${amtCls}">${val===0?'—':fmtMoney(val)}</span></div>`;
+  };
+
   cfEl.innerHTML=`
     <div class="info-box" style="margin-bottom:16px;">
-      <strong>Method:</strong> The indirect method starts with Net Profit and adjusts for non-cash items and working capital changes. This reconciles with your P&L and Balance Sheet data. Investing and Financing sections require manual input.
+      <strong>Indirect Method:</strong> Starts with Net Profit from P&L, adds back non-cash charges, then adjusts for Balance Sheet working capital movements. Investing and Financing require manual input as Xero does not split these automatically.
     </div>
 
     <div class="cf-section">
       <div class="cf-header"><span>A. Operating Activities</span><span style="font-family:var(--mono);font-size:12px;">SGD</span></div>
-      <div class="cf-row"><span>Net Profit / (Loss) per P&L</span><span class="amount ${netProfit>=0?'pos':'neg'}">${fmtMoney(netProfit)}</span></div>
-      <div class="cf-row" style="background:var(--bg);font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;"><span>Add back non-cash items</span><span></span></div>
-      <div class="cf-row indent"><span>Depreciation &amp; Amortisation</span><span class="amount pos">${fmtMoney(depreciation)}</span></div>
-      <div class="cf-row" style="background:var(--bg);font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;"><span>Working capital changes</span><span></span></div>
-      <div class="cf-row indent"><span>(Increase) / Decrease in Accounts Receivable</span><span class="amount ${-changeAR>=0?'pos':'neg'}">${fmtMoney(-changeAR)}</span></div>
-      <div class="cf-row indent"><span>(Increase) / Decrease in Inventory</span><span class="amount ${-changeInventory>=0?'pos':'neg'}">${fmtMoney(-changeInventory)}</span></div>
-      <div class="cf-row indent"><span>(Increase) / Decrease in Prepayments</span><span class="amount ${-changePrepayments>=0?'pos':'neg'}">${fmtMoney(-changePrepayments)}</span></div>
-      <div class="cf-row indent"><span>Increase / (Decrease) in Accounts Payable</span><span class="amount ${changeAP>=0?'pos':'neg'}">${fmtMoney(changeAP)}</span></div>
-      <div class="cf-row indent"><span>Increase / (Decrease) in Accrued Liabilities</span><span class="amount ${changeAccruals>=0?'pos':'neg'}">${fmtMoney(changeAccruals)}</span></div>
-      <div class="cf-row total"><span>Net Cash from Operating Activities</span><span class="amount ${operatingCF>=0?'pos':'neg'}">${fmtMoney(operatingCF)}</span></div>
+      ${cfRow('Net Profit / (Loss)',netProfit)}
+      ${cfRow('Non-cash adjustments',0,false,true)}
+      ${cfRow('Add: Depreciation & Amortisation',depreciation,true)}
+      ${cfRow('Changes in working capital',0,false,true)}
+      ${cfRow('(Increase) / Decrease in Accounts Receivable',-accountsRec,true)}
+      ${cfRow('(Increase) / Decrease in Inventory',-inventory,true)}
+      ${cfRow('(Increase) / Decrease in Prepayments',-prepayments,true)}
+      ${cfRow('(Increase) / Decrease in Other Current Assets',-otherCurrAsset,true)}
+      ${cfRow('Increase / (Decrease) in Accounts Payable',accountsPay,true)}
+      ${cfRow('Increase / (Decrease) in Accrued Liabilities',accruedLiab,true)}
+      ${cfRow('Increase / (Decrease) in Deferred Revenue',deferredRev,true)}
+      ${cfRow('Increase / (Decrease) in Tax Payable',taxLiab,true)}
+      <div class="cf-row total"><span><strong>Net Cash from Operating Activities</strong></span><span class="amount ${operatingCF>=0?'pos':'neg'}"><strong>${fmtMoney(operatingCF)}</strong></span></div>
     </div>
 
     <div class="cf-section">
       <div class="cf-header"><span>B. Investing Activities</span><span style="font-family:var(--mono);font-size:12px;">SGD</span></div>
-      <div class="cf-row indent" style="font-style:italic;color:var(--muted);"><span>Purchase of property, plant &amp; equipment</span><span>—</span></div>
-      <div class="cf-row total"><span>Net Cash from Investing Activities</span><span class="amount">0.00</span></div>
+      ${cfRow('Purchase / (Disposal) of Property, Plant & Equipment',ppe!==0?-ppe:0,true)}
+      ${cfRow('Purchase / (Disposal) of Intangible Assets',intangibles!==0?-intangibles:0,true)}
+      <div class="cf-row total"><span><strong>Net Cash from Investing Activities</strong></span><span class="amount ${(-ppe-intangibles)>=0?'pos':'neg'}"><strong>${fmtMoney(-ppe-intangibles)}</strong></span></div>
     </div>
 
     <div class="cf-section">
       <div class="cf-header"><span>C. Financing Activities</span><span style="font-family:var(--mono);font-size:12px;">SGD</span></div>
-      <div class="cf-row indent" style="font-style:italic;color:var(--muted);"><span>Proceeds from loans / capital contributions</span><span>—</span></div>
-      <div class="cf-row total"><span>Net Cash from Financing Activities</span><span class="amount">0.00</span></div>
+      ${cfRow('Proceeds from / (Repayment of) Long-term Debt',longTermDebt,true)}
+      ${cfRow('Share Capital Contributed',shareCapital,true)}
+      <div class="cf-row total"><span><strong>Net Cash from Financing Activities</strong></span><span class="amount ${(longTermDebt+shareCapital)>=0?'pos':'neg'}"><strong>${fmtMoney(longTermDebt+shareCapital)}</strong></span></div>
     </div>
 
     <div class="cf-section">
-      <div class="cf-row total" style="font-size:14px;"><span>NET CHANGE IN CASH</span><span class="amount ${operatingCF>=0?'pos':'neg'}" style="font-size:14px;">${fmtMoney(operatingCF)}</span></div>
+      <div class="cf-row total" style="font-size:14px;">
+        <span><strong>NET CHANGE IN CASH</strong></span>
+        <span class="amount ${(operatingCF-ppe-intangibles+longTermDebt+shareCapital)>=0?'pos':'neg'}" style="font-size:14px;">
+          <strong>${fmtMoney(operatingCF-ppe-intangibles+longTermDebt+shareCapital)}</strong>
+        </span>
+      </div>
     </div>
 
-    <div style="margin-top:12px;font-size:11px;color:var(--muted);font-family:var(--mono);">
-      Reconciliation: Cash per BS = ${fmtMoney(cashEnd)} · Net change = ${fmtMoney(operatingCF)}
+    <div style="margin-top:16px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px 16px;font-size:12px;">
+      <div style="font-weight:600;margin-bottom:6px;">Reconciliation</div>
+      <div style="display:flex;gap:24px;flex-wrap:wrap;font-family:var(--mono);color:var(--muted);">
+        <span>Cash per Balance Sheet: <strong style="color:var(--text)">${fmtMoney(cashAndBank)}</strong></span>
+        <span>Net Profit: <strong style="color:var(--text)">${fmtMoney(netProfit)}</strong></span>
+        <span>Depreciation add-back: <strong style="color:var(--text)">${fmtMoney(depreciation)}</strong></span>
+      </div>
+      <div style="margin-top:6px;font-size:11px;color:var(--muted);">Note: Working capital changes shown above are end-period balances (not period movements) as only one Balance Sheet date is loaded. For accurate movements, load two Balance Sheet dates.</div>
     </div>`;
 }
 
@@ -1614,7 +1821,7 @@ function setPreset(preset,e){
 
 // ── Tabs ─────────────────────────────────────────────────────────────────────
 function switchTab(name,btn){
-  ['pl','bs','map','rpl','rbs','cf','metrics','coa'].forEach(t=>document.getElementById('tab-'+t).style.display='none');
+  ['pl','bs','coa','map','rpl','rbs','cf','metrics'].forEach(t=>document.getElementById('tab-'+t).style.display='none');
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   document.getElementById('tab-'+name).style.display='block';
   btn.classList.add('active');
