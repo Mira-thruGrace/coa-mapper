@@ -165,21 +165,13 @@
 <div id="setupSection">
   <div style="margin-bottom:20px;">
     <h1 style="font-size:20px;font-weight:600;letter-spacing:-0.4px;margin-bottom:4px;">Financial Mapper — Setup</h1>
-    <p style="font-size:13px;color:var(--muted);">Complete the steps below to load and map your financial data.</p>
+    <p style="font-size:13px;color:var(--muted);">Choose how you want to load your financial data.</p>
   </div>
   <div id="msgBox"></div>
 
-  <!-- STEP A: Sector selection -->
-  <div class="card">
-    <div style="font-size:15px;font-weight:600;margin-bottom:4px;">Step 1 — Select your business sector</div>
-    <div style="font-size:12px;color:var(--muted);margin-bottom:16px;">This determines your standard Chart of Accounts structure and operating metrics template.</div>
-    <div class="sector-grid" id="sectorGrid"></div>
-    <div id="sectorConfirmed" style="display:none;" class="success-box">✓ Sector selected: <strong id="sectorName"></strong> — Standard COA loaded.</div>
-  </div>
-
-  <!-- STEP B: Data source -->
-  <div class="card" id="stepBcard" style="opacity:0.4;pointer-events:none;">
-    <div style="font-size:15px;font-weight:600;margin-bottom:16px;">Step 2 — Load your financial data</div>
+  <!-- Data source -->
+  <div class="card" id="stepBcard">
+    <div style="font-size:15px;font-weight:600;margin-bottom:16px;">Load your financial data</div>
     <div class="mode-toggle">
       <div class="mode-card active" id="modeXero" onclick="setMode('xero')">
         <div class="mode-icon">🔗</div>
@@ -278,15 +270,6 @@
     </div>
   </div>
 
-  <!-- STEP C: COA Mapping (before restated views) -->
-  <div class="card" id="stepCcard" style="opacity:0.4;pointer-events:none;">
-    <div style="font-size:15px;font-weight:600;margin-bottom:4px;">Step 3 — Map your accounts (COA Mapping)</div>
-    <div style="font-size:12px;color:var(--muted);margin-bottom:16px;">Map each of your accounts to your selected sector COA before viewing restated financials. This step unlocks the Restated P&L and Restated Balance Sheet views.</div>
-    <div id="setupMappingContent"></div>
-    <div style="margin-top:16px;">
-      <button class="btn btn-primary" onclick="completeMappingStep()">Save Mapping & Open Dashboard →</button>
-    </div>
-  </div>
 </div>
 
 <!-- ══ DASHBOARD ══════════════════════════════════════════════════════ -->
@@ -375,7 +358,15 @@
 
   <!-- COA Mapping Tab (in dashboard) -->
   <div id="tab-map" class="table-card" style="display:none;">
-    <div class="table-header"><div><h3>COA Mapping</h3><div class="table-meta" id="mapMeta">Map your accounts to your sector COA</div></div><button class="btn btn-secondary btn-sm" onclick="exportSingleCSV('map')">Export Mapping CSV</button></div>
+    <div class="table-header"><div><h3>COA Mapping</h3><div class="table-meta" id="mapMeta">Map your accounts to your sector standard COA</div></div><button class="btn btn-secondary btn-sm" onclick="exportSingleCSV('map')">Export Mapping CSV</button></div>
+
+    <!-- Sector selection inside mapping tab -->
+    <div style="padding:16px 18px;border-bottom:1px solid var(--border);background:var(--bg);">
+      <div style="font-size:13px;font-weight:600;margin-bottom:10px;">Select your business sector to load the standard COA:</div>
+      <div class="sector-grid" id="sectorGrid" style="margin-bottom:0;"></div>
+      <div id="sectorConfirmed" style="display:none;margin-top:10px;" class="success-box">✓ Sector: <strong id="sectorName"></strong> — Standard COA loaded. Map your accounts below.</div>
+    </div>
+
     <div id="mappingProgressBar" class="mapping-progress" style="margin:14px 18px;"></div>
     <div id="mapContent"></div>
   </div>
@@ -580,13 +571,16 @@ function initSectors(){
 function selectSector(key){
   selectedSector=key;
   document.querySelectorAll('.sector-card').forEach(c=>c.classList.remove('active'));
-  document.getElementById('sector-'+key).classList.add('active');
-  document.getElementById('sectorConfirmed').style.display='block';
-  document.getElementById('sectorName').textContent=SECTORS[key].name;
-  // Unlock step B
-  const stepB=document.getElementById('stepBcard');
-  stepB.style.opacity='1';
-  stepB.style.pointerEvents='auto';
+  const sCard=document.getElementById('sector-'+key);
+  if(sCard) sCard.classList.add('active');
+  const confirmed=document.getElementById('sectorConfirmed');
+  if(confirmed) confirmed.style.display='block';
+  const sName=document.getElementById('sectorName');
+  if(sName) sName.textContent=SECTORS[key].name;
+  // Re-render mapping with new sector
+  renderMapping();
+  updateMappingProgressBar();
+  document.getElementById('dashSectorBadge').textContent=SECTORS[key].icon+' '+SECTORS[key].name;
 }
 
 // ── Mode toggle ─────────────────────────────────────────────────────────────
@@ -697,18 +691,13 @@ function saveBSOnly(){
 function saveBSAndLaunch(){saveBSOnly();}
 
 function tryUnlockMappingStep(){
-  if((plReports.length||bsReports.length)){
-    const stepC=document.getElementById('stepCcard');
-    stepC.style.opacity='1';
-    stepC.style.pointerEvents='auto';
-    renderSetupMapping();
-  }
+  // Kept for compatibility - mapping now lives in dashboard tab
 }
 
 function launchFromXero(){
   if(!plReports.length&&!bsReports.length){showMsg('Please load at least P&L or Balance Sheet first.','error');return;}
   dataMode='xero';
-  completeMappingStep();
+  launchDashboard('HR Easily Pte. Ltd.','Live data from Xero — read only');
 }
 
 // ── Auto load from Xero OAuth redirect ──────────────────────────────────────
@@ -771,17 +760,7 @@ async function autoLoadFromXero(code){
     dataSources.timestamp=new Date().toLocaleString();
 
     setProgress('All data loaded!');
-    // If sector not yet selected, show sector selection first
-    if(!selectedSector){
-      document.getElementById('xeroConnectCard').innerHTML=`<div style="padding:20px;"><div class="success-box">✓ Connected to Xero as <strong>${tenantName}</strong>. Please select your business sector above (Step 1) to continue.</div></div>`;
-      document.getElementById('statusDot').classList.add('on');
-      document.getElementById('statusText').textContent='Connected';
-    } else {
-      setTimeout(()=>{
-        tryUnlockMappingStep();
-        document.getElementById('stepCcard').scrollIntoView({behavior:'smooth'});
-      },600);
-    }
+    setTimeout(()=>launchDashboard(tenantName,'Live data from Xero — read only'), 600);
   }catch(e){
     document.getElementById('xeroConnectCard').innerHTML=`
       <div style="padding:24px;">
@@ -885,8 +864,7 @@ async function launchFromCSV(){
     if(metricsFile){const rows=await parseCSVFile(metricsFile,'metrics','metricsCSVStatus');userMetrics=rows.map(r=>({name:Object.values(r)[0]||'',value:Object.values(r)[1]||'',unit:Object.values(r)[2]||''}));}
     dataSources.timestamp=new Date().toLocaleString();
     dataMode='csv';
-    tryUnlockMappingStep();
-    document.getElementById('stepCcard').scrollIntoView({behavior:'smooth'});
+    launchDashboard('Financial Reports','Data loaded from CSV upload');
   }catch(e){showMsg('CSV upload failed: '+e,'error');}
 }
 
@@ -1041,12 +1019,24 @@ function renderCOA(){
 
 // ── Mapping (dashboard tab) ──────────────────────────────────────────────────
 function renderMapping(){
+  // Always init sectors when mapping tab opens
+  initSectors();
+  if(selectedSector){
+    document.querySelectorAll('.sector-card').forEach(c=>c.classList.remove('active'));
+    const sCard=document.getElementById('sector-'+selectedSector);
+    if(sCard) sCard.classList.add('active');
+    const confirmed=document.getElementById('sectorConfirmed');
+    if(confirmed) confirmed.style.display='block';
+    const sName=document.getElementById('sectorName');
+    if(sName) sName.textContent=SECTORS[selectedSector].name;
+  }
+
   const accounts=getAccountsList();
   if(!accounts.length){document.getElementById('mapContent').innerHTML='<p style="padding:20px;color:var(--muted);">No accounts loaded.</p>';return;}
 
   updateMappingProgressBar();
 
-  if(!selectedSector){document.getElementById('mapContent').innerHTML='<div class="warn-box" style="margin:16px;">Please select a sector to enable COA mapping.</div>';return;}
+  if(!selectedSector){document.getElementById('mapContent').innerHTML='<div class="warn-box" style="margin:16px;">Please select a sector above to enable COA mapping.</div>';return;}
   const s=SECTORS[selectedSector];
   const allCats=[];
   s.pl.forEach(g=>g.items.forEach(item=>allCats.push(item)));
@@ -1717,7 +1707,6 @@ function checkXeroCallback(){
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 window.addEventListener('load',()=>{
-  initSectors();
   checkXeroCallback();
 });
 </script>
