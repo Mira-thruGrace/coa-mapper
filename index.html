@@ -41,7 +41,7 @@
   .success-box{background:var(--accent-light);border:1px solid #b8dece;border-radius:8px;padding:12px 16px;font-size:12px;color:var(--accent);margin-bottom:14px;}
   .error-box{background:var(--danger-light);border:1px solid #f5c6c2;border-radius:8px;padding:12px 16px;font-size:12px;color:var(--danger);margin-bottom:14px;}
   code{font-family:var(--mono);font-size:11px;background:var(--bg);padding:2px 6px;border-radius:4px;border:1px solid var(--border);}
-
+ 
   /* Ingestion mode toggle */
   .mode-toggle{display:flex;gap:12px;margin-bottom:24px;}
   .mode-card{flex:1;border:2px solid var(--border);border-radius:12px;padding:20px;cursor:pointer;transition:all 0.15s;background:var(--surface);}
@@ -50,7 +50,7 @@
   .mode-card h3{font-size:14px;font-weight:600;margin-bottom:4px;}
   .mode-card p{font-size:12px;color:var(--muted);}
   .mode-icon{font-size:22px;margin-bottom:8px;}
-
+ 
   #dashboard{display:none;}
   .topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:12px;}
   .topbar h1{font-size:20px;font-weight:600;letter-spacing:-0.4px;}
@@ -62,11 +62,11 @@
   .summary-value.green{color:var(--accent);}
   .summary-value.red{color:var(--danger);}
   .summary-value.blue{color:var(--accent2);}
-
+ 
   .tabs{display:flex;gap:2px;margin-bottom:16px;background:var(--border);border-radius:9px;padding:3px;width:fit-content;flex-wrap:wrap;}
   .tab{padding:7px 14px;border-radius:7px;font-size:13px;font-weight:500;cursor:pointer;border:none;background:transparent;color:var(--muted);font-family:var(--sans);transition:all 0.15s;}
   .tab.active{background:var(--surface);color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,0.08);}
-
+ 
   .table-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:0;}
   .table-header{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;}
   .table-header h3{font-size:14px;font-weight:600;}
@@ -80,7 +80,7 @@
   .section-row td{background:var(--bg)!important;font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted);}
   .total-row td{background:#f0f7f4;font-weight:700;border-top:2px solid var(--border);}
   .subtotal-row td{background:var(--bg);font-weight:600;}
-
+ 
   .badge{display:inline-block;padding:2px 7px;border-radius:20px;font-size:10px;font-weight:600;font-family:var(--mono);}
   .badge-revenue{background:var(--accent-light);color:var(--accent);}
   .badge-expense{background:var(--danger-light);color:var(--danger);}
@@ -89,12 +89,12 @@
   .badge-equity{background:var(--purple-light);color:var(--purple);}
   .badge-mapped{background:var(--accent-light);color:var(--accent);}
   .badge-unmapped{background:var(--danger-light);color:var(--danger);}
-
+ 
   .amount{font-family:var(--mono);font-size:12px;text-align:right;}
   .amount.pos{color:var(--accent);}
   .amount.neg{color:var(--danger);}
   .mapping-select{padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;font-family:var(--sans);background:var(--surface);color:var(--text);min-width:200px;}
-
+ 
   .date-bar{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 18px;margin-bottom:16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
   .date-bar label{font-size:12px;font-weight:600;color:var(--muted);white-space:nowrap;}
   .date-bar input[type=date]{padding:6px 10px;border:1px solid var(--border);border-radius:7px;font-family:var(--mono);font-size:12px;background:var(--surface);color:var(--text);cursor:pointer;}
@@ -102,7 +102,7 @@
   .date-presets{display:flex;gap:5px;flex-wrap:wrap;}
   .preset-btn{padding:4px 9px;border-radius:6px;border:1px solid var(--border);font-size:11px;font-weight:500;cursor:pointer;background:var(--bg);color:var(--muted);font-family:var(--sans);transition:all 0.15s;}
   .preset-btn:hover,.preset-btn.active{background:var(--accent);color:white;border-color:var(--accent);}
-
+ 
   .cf-section{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:16px;}
   .cf-header{padding:12px 18px;background:var(--bg);border-bottom:1px solid var(--border);font-weight:600;font-size:13px;display:flex;justify-content:space-between;align-items:center;}
   .cf-row{display:flex;justify-content:space-between;padding:8px 18px;border-bottom:1px solid var(--border);font-size:13px;}
@@ -110,15 +110,15 @@
   .cf-row.indent{padding-left:34px;color:var(--muted);}
   .cf-row.total{font-weight:700;background:#f0f7f4;border-top:2px solid var(--border);}
   .cf-row.subtotal{font-weight:600;background:var(--bg);}
-
+ 
   .metric-input{width:100px;padding:4px 8px;border:1px solid var(--border);border-radius:6px;font-family:var(--mono);font-size:12px;text-align:right;background:var(--surface);}
   .metric-input:focus{outline:none;border-color:var(--accent);}
-
+ 
   @media(max-width:640px){.main{padding:14px;}.mode-toggle{flex-direction:column;}}
 </style>
 </head>
 <body>
-
+ 
 <div class="header">
   <div class="header-brand">
     <div class="header-logo">FM</div>
@@ -132,16 +132,16 @@
     <span id="statusText">Not loaded</span>
   </div>
 </div>
-
+ 
 <div class="main">
-
+ 
   <!-- Setup -->
   <div id="setupSection">
     <div style="margin-bottom:20px;">
       <h1 style="font-size:20px;font-weight:600;letter-spacing:-0.4px;margin-bottom:4px;">Financial Mapper — Setup</h1>
       <p style="font-size:13px;color:var(--muted);">Choose how you want to load your financial data.</p>
     </div>
-
+ 
     <!-- Mode Toggle -->
     <div class="mode-toggle">
       <div class="mode-card active" id="modeXero" onclick="setMode('xero')">
@@ -155,12 +155,12 @@
         <p>Upload your own CSV files for P&L, Balance Sheet, and Operating Metrics</p>
       </div>
     </div>
-
+ 
     <div id="msgBox"></div>
-
+ 
     <!-- XERO MODE -->
     <div id="xeroMode">
-
+ 
       <!-- Connect card -->
       <div class="card" id="xeroConnectCard">
         <div style="text-align:center;padding:20px 0 10px;">
@@ -174,7 +174,7 @@
           </button>
           <div style="margin-top:12px;font-size:11px;color:var(--muted);">Read-only access · No data will be modified</div>
         </div>
-
+ 
         <!-- Manual URL fallback -->
         <div id="manualUrlBox" style="display:none;margin-top:20px;padding-top:20px;border-top:1px solid var(--border);">
           <div class="warn-box">
@@ -189,7 +189,7 @@
           </div>
         </div>
       </div>
-
+ 
       <!-- Data loading card (shown after successful connect) -->
       <div class="card" id="xeroDataCard" style="display:none;">
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;">
@@ -200,10 +200,10 @@
           </div>
           <button class="btn btn-secondary btn-sm" onclick="disconnectXero()" style="margin-left:auto;">Disconnect</button>
         </div>
-
+ 
         <div style="font-size:13px;font-weight:600;margin-bottom:14px;">Load your financial data:</div>
         <div style="display:grid;gap:12px;">
-
+ 
           <div style="border:1px solid var(--border);border-radius:10px;padding:14px;">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
               <div style="font-weight:600;font-size:13px;">📋 Chart of Accounts</div>
@@ -213,7 +213,7 @@
             <textarea id="coaInput" rows="2" placeholder='{"Accounts":[...]}'></textarea>
             <button class="btn btn-secondary btn-sm" onclick="saveCOA()" style="margin-top:6px;">Load COA →</button>
           </div>
-
+ 
           <div style="border:1px solid var(--border);border-radius:10px;padding:14px;">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
               <div style="font-weight:600;font-size:13px;">📊 Profit & Loss</div>
@@ -223,7 +223,7 @@
             <textarea id="plInput" rows="2" placeholder='{"Reports":[...]}'></textarea>
             <button class="btn btn-secondary btn-sm" onclick="savePL()" style="margin-top:6px;">Load P&L →</button>
           </div>
-
+ 
           <div style="border:1px solid var(--border);border-radius:10px;padding:14px;">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
               <div style="font-weight:600;font-size:13px;">🏦 Balance Sheet</div>
@@ -233,17 +233,17 @@
             <textarea id="bsInput" rows="2" placeholder='{"Reports":[...]}'></textarea>
             <button class="btn btn-secondary btn-sm" onclick="saveBSOnly()" style="margin-top:6px;">Load Balance Sheet →</button>
           </div>
-
+ 
         </div>
-
+ 
         <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border);">
           <button class="btn btn-primary" onclick="launchFromXero()" style="width:100%;justify-content:center;">Open Dashboard →</button>
           <div style="font-size:11px;color:var(--muted);margin-top:8px;text-align:center;">You can launch with just P&L or Balance Sheet — load whatever you have</div>
         </div>
       </div>
-
+ 
     </div>
-
+ 
     <!-- CSV MODE -->
     <div id="csvMode" style="display:none;">
       <div class="card">
@@ -251,7 +251,7 @@
         <div class="info-box">
           Upload one or more of the files below. Each CSV should have columns: <strong>Account, Category, Amount</strong> (and optionally Code, Type). You can upload just P&L if that is all you have — the tool will work with whatever is provided.
         </div>
-
+ 
         <div style="display:grid;gap:16px;">
           <div style="border:1px solid var(--border);border-radius:10px;padding:16px;">
             <div style="font-weight:600;margin-bottom:4px;">📊 P&L CSV</div>
@@ -272,14 +272,14 @@
             <div id="metricsCSVStatus" style="font-size:12px;color:var(--muted);margin-top:6px;"></div>
           </div>
         </div>
-
+ 
         <div style="margin-top:20px;">
           <button class="btn btn-primary" onclick="launchFromCSV()">Load Dashboard →</button>
         </div>
       </div>
     </div>
   </div>
-
+ 
   <!-- Dashboard -->
   <div id="dashboard">
     <div class="topbar">
@@ -292,7 +292,7 @@
         <button class="btn btn-secondary btn-sm" onclick="resetTool()">← Reload Data</button>
       </div>
     </div>
-
+ 
     <!-- Date bar -->
     <div class="date-bar">
       <label>📅 Period:</label>
@@ -313,7 +313,7 @@
       </div>
       <button class="btn btn-primary btn-sm" onclick="applyDateFilter()" style="margin-left:auto;">Apply →</button>
     </div>
-
+ 
     <!-- Summary cards -->
     <div class="summary-grid">
       <div class="summary-card">
@@ -342,7 +342,7 @@
         <div style="font-size:11px;color:var(--muted);margin-top:3px;">Active accounts</div>
       </div>
     </div>
-
+ 
     <!-- Tabs -->
     <div class="tabs">
       <button class="tab active" onclick="switchTab('pl',this)">Profit &amp; Loss</button>
@@ -352,7 +352,7 @@
       <button class="tab" onclick="switchTab('coa',this)">Chart of Accounts</button>
       <button class="tab" onclick="switchTab('map',this)">COA Mapping</button>
     </div>
-
+ 
     <!-- P&L Tab -->
     <div id="tab-pl" class="table-card">
       <div class="table-header">
@@ -361,7 +361,7 @@
       </div>
       <div id="plContent"></div>
     </div>
-
+ 
     <!-- Balance Sheet Tab -->
     <div id="tab-bs" class="table-card" style="display:none;">
       <div class="table-header">
@@ -370,7 +370,7 @@
       </div>
       <div id="bsContent"></div>
     </div>
-
+ 
     <!-- Cash Flow Tab -->
     <div id="tab-cf" style="display:none;">
       <div class="table-card">
@@ -384,7 +384,7 @@
         <div id="cfContent" style="padding:16px;"></div>
       </div>
     </div>
-
+ 
     <!-- Operating Metrics Tab -->
     <div id="tab-metrics" style="display:none;">
       <div class="table-card">
@@ -395,7 +395,7 @@
         <div id="metricsContent" style="padding:16px;"></div>
       </div>
     </div>
-
+ 
     <!-- COA Tab -->
     <div id="tab-coa" class="table-card" style="display:none;">
       <div class="table-header">
@@ -404,7 +404,7 @@
       </div>
       <div id="coaContent"></div>
     </div>
-
+ 
     <!-- Mapping Tab -->
     <div id="tab-map" class="table-card" style="display:none;">
       <div class="table-header">
@@ -420,17 +420,17 @@
       </div>
       <div id="mapContent"></div>
     </div>
-
+ 
   </div>
 </div>
-
+ 
 <script>
 // ── State ──────────────────────────────────────────────────────────────
 let coaData=[], plReports=[], bsReports=[], mappings={};
 let csvPL=[], csvBS=[], csvMetrics=[];
 let dataMode='xero'; // 'xero' or 'csv'
 let userMetrics=[];
-
+ 
 const STANDARD_COA=[
   'Revenue - Sales','Revenue - Services','Revenue - Other Income',
   'Cost of Goods Sold','Cost of Services',
@@ -445,7 +445,7 @@ const STANDARD_COA=[
   'Share Capital','Retained Earnings','Other Equity','[ Not mapped ]'
 ];
 let standardCOA=[...STANDARD_COA];
-
+ 
 // Default operating metrics template
 const DEFAULT_METRICS=[
   {name:'Net Revenue Retention (NRR)',value:'',unit:'%'},
@@ -461,7 +461,7 @@ const DEFAULT_METRICS=[
   {name:'LTV:CAC Ratio',value:'',unit:'x'},
   {name:'Headcount',value:'',unit:'people'},
 ];
-
+ 
 // ── Mode toggle ────────────────────────────────────────────────────────
 function setMode(mode){
   dataMode=mode;
@@ -470,19 +470,19 @@ function setMode(mode){
   document.getElementById('xeroMode').style.display=mode==='xero'?'block':'none';
   document.getElementById('csvMode').style.display=mode==='csv'?'block':'none';
 }
-
+ 
 // ── Messages ───────────────────────────────────────────────────────────
 function showMsg(msg,type){
   const el=document.getElementById('msgBox');
   el.innerHTML=`<div class="${type}-box" style="margin-bottom:16px;">${msg}</div>`;
   setTimeout(()=>el.innerHTML='',5000);
 }
-
+ 
 // ── Xero OAuth config ─────────────────────────────────────────────────
 const CLIENT_ID='E9DDC73E89724124ABD6A162A93B0E91';
 const REDIRECT_URI='https://mira-thrugrace.github.io/coa-mapper/';
-const SCOPES='openid profile email accounting.reports.read accounting.settings.read offline_access';
-
+const SCOPES='openid profile email accounting.settings accounting.reports.read offline_access';
+ 
 // ── Xero flow ──────────────────────────────────────────────────────────
 function startXeroLogin(){
   const state=Math.random().toString(36).substring(2,15);
@@ -498,17 +498,17 @@ function startXeroLogin(){
   // Open Xero login
   window.location.href=authUrl;
 }
-
+ 
 function processManualUrl(){
   const url=document.getElementById('manualUrlInput').value.trim();
   if(!url){showMsg('Please paste the redirect URL first.','error');return;}
   extractCodeFromUrl(url);
 }
-
+ 
 function cancelLogin(){
   document.getElementById('manualUrlBox').style.display='none';
 }
-
+ 
 function extractCodeFromUrl(url){
   try{
     const u=new URL(url);
@@ -522,7 +522,7 @@ function extractCodeFromUrl(url){
     showMsg('Could not read the URL. Please make sure you copied the full address bar URL.','error');
   }
 }
-
+ 
 function showConnectedState(){
   document.getElementById('xeroConnectCard').style.display='none';
   document.getElementById('xeroDataCard').style.display='block';
@@ -530,7 +530,7 @@ function showConnectedState(){
   document.getElementById('statusText').textContent='Connected';
   showMsg('✓ Connected to Xero! Now paste your data from the API Explorer.','success');
 }
-
+ 
 function disconnectXero(){
   sessionStorage.removeItem('xero_code');
   sessionStorage.removeItem('xero_state');
@@ -540,12 +540,12 @@ function disconnectXero(){
   document.getElementById('statusDot').classList.remove('on');
   document.getElementById('statusText').textContent='Not loaded';
 }
-
+ 
 function parseJSON(text,label){
   try{return JSON.parse(text.trim());}
   catch(e){showMsg('Could not read '+label+' data. Make sure you copied the full JSON response.','error');return null;}
 }
-
+ 
 function saveCOA(){
   const text=document.getElementById('coaInput').value.trim();
   if(!text){showMsg('Please paste the COA JSON first.','error');return;}
@@ -556,7 +556,7 @@ function saveCOA(){
   document.getElementById('coaStatus').style.color='var(--accent)';
   showMsg('✓ COA loaded — '+coaData.length+' accounts.','success');
 }
-
+ 
 function savePL(){
   const text=document.getElementById('plInput').value.trim();
   if(!text){showMsg('Please paste the P&L JSON first.','error');return;}
@@ -567,7 +567,7 @@ function savePL(){
   document.getElementById('plStatus').style.color='var(--accent)';
   showMsg('✓ P&L loaded.','success');
 }
-
+ 
 function saveBSOnly(){
   const text=document.getElementById('bsInput').value.trim();
   if(!text){showMsg('Please paste the Balance Sheet JSON first.','error');return;}
@@ -578,9 +578,9 @@ function saveBSOnly(){
   document.getElementById('bsStatus').style.color='var(--accent)';
   showMsg('✓ Balance Sheet loaded.','success');
 }
-
+ 
 function saveBSAndLaunch(){saveBSOnly();}
-
+ 
 function launchFromXero(){
   if(!plReports.length&&!bsReports.length){
     showMsg('Please load at least P&L or Balance Sheet data first.','error');return;
@@ -588,7 +588,7 @@ function launchFromXero(){
   dataMode='xero';
   launchDashboard('HR Easily Pte. Ltd.','Data loaded from Xero API');
 }
-
+ 
 // Check if we are being redirected back from Xero on page load
 function checkXeroCallback(){
   const params=new URLSearchParams(window.location.search);
@@ -601,7 +601,7 @@ function checkXeroCallback(){
     showConnectedState();
   }
 }
-
+ 
 // ── CSV flow ───────────────────────────────────────────────────────────
 function loadCSVFile(input,type){
   const file=input.files[0];if(!file)return;
@@ -615,14 +615,14 @@ function loadCSVFile(input,type){
       headers.forEach((h,i)=>obj[h]=(cols[i]||'').trim().replace(/"/g,''));
       return obj;
     }).filter(r=>Object.values(r).some(v=>v));
-
+ 
     if(type==='pl'){csvPL=rows;document.getElementById('plCSVStatus').textContent='✓ Loaded '+rows.length+' rows';}
     else if(type==='bs'){csvBS=rows;document.getElementById('bsCSVStatus').textContent='✓ Loaded '+rows.length+' rows';}
     else if(type==='metrics'){csvMetrics=rows;document.getElementById('metricsCSVStatus').textContent='✓ Loaded '+rows.length+' rows';}
   };
   reader.readAsText(file);
 }
-
+ 
 function splitCSVLine(line){
   const result=[];let cur='';let inQuotes=false;
   for(let i=0;i<line.length;i++){
@@ -632,25 +632,25 @@ function splitCSVLine(line){
   }
   result.push(cur);return result;
 }
-
+ 
 function launchFromCSV(){
   if(!csvPL.length&&!csvBS.length){showMsg('Please upload at least one CSV file (P&L or Balance Sheet).','error');return;}
   dataMode='csv';
-
+ 
   // Convert CSV to display format
   if(csvPL.length) plReports=[{Rows:csvToRows(csvPL,'pl')}];
   if(csvBS.length) bsReports=[{Rows:csvToRows(csvBS,'bs')}];
   if(csvMetrics.length) userMetrics=csvMetrics;
-
+ 
   launchDashboard('Financial Reports','Data loaded from CSV upload');
 }
-
+ 
 function csvToRows(rows,type){
   // Group by category if available
   const catKey=Object.keys(rows[0]).find(k=>k.includes('category')||k.includes('section')||k.includes('type'));
   const nameKey=Object.keys(rows[0]).find(k=>k.includes('account')||k.includes('name')||k.includes('description'))||Object.keys(rows[0])[0];
   const amtKey=Object.keys(rows[0]).find(k=>k.includes('amount')||k.includes('value')||k.includes('total'))||Object.keys(rows[0])[1];
-
+ 
   if(catKey){
     const groups={};
     rows.forEach(r=>{const cat=r[catKey]||'Other';if(!groups[cat])groups[cat]=[];groups[cat].push(r);});
@@ -664,7 +664,7 @@ function csvToRows(rows,type){
       Rows:rows.map(r=>({RowType:'Row',Cells:[{Value:r[nameKey]||''},{Value:r[amtKey]||'0'}]}))}];
   }
 }
-
+ 
 // ── Dashboard launch ───────────────────────────────────────────────────
 function launchDashboard(title,sub){
   document.getElementById('statusDot').classList.add('on');
@@ -679,13 +679,13 @@ function launchDashboard(title,sub){
   document.getElementById('dateBS').value=today.toISOString().split('T')[0];
   renderAll();
 }
-
+ 
 // ── Render all ─────────────────────────────────────────────────────────
 function renderAll(){
   renderPL();renderBS();renderCashFlow();renderMetrics();
   if(coaData.length){renderCOA();renderMapping();}
 }
-
+ 
 // ── Type badge ─────────────────────────────────────────────────────────
 function getTypeBadge(type){
   const map={
@@ -706,7 +706,7 @@ function getTypeBadge(type){
   };
   return map[type]||`<span class="badge" style="background:var(--border);color:var(--muted)">${type||'—'}</span>`;
 }
-
+ 
 // ── Render COA ─────────────────────────────────────────────────────────
 function renderCOA(){
   const active=coaData.filter(a=>a.Status==='ACTIVE');
@@ -724,7 +724,7 @@ function renderCOA(){
   html+='</tbody></table>';
   document.getElementById('coaContent').innerHTML=html;
 }
-
+ 
 // ── Render report (P&L / BS) ───────────────────────────────────────────
 function renderReport(reports,contentId,metaId,metaText,isPL){
   document.getElementById(metaId).textContent=metaText;
@@ -764,22 +764,22 @@ function renderReport(reports,contentId,metaId,metaText,isPL){
     el.className='summary-value '+(net>=0?'green':'red');
   }
 }
-
+ 
 function renderPL(){
   const from=document.getElementById('dateFrom')?.value||(new Date().getFullYear()+'-01-01');
   const to=document.getElementById('dateTo')?.value||new Date().toISOString().split('T')[0];
   renderReport(plReports,'plContent','plMeta','Period: '+from+' to '+to,true);
 }
-
+ 
 function renderBS(){
   const asAt=document.getElementById('dateBS')?.value||new Date().toISOString().split('T')[0];
   renderReport(bsReports,'bsContent','bsMeta','As at: '+asAt,false);
 }
-
+ 
 // ── Indirect Cash Flow ─────────────────────────────────────────────────
 function renderCashFlow(){
   const cfEl=document.getElementById('cfContent');
-
+ 
   // Extract P&L figures
   let netProfit=0,depreciation=0;
   if(plReports.length&&plReports[0].Rows){
@@ -799,7 +799,7 @@ function renderCashFlow(){
       });
     });
   }
-
+ 
   // Extract BS changes
   let changeAR=0,changeInventory=0,changePrepayments=0,changeAP=0,changeAccruals=0;
   if(bsReports.length&&bsReports[0].Rows){
@@ -818,18 +818,18 @@ function renderCashFlow(){
       });
     });
   }
-
+ 
   const operatingCF=netProfit+depreciation-changeAR-changeInventory-changePrepayments+changeAP+changeAccruals;
   document.getElementById('sumCF').textContent=fmtMoney(operatingCF);
   document.getElementById('sumCF').className='summary-value '+(operatingCF>=0?'blue':'red');
-
+ 
   let html=`
     <div style="margin-bottom:20px;">
       <div class="info-box" style="margin-bottom:0;">
         <strong>How this is calculated:</strong> The indirect method starts with Net Profit, then adds back non-cash items (depreciation), and adjusts for changes in working capital (receivables, payables, inventory). This is the standard format used for investor reporting.
       </div>
     </div>
-
+ 
     <div class="cf-section">
       <div class="cf-header"><span>A. Operating Activities</span><span style="font-family:var(--mono);font-size:12px;">SGD</span></div>
       <div class="cf-row"><span>Net Profit / (Loss)</span><span class="amount ${netProfit>=0?'pos':'neg'}">${fmtMoney(netProfit)}</span></div>
@@ -843,14 +843,14 @@ function renderCashFlow(){
       <div class="cf-row indent"><span>Increase / (Decrease) in Accrued Liabilities</span><span class="amount ${changeAccruals>=0?'pos':'neg'}">${fmtMoney(changeAccruals)}</span></div>
       <div class="cf-row total"><span>Net Cash from Operating Activities</span><span class="amount ${operatingCF>=0?'pos':'neg'}">${fmtMoney(operatingCF)}</span></div>
     </div>
-
+ 
     <div class="cf-section">
       <div class="cf-header"><span>B. Investing Activities</span><span style="font-family:var(--mono);font-size:12px;">SGD</span></div>
       <div class="cf-row indent" style="color:var(--muted);font-style:italic;"><span>Purchase of property, plant &amp; equipment</span><span>—</span></div>
       <div class="cf-row indent" style="color:var(--muted);font-style:italic;"><span>Proceeds from disposal of assets</span><span>—</span></div>
       <div class="cf-row total"><span>Net Cash from Investing Activities</span><span class="amount">0.00</span></div>
     </div>
-
+ 
     <div class="cf-section">
       <div class="cf-header"><span>C. Financing Activities</span><span style="font-family:var(--mono);font-size:12px;">SGD</span></div>
       <div class="cf-row indent" style="color:var(--muted);font-style:italic;"><span>Proceeds from loans / borrowings</span><span>—</span></div>
@@ -858,26 +858,26 @@ function renderCashFlow(){
       <div class="cf-row indent" style="color:var(--muted);font-style:italic;"><span>Capital contributions</span><span>—</span></div>
       <div class="cf-row total"><span>Net Cash from Financing Activities</span><span class="amount">0.00</span></div>
     </div>
-
+ 
     <div class="cf-section">
       <div class="cf-row total" style="font-size:14px;"><span>NET CHANGE IN CASH</span><span class="amount ${operatingCF>=0?'pos':'neg'}" style="font-size:14px;">${fmtMoney(operatingCF)}</span></div>
     </div>
-
+ 
     <div class="warn-box" style="margin-top:16px;">
       ⚠️ <strong>Note:</strong> Investing and Financing activities require manual input as Xero does not provide these separately. The operating activities are calculated automatically from your P&L and Balance Sheet data.
     </div>`;
-
+ 
   cfEl.innerHTML=html;
 }
-
+ 
 // ── Operating Metrics ──────────────────────────────────────────────────
 function renderMetrics(){
   const el=document.getElementById('metricsContent');
   const metrics=userMetrics.length?userMetrics:DEFAULT_METRICS;
-
+ 
   let html=`<div style="margin-bottom:14px;font-size:12px;color:var(--muted);">Enter your operating metrics below. These will be included in the CSV export for investor reporting.</div>`;
   html+=`<table><thead><tr><th>Metric</th><th>Value</th><th>Unit</th></tr></thead><tbody>`;
-
+ 
   metrics.forEach((m,i)=>{
     const name=m.name||m.metric||m.Metric||Object.values(m)[0]||'';
     const val=m.value||m.Value||m.amount||Object.values(m)[1]||'';
@@ -888,18 +888,18 @@ function renderMetrics(){
       <td><span style="font-size:12px;color:var(--muted);">${unit}</span></td>
     </tr>`;
   });
-
+ 
   html+=`</tbody></table>`;
   el.innerHTML=html;
-
+ 
   // Store reference to metrics for export
   if(!userMetrics.length) userMetrics=[...DEFAULT_METRICS];
 }
-
+ 
 function saveMetric(idx,val){
   if(userMetrics[idx]) userMetrics[idx].value=val;
 }
-
+ 
 // ── Mapping ────────────────────────────────────────────────────────────
 function renderMapping(){
   const active=coaData.filter(a=>a.Status==='ACTIVE');
@@ -933,7 +933,7 @@ function renderMapping(){
   html+='</tbody></table>';
   document.getElementById('mapContent').innerHTML=html;
 }
-
+ 
 function updateMapping(selectEl){
   const key=selectEl.getAttribute('data-account-id');
   mappings[key]=selectEl.value;
@@ -944,7 +944,7 @@ function updateMapping(selectEl){
     ?`<span class="badge badge-mapped">Mapped</span>`
     :`<span class="badge badge-unmapped">Unmapped</span>`;
 }
-
+ 
 function loadStandardCOA(input){
   const file=input.files[0];if(!file)return;
   const reader=new FileReader();
@@ -962,7 +962,7 @@ function loadStandardCOA(input){
   };
   reader.readAsText(file);
 }
-
+ 
 // ── Date presets ───────────────────────────────────────────────────────
 function applyDateFilter(){
   const from=document.getElementById('dateFrom').value;
@@ -971,7 +971,7 @@ function applyDateFilter(){
   if(from>to){alert('From date cannot be after To date.');return;}
   renderPL();renderBS();renderCashFlow();
 }
-
+ 
 function setPreset(preset,e){
   const today=new Date(),y=today.getFullYear();
   let from,to,bs=today.toISOString().split('T')[0];
@@ -990,14 +990,14 @@ function setPreset(preset,e){
   e.target.classList.add('active');
   renderPL();renderBS();renderCashFlow();
 }
-
+ 
 // ── Format money ───────────────────────────────────────────────────────
 function fmtMoney(val){
   const n=parseFloat(val);
   if(isNaN(n))return val||'—';
   return n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
 }
-
+ 
 // ── Tab switching ──────────────────────────────────────────────────────
 function switchTab(name,btn){
   ['pl','bs','cf','metrics','coa','map'].forEach(t=>document.getElementById('tab-'+t).style.display='none');
@@ -1005,12 +1005,12 @@ function switchTab(name,btn){
   document.getElementById('tab-'+name).style.display='block';
   btn.classList.add('active');
 }
-
+ 
 // ── CSV Exports ────────────────────────────────────────────────────────
 function exportSingleCSV(type){
   const date=new Date().toISOString().split('T')[0];
   let csv='',filename='';
-
+ 
   if(type==='pl'){
     csv='Description,Amount\n';
     if(plReports.length&&plReports[0].Rows){
@@ -1072,10 +1072,10 @@ function exportSingleCSV(type){
     filename=`coa_mapping_${date}.csv`;
     showMsg('✓ Mapping exported — '+mappedCount+' of '+active.length+' accounts mapped.','success');
   }
-
+ 
   if(csv) dlCSV(csv,filename);
 }
-
+ 
 function exportAllCSV(){
   // Export all 4 key reports as separate downloads
   exportSingleCSV('pl');
@@ -1084,13 +1084,13 @@ function exportAllCSV(){
   setTimeout(()=>exportSingleCSV('metrics'),900);
   showMsg('✓ Exporting P&L, Balance Sheet, Cash Flow, and Operating Metrics as separate CSV files.','success');
 }
-
+ 
 function dlCSV(csv,filename){
   const a=document.createElement('a');
   a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
   a.download=filename;a.click();
 }
-
+ 
 // ── Reset ──────────────────────────────────────────────────────────────
 function resetTool(){
   document.getElementById('dashboard').style.display='none';
@@ -1098,7 +1098,7 @@ function resetTool(){
   document.getElementById('statusDot').classList.remove('on');
   document.getElementById('statusText').textContent='Not loaded';
 }
-
+ 
 // Check for Xero OAuth callback on page load
 window.addEventListener('load', checkXeroCallback);
 </script>
