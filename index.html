@@ -160,39 +160,88 @@
 
     <!-- XERO MODE -->
     <div id="xeroMode">
-      <div class="card">
-        <div style="font-size:15px;font-weight:600;margin-bottom:4px;">Step 1 — Access Token</div>
-        <div style="font-size:12px;color:var(--muted);margin-bottom:14px;">From Xero API Explorer → F12 → Network → tokens → Response → copy accessToken value</div>
-        <textarea id="tokenInput" rows="3" placeholder="eyJhbGciOiJSUzI1NiIs..."></textarea>
-        <div style="margin-top:10px;"><button class="btn btn-primary" onclick="saveToken()">Save & Continue →</button></div>
+
+      <!-- Connect card -->
+      <div class="card" id="xeroConnectCard">
+        <div style="text-align:center;padding:20px 0 10px;">
+          <div style="font-size:48px;margin-bottom:16px;">🔗</div>
+          <div style="font-size:18px;font-weight:600;margin-bottom:8px;letter-spacing:-0.3px;">Connect to Xero</div>
+          <div style="font-size:13px;color:var(--muted);margin-bottom:24px;max-width:380px;margin-left:auto;margin-right:auto;line-height:1.7;">
+            Click below to log in with your Xero account. You will be redirected to Xero and brought back here automatically.
+          </div>
+          <button class="btn btn-primary" onclick="startXeroLogin()" style="font-size:14px;padding:13px 32px;">
+            Connect to Xero →
+          </button>
+          <div style="margin-top:12px;font-size:11px;color:var(--muted);">Read-only access · No data will be modified</div>
+        </div>
+
+        <!-- Manual URL fallback -->
+        <div id="manualUrlBox" style="display:none;margin-top:20px;padding-top:20px;border-top:1px solid var(--border);">
+          <div class="warn-box">
+            <strong>⏳ After logging in to Xero</strong> — you will land on a blank page. Copy the full URL from your browser address bar and paste it below.
+          </div>
+          <label style="font-size:12px;font-weight:600;display:block;margin-bottom:6px;">Paste the full redirect URL:</label>
+          <div style="font-size:11px;color:var(--muted);margin-bottom:8px;">Looks like: <code>https://mira-thrugrace.github.io/coa-mapper/?code=XXXX&state=...</code></div>
+          <input type="text" id="manualUrlInput" placeholder="https://mira-thrugrace.github.io/coa-mapper/?code=...">
+          <div style="margin-top:8px;display:flex;gap:8px;">
+            <button class="btn btn-primary btn-sm" onclick="processManualUrl()">Connect →</button>
+            <button class="btn btn-secondary btn-sm" onclick="cancelLogin()">Cancel</button>
+          </div>
+        </div>
       </div>
 
-      <div class="card" id="step2card" style="opacity:0.4;pointer-events:none;">
-        <div style="font-size:15px;font-weight:600;margin-bottom:4px;">Step 2 — Chart of Accounts JSON</div>
-        <div class="info-box">
-          Xero API Explorer → Endpoint: <strong>Accounts</strong> → Operation: <strong>Get Accounts</strong> → Make request → copy full Response
+      <!-- Data loading card (shown after successful connect) -->
+      <div class="card" id="xeroDataCard" style="display:none;">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;">
+          <div style="width:32px;height:32px;border-radius:50%;background:var(--accent);color:white;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;">✓</div>
+          <div>
+            <div style="font-size:15px;font-weight:600;">Connected to Xero</div>
+            <div style="font-size:12px;color:var(--muted);">HR Easily Pte. Ltd.</div>
+          </div>
+          <button class="btn btn-secondary btn-sm" onclick="disconnectXero()" style="margin-left:auto;">Disconnect</button>
         </div>
-        <textarea id="coaInput" rows="5" placeholder='{"Accounts":[...]}'></textarea>
-        <div style="margin-top:10px;"><button class="btn btn-primary" onclick="saveCOA()">Save COA →</button></div>
+
+        <div style="font-size:13px;font-weight:600;margin-bottom:14px;">Load your financial data:</div>
+        <div style="display:grid;gap:12px;">
+
+          <div style="border:1px solid var(--border);border-radius:10px;padding:14px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+              <div style="font-weight:600;font-size:13px;">📋 Chart of Accounts</div>
+              <span id="coaStatus" style="font-size:11px;font-family:var(--mono);color:var(--muted);">Not loaded</span>
+            </div>
+            <div style="font-size:11px;color:var(--muted);margin-bottom:8px;">API Explorer → Accounts → Get Accounts → Make request → copy Response</div>
+            <textarea id="coaInput" rows="2" placeholder='{"Accounts":[...]}'></textarea>
+            <button class="btn btn-secondary btn-sm" onclick="saveCOA()" style="margin-top:6px;">Load COA →</button>
+          </div>
+
+          <div style="border:1px solid var(--border);border-radius:10px;padding:14px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+              <div style="font-weight:600;font-size:13px;">📊 Profit & Loss</div>
+              <span id="plStatus" style="font-size:11px;font-family:var(--mono);color:var(--muted);">Not loaded</span>
+            </div>
+            <div style="font-size:11px;color:var(--muted);margin-bottom:8px;">API Explorer → Reports → Get Report Profit And Loss → optionally add <code>fromDate</code>/<code>toDate</code> → Make request → copy Response</div>
+            <textarea id="plInput" rows="2" placeholder='{"Reports":[...]}'></textarea>
+            <button class="btn btn-secondary btn-sm" onclick="savePL()" style="margin-top:6px;">Load P&L →</button>
+          </div>
+
+          <div style="border:1px solid var(--border);border-radius:10px;padding:14px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+              <div style="font-weight:600;font-size:13px;">🏦 Balance Sheet</div>
+              <span id="bsStatus" style="font-size:11px;font-family:var(--mono);color:var(--muted);">Not loaded</span>
+            </div>
+            <div style="font-size:11px;color:var(--muted);margin-bottom:8px;">API Explorer → Reports → Get Report Balance Sheet → Make request → copy Response</div>
+            <textarea id="bsInput" rows="2" placeholder='{"Reports":[...]}'></textarea>
+            <button class="btn btn-secondary btn-sm" onclick="saveBSOnly()" style="margin-top:6px;">Load Balance Sheet →</button>
+          </div>
+
+        </div>
+
+        <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border);">
+          <button class="btn btn-primary" onclick="launchFromXero()" style="width:100%;justify-content:center;">Open Dashboard →</button>
+          <div style="font-size:11px;color:var(--muted);margin-top:8px;text-align:center;">You can launch with just P&L or Balance Sheet — load whatever you have</div>
+        </div>
       </div>
 
-      <div class="card" id="step3card" style="opacity:0.4;pointer-events:none;">
-        <div style="font-size:15px;font-weight:600;margin-bottom:4px;">Step 3 — Profit & Loss JSON</div>
-        <div class="info-box">
-          Xero API Explorer → Endpoint: <strong>Reports</strong> → Operation: <strong>Get Report Profit And Loss</strong> → optionally add <code>fromDate</code> / <code>toDate</code> query params → Make request → copy full Response
-        </div>
-        <textarea id="plInput" rows="5" placeholder='{"Reports":[...]}'></textarea>
-        <div style="margin-top:10px;"><button class="btn btn-primary" onclick="savePL()">Save P&L →</button></div>
-      </div>
-
-      <div class="card" id="step4card" style="opacity:0.4;pointer-events:none;">
-        <div style="font-size:15px;font-weight:600;margin-bottom:4px;">Step 4 — Balance Sheet JSON</div>
-        <div class="info-box">
-          Xero API Explorer → Endpoint: <strong>Reports</strong> → Operation: <strong>Get Report Balance Sheet</strong> → Make request → copy full Response
-        </div>
-        <textarea id="bsInput" rows="5" placeholder='{"Reports":[...]}'></textarea>
-        <div style="margin-top:10px;"><button class="btn btn-primary" onclick="saveBSAndLaunch()">Load Dashboard →</button></div>
-      </div>
     </div>
 
     <!-- CSV MODE -->
@@ -429,20 +478,67 @@ function showMsg(msg,type){
   setTimeout(()=>el.innerHTML='',5000);
 }
 
+// ── Xero OAuth config ─────────────────────────────────────────────────
+const CLIENT_ID='E9DDC73E89724124ABD6A162A93B0E91';
+const REDIRECT_URI='https://mira-thrugrace.github.io/coa-mapper/';
+const SCOPES='openid profile email accounting.reports.read accounting.settings.read offline_access';
+
 // ── Xero flow ──────────────────────────────────────────────────────────
-function saveToken(){
-  const t=document.getElementById('tokenInput').value.trim();
-  if(!t||!t.startsWith('ey')){showMsg('Please paste a valid token starting with "eyJ..."','error');return;}
-  unlock('step2card');
-  document.getElementById('statusDot').classList.add('on');
-  document.getElementById('statusText').textContent='Token saved';
-  showMsg('✓ Token saved. Now paste your COA data in Step 2.','success');
-  document.getElementById('step2card').scrollIntoView({behavior:'smooth'});
+function startXeroLogin(){
+  const state=Math.random().toString(36).substring(2,15);
+  sessionStorage.setItem('xero_state',state);
+  const authUrl='https://login.xero.com/identity/connect/authorize'
+    +'?response_type=code'
+    +'&client_id='+CLIENT_ID
+    +'&redirect_uri='+encodeURIComponent(REDIRECT_URI)
+    +'&scope='+encodeURIComponent(SCOPES)
+    +'&state='+state;
+  // Show manual URL box in case auto-redirect doesn't work
+  document.getElementById('manualUrlBox').style.display='block';
+  // Open Xero login
+  window.location.href=authUrl;
 }
 
-function unlock(id){
-  const el=document.getElementById(id);
-  el.style.opacity='1';el.style.pointerEvents='auto';
+function processManualUrl(){
+  const url=document.getElementById('manualUrlInput').value.trim();
+  if(!url){showMsg('Please paste the redirect URL first.','error');return;}
+  extractCodeFromUrl(url);
+}
+
+function cancelLogin(){
+  document.getElementById('manualUrlBox').style.display='none';
+}
+
+function extractCodeFromUrl(url){
+  try{
+    const u=new URL(url);
+    const code=u.searchParams.get('code');
+    const state=u.searchParams.get('state');
+    if(!code){showMsg('No code found in the URL. Make sure you copied the full URL from the address bar.','error');return;}
+    // Store code and show connected state
+    sessionStorage.setItem('xero_code',code);
+    showConnectedState();
+  }catch(e){
+    showMsg('Could not read the URL. Please make sure you copied the full address bar URL.','error');
+  }
+}
+
+function showConnectedState(){
+  document.getElementById('xeroConnectCard').style.display='none';
+  document.getElementById('xeroDataCard').style.display='block';
+  document.getElementById('statusDot').classList.add('on');
+  document.getElementById('statusText').textContent='Connected';
+  showMsg('✓ Connected to Xero! Now paste your data from the API Explorer.','success');
+}
+
+function disconnectXero(){
+  sessionStorage.removeItem('xero_code');
+  sessionStorage.removeItem('xero_state');
+  document.getElementById('xeroConnectCard').style.display='block';
+  document.getElementById('xeroDataCard').style.display='none';
+  document.getElementById('manualUrlBox').style.display='none';
+  document.getElementById('statusDot').classList.remove('on');
+  document.getElementById('statusText').textContent='Not loaded';
 }
 
 function parseJSON(text,label){
@@ -456,9 +552,9 @@ function saveCOA(){
   const data=parseJSON(text,'Chart of Accounts');if(!data)return;
   coaData=data.Accounts||data.accounts||[];
   if(!coaData.length){showMsg('No accounts found. Make sure you copied the full response.','error');return;}
-  unlock('step3card');
-  showMsg('✓ COA loaded — '+coaData.length+' accounts. Now paste P&L in Step 3.','success');
-  document.getElementById('step3card').scrollIntoView({behavior:'smooth'});
+  document.getElementById('coaStatus').textContent='✓ '+coaData.length+' accounts';
+  document.getElementById('coaStatus').style.color='var(--accent)';
+  showMsg('✓ COA loaded — '+coaData.length+' accounts.','success');
 }
 
 function savePL(){
@@ -467,19 +563,43 @@ function savePL(){
   const data=parseJSON(text,'Profit & Loss');if(!data)return;
   plReports=data.Reports||data.reports||[];
   if(!plReports.length){showMsg('No P&L data found.','error');return;}
-  unlock('step4card');
-  showMsg('✓ P&L loaded. Now paste Balance Sheet in Step 4.','success');
-  document.getElementById('step4card').scrollIntoView({behavior:'smooth'});
+  document.getElementById('plStatus').textContent='✓ Loaded';
+  document.getElementById('plStatus').style.color='var(--accent)';
+  showMsg('✓ P&L loaded.','success');
 }
 
-function saveBSAndLaunch(){
+function saveBSOnly(){
   const text=document.getElementById('bsInput').value.trim();
   if(!text){showMsg('Please paste the Balance Sheet JSON first.','error');return;}
   const data=parseJSON(text,'Balance Sheet');if(!data)return;
   bsReports=data.Reports||data.reports||[];
   if(!bsReports.length){showMsg('No Balance Sheet data found.','error');return;}
+  document.getElementById('bsStatus').textContent='✓ Loaded';
+  document.getElementById('bsStatus').style.color='var(--accent)';
+  showMsg('✓ Balance Sheet loaded.','success');
+}
+
+function saveBSAndLaunch(){saveBSOnly();}
+
+function launchFromXero(){
+  if(!plReports.length&&!bsReports.length){
+    showMsg('Please load at least P&L or Balance Sheet data first.','error');return;
+  }
   dataMode='xero';
   launchDashboard('HR Easily Pte. Ltd.','Data loaded from Xero API');
+}
+
+// Check if we are being redirected back from Xero on page load
+function checkXeroCallback(){
+  const params=new URLSearchParams(window.location.search);
+  const code=params.get('code');
+  const state=params.get('state');
+  if(code){
+    // Clean URL without reloading
+    window.history.replaceState({},'',window.location.pathname);
+    sessionStorage.setItem('xero_code',code);
+    showConnectedState();
+  }
 }
 
 // ── CSV flow ───────────────────────────────────────────────────────────
@@ -978,6 +1098,9 @@ function resetTool(){
   document.getElementById('statusDot').classList.remove('on');
   document.getElementById('statusText').textContent='Not loaded';
 }
+
+// Check for Xero OAuth callback on page load
+window.addEventListener('load', checkXeroCallback);
 </script>
 </body>
 </html>
