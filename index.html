@@ -1156,12 +1156,9 @@ function downloadCOATemplate(){
   const accounts=getAccountsList();
   let csv='Account Name,Account Code,Account Type,Standard COA Category\n';
   if(accounts.length){
-    accounts.forEach(a=>csv+=`"${a.name}","${a.code||''}","${a.type||''}","${mappings[a.id]||''}"
-`);
+    accounts.forEach(a=>{csv+='"'+a.name+'","'+(a.code||'')+'","'+(a.type||'')+'","'+(mappings[a.id]||'')+'"\n';});
   } else {
-    csv+='"Example Account","1001","REVENUE",""
-"Example Expense","5001","EXPENSE",""
-';
+    csv+='"Example Account","1001","REVENUE",""\n"Example Expense","5001","EXPENSE",""\n';
   }
   dlCSV(csv,'coa_mapping_template.csv');
 }
