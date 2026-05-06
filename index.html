@@ -428,12 +428,26 @@
 
     <!-- Operating Metrics Tab -->
     <div id="tab-metrics" style="display:none;">
+      <div style="margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+        <div>
+          <div style="font-size:15px;font-weight:600;">Operating Metrics Dashboard</div>
+          <div style="font-size:12px;color:var(--muted);">Auto-calculated from restated P&L and Balance Sheet where available. Enter manual values for the rest.</div>
+        </div>
+        <button class="btn btn-secondary btn-sm" onclick="exportSingleCSV('metrics')">Export CSV</button>
+      </div>
+
+      <!-- Auto-calculated metrics grid -->
+      <div id="metricsAutoGrid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-bottom:24px;"></div>
+
+      <!-- Charts row -->
+      <div id="metricsCharts" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px;margin-bottom:24px;"></div>
+
+      <!-- Manual metrics -->
       <div class="table-card">
         <div class="table-header">
-          <div><h3>Operating Metrics</h3><div class="table-meta">Key business metrics for investor reporting</div></div>
-          <button class="btn btn-secondary btn-sm" onclick="exportSingleCSV('metrics')">Export CSV</button>
+          <div><h3>Manual Metrics</h3><div class="table-meta">Enter values not available from financial statements</div></div>
         </div>
-        <div id="metricsContent" style="padding:16px;"></div>
+        <div id="metricsManualContent" style="padding:16px;"></div>
       </div>
     </div>
 
@@ -487,20 +501,18 @@ const STANDARD_COA=[
 ];
 let standardCOA=[...STANDARD_COA];
 
-// Default operating metrics template
+// Manual metrics (not derivable from financials)
 const DEFAULT_METRICS=[
   {name:'Net Revenue Retention (NRR)',value:'',unit:'%'},
   {name:'Gross Revenue Retention (GRR)',value:'',unit:'%'},
   {name:'Monthly Recurring Revenue (MRR)',value:'',unit:'SGD'},
   {name:'Annual Recurring Revenue (ARR)',value:'',unit:'SGD'},
   {name:'Customer Churn Rate',value:'',unit:'%'},
-  {name:'Gross Margin',value:'',unit:'%'},
-  {name:'Burn Rate (Monthly)',value:'',unit:'SGD'},
-  {name:'Runway (Months)',value:'',unit:'months'},
   {name:'Customer Acquisition Cost (CAC)',value:'',unit:'SGD'},
   {name:'Lifetime Value (LTV)',value:'',unit:'SGD'},
   {name:'LTV:CAC Ratio',value:'',unit:'x'},
   {name:'Headcount',value:'',unit:'people'},
+  {name:'Paying Customers',value:'',unit:''},
 ];
 
 // ── Mode toggle ────────────────────────────────────────────────────────
@@ -989,29 +1001,225 @@ function renderCashFlow(){
 }
 
 // ── Operating Metrics ──────────────────────────────────────────────────
+function getRestatedPLData(){
+  // Extract grouped totals from restated P&L
+  const result={revenue:0,cogs:0,grossProfit:0,opex:0,netProfit:0,payroll:0,categories:{}};
+  if(!Object.keys(mappings).length) return result;
+  const lineItems=[];
+  if(plReports.length&&plReports[0].Rows){
+    plReports[0].Rows.forEach(section=>{
+      if(!section.Rows)return;
+      section.Rows.forEach(row=>{
+        if(row.RowType==='Row'&&row.Cells){
+          const name=row.Cells[0]?.Value||'';
+          const amt=parseFloat(row.Cells[1]?.Value)||0;
+          if(name&&amt!==0) lineItems.push({name,amt,section:section.Title||''});
+        }
+        if(row.RowType==='SummaryRow'&&row.Cells){
+          const name=(row.Cells[0]?.Value||'').toLowerCase();
+          const amt=parseFloat(row.Cells[1]?.Value)||0;
+          if(/net profit|net loss|profit for|net income/.test(name)) result.netProfit=amt;
+        }
+      });
+    });
+  }
+  lineItems.forEach(item=>{
+    const account=coaData.find(a=>a.Name===item.name);
+    const cat=account?mappings[account.AccountID]:'';
+    if(!cat||cat==='[ Not mapped ]') return;
+    result.categories[cat]=(result.categories[cat]||0)+item.amt;
+    if(/revenue|income|sales|services/i.test(cat)) result.revenue+=item.amt;
+    else if(/cost of goods|cost of services/i.test(cat)) result.cogs+=Math.abs(item.amt);
+    else if(/payroll|salaries/i.test(cat)) result.payroll+=Math.abs(item.amt);
+    else result.opex+=Math.abs(item.amt);
+  });
+  result.grossProfit=result.revenue-result.cogs;
+  return result;
+}
+
+function getRestatedBSData(){
+  const result={cash:0,receivables:0,totalAssets:0,totalLiab:0,equity:0,categories:{}};
+  if(!Object.keys(mappings).length) return result;
+  const lineItems=[];
+  if(bsReports.length&&bsReports[0].Rows){
+    bsReports[0].Rows.forEach(section=>{
+      if(!section.Rows)return;
+      section.Rows.forEach(row=>{
+        if(row.RowType==='Row'&&row.Cells){
+          const name=row.Cells[0]?.Value||'';
+          const amt=parseFloat(row.Cells[1]?.Value)||0;
+          if(name) lineItems.push({name,amt});
+        }
+      });
+    });
+  }
+  lineItems.forEach(item=>{
+    const account=coaData.find(a=>a.Name===item.name);
+    const cat=account?mappings[account.AccountID]:'';
+    if(!cat||cat==='[ Not mapped ]') return;
+    result.categories[cat]=(result.categories[cat]||0)+item.amt;
+    if(/cash|bank/i.test(cat)) result.cash+=item.amt;
+    if(/receivable/i.test(cat)) result.receivables+=item.amt;
+    if(/asset/i.test(cat)||/cash/i.test(cat)||/receivable/i.test(cat)||/inventory/i.test(cat)||/prepay/i.test(cat)||/property/i.test(cat)||/intangible/i.test(cat)) result.totalAssets+=item.amt;
+    if(/liabilit/i.test(cat)||/payable/i.test(cat)||/debt/i.test(cat)||/accrued/i.test(cat)) result.totalLiab+=item.amt;
+    if(/equity/i.test(cat)||/capital/i.test(cat)||/retained/i.test(cat)) result.equity+=item.amt;
+  });
+  return result;
+}
+
 function renderMetrics(){
-  const el=document.getElementById('metricsContent');
-  const metrics=userMetrics.length?userMetrics:DEFAULT_METRICS;
+  if(!userMetrics.length) userMetrics=[...DEFAULT_METRICS];
 
-  let html=`<div style="margin-bottom:14px;font-size:12px;color:var(--muted);">Enter your operating metrics below. These will be included in the CSV export for investor reporting.</div>`;
+  const pl=getRestatedPLData();
+  const bs=getRestatedBSData();
+  const hasMappings=Object.keys(mappings).length>0;
+
+  // ── Auto-calculated metrics ──
+  const grossMarginPct=pl.revenue>0?((pl.grossProfit/pl.revenue)*100):null;
+  const netMarginPct=pl.revenue>0?((pl.netProfit/pl.revenue)*100):null;
+  const payrollPct=pl.revenue>0?((pl.payroll/pl.revenue)*100):null;
+  const burnRate=pl.opex>0?(pl.opex/12):null; // monthly approx
+  const runway=bs.cash>0&&burnRate>0?(bs.cash/burnRate):null;
+
+  const autoMetrics=[
+    {label:'Total Revenue',value:pl.revenue,fmt:'money',color:'green',icon:'📈',source:'Restated P&L'},
+    {label:'Gross Profit',value:pl.grossProfit,fmt:'money',color:pl.grossProfit>=0?'green':'red',icon:'💰',source:'Restated P&L'},
+    {label:'Gross Margin',value:grossMarginPct,fmt:'pct',color:grossMarginPct>=50?'green':grossMarginPct>=30?'amber':'red',icon:'📊',source:'Restated P&L'},
+    {label:'Net Profit / Loss',value:pl.netProfit,fmt:'money',color:pl.netProfit>=0?'green':'red',icon:'🏁',source:'Restated P&L'},
+    {label:'Net Margin',value:netMarginPct,fmt:'pct',color:netMarginPct>=20?'green':netMarginPct>=0?'amber':'red',icon:'📉',source:'Restated P&L'},
+    {label:'Payroll % of Revenue',value:payrollPct,fmt:'pct',color:payrollPct<=40?'green':payrollPct<=60?'amber':'red',icon:'👥',source:'Restated P&L'},
+    {label:'Cash & Bank',value:bs.cash,fmt:'money',color:'blue',icon:'🏦',source:'Restated BS'},
+    {label:'Est. Monthly Burn',value:burnRate,fmt:'money',color:burnRate>0?'amber':'green',icon:'🔥',source:'Restated P&L'},
+    {label:'Est. Runway',value:runway,fmt:'months',color:runway>=12?'green':runway>=6?'amber':'red',icon:'⏱',source:'Restated BS + P&L'},
+  ];
+
+  // Render auto metric cards
+  const gridEl=document.getElementById('metricsAutoGrid');
+  if(!hasMappings){
+    gridEl.innerHTML='<div class="warn-box" style="grid-column:1/-1;">⚠️ Complete your <strong>COA Mapping</strong> first to auto-calculate metrics from your financial data.</div>';
+  } else {
+    gridEl.innerHTML=autoMetrics.map(m=>{
+      const val=m.value===null||m.value===undefined?'—':
+        m.fmt==='money'?fmtMoney(m.value):
+        m.fmt==='pct'?(m.value!==null?m.value.toFixed(1)+'%':'—'):
+        m.fmt==='months'?(m.value!==null?m.value.toFixed(1)+' mo':'—'):'—';
+      const colorMap={green:'var(--accent)',red:'var(--danger)',amber:'var(--amber)',blue:'var(--accent2)'};
+      const col=colorMap[m.color]||'var(--text)';
+      return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px 18px;">
+        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.6px;font-weight:600;margin-bottom:6px;">${m.icon} ${m.label}</div>
+        <div style="font-size:20px;font-weight:600;font-family:var(--mono);color:${col};">${val}</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:4px;">from ${m.source}</div>
+      </div>`;
+    }).join('');
+  }
+
+  // ── Charts ──
+  const chartsEl=document.getElementById('metricsCharts');
+  if(hasMappings&&pl.revenue>0){
+    // Revenue breakdown donut data
+    const revCats=Object.entries(pl.categories).filter(([k])=>/revenue|income|sales|services/i.test(k));
+    const expCats=Object.entries(pl.categories).filter(([k])=>!/revenue|income|sales|services/i.test(k)&&pl.categories[k]<0);
+
+    chartsEl.innerHTML=`
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px;">
+        <div style="font-weight:600;font-size:13px;margin-bottom:16px;">Revenue vs Expenses vs Profit</div>
+        <canvas id="chartPLBar" height="200"></canvas>
+      </div>
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px;">
+        <div style="font-weight:600;font-size:13px;margin-bottom:16px;">Expense Breakdown</div>
+        <canvas id="chartExpBreakdown" height="200"></canvas>
+      </div>
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px;">
+        <div style="font-weight:600;font-size:13px;margin-bottom:16px;">Margin Analysis</div>
+        <canvas id="chartMargins" height="200"></canvas>
+      </div>`;
+
+    // Load Chart.js and render
+    loadChartJS(()=>{
+      // Chart 1: P&L Bar
+      new Chart(document.getElementById('chartPLBar'),{
+        type:'bar',
+        data:{
+          labels:['Revenue','Gross Profit','Net Profit'],
+          datasets:[{
+            data:[pl.revenue, pl.grossProfit, pl.netProfit],
+            backgroundColor:['rgba(26,107,74,0.8)','rgba(45,95,166,0.8)',pl.netProfit>=0?'rgba(26,107,74,0.8)':'rgba(192,57,43,0.8)'],
+            borderRadius:6,
+          }]
+        },
+        options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{ticks:{callback:v=>fmtMoney(v)}}}}
+      });
+
+      // Chart 2: Expense breakdown donut
+      const expLabels=[], expData=[], expColors=['#c0392b','#e67e22','#f39c12','#8e44ad','#2980b9','#27ae60','#d35400','#7f8c8d','#2c3e50','#16a085'];
+      Object.entries(pl.categories).forEach(([k,v])=>{
+        if(!/revenue|income|sales|services/i.test(k)&&Math.abs(v)>0){
+          expLabels.push(k.length>25?k.substring(0,25)+'…':k);
+          expData.push(Math.abs(v));
+        }
+      });
+      if(expData.length>0){
+        new Chart(document.getElementById('chartExpBreakdown'),{
+          type:'doughnut',
+          data:{labels:expLabels,datasets:[{data:expData,backgroundColor:expColors.slice(0,expData.length),borderWidth:2,borderColor:'#fff'}]},
+          options:{responsive:true,plugins:{legend:{position:'right',labels:{font:{size:10},boxWidth:12}}}}
+        });
+      }
+
+      // Chart 3: Margins horizontal bar
+      const margins=[];
+      if(grossMarginPct!==null) margins.push({label:'Gross Margin',val:grossMarginPct});
+      if(netMarginPct!==null) margins.push({label:'Net Margin',val:netMarginPct});
+      if(payrollPct!==null) margins.push({label:'Payroll % Revenue',val:payrollPct});
+      if(margins.length>0){
+        new Chart(document.getElementById('chartMargins'),{
+          type:'bar',
+          data:{
+            labels:margins.map(m=>m.label),
+            datasets:[{
+              data:margins.map(m=>m.val),
+              backgroundColor:margins.map(m=>m.val>=0?'rgba(26,107,74,0.8)':'rgba(192,57,43,0.8)'),
+              borderRadius:6,
+            }]
+          },
+          options:{
+            indexAxis:'y',
+            responsive:true,
+            plugins:{legend:{display:false}},
+            scales:{x:{ticks:{callback:v=>v.toFixed(1)+'%'},min:-100,max:100}}
+          }
+        });
+      }
+    });
+  } else {
+    chartsEl.innerHTML='';
+  }
+
+  // ── Manual metrics table ──
+  const manualEl=document.getElementById('metricsManualContent');
+  let html=`<div style="margin-bottom:12px;font-size:12px;color:var(--muted);">Enter metrics that cannot be calculated from financial statements.</div>`;
   html+=`<table><thead><tr><th>Metric</th><th>Value</th><th>Unit</th></tr></thead><tbody>`;
-
-  metrics.forEach((m,i)=>{
-    const name=m.name||m.metric||m.Metric||Object.values(m)[0]||'';
-    const val=m.value||m.Value||m.amount||Object.values(m)[1]||'';
-    const unit=m.unit||m.Unit||'';
+  userMetrics.forEach((m,i)=>{
+    const name=m.name||'';
+    const val=m.value||'';
+    const unit=m.unit||'';
     html+=`<tr>
       <td><strong>${name}</strong></td>
-      <td><input type="text" class="metric-input" value="${val}" data-metric="${i}" onchange="saveMetric(${i},this.value)" style="width:120px;"></td>
-      <td><span style="font-size:12px;color:var(--muted);">${unit}</span></td>
+      <td><input type="text" class="metric-input" value="${val}" onchange="saveMetric(${i},this.value)" style="width:120px;"></td>
+      <td><span style="font-size:12px;color:var(--muted)">${unit}</span></td>
     </tr>`;
   });
-
   html+=`</tbody></table>`;
-  el.innerHTML=html;
+  manualEl.innerHTML=html;
+}
 
-  // Store reference to metrics for export
-  if(!userMetrics.length) userMetrics=[...DEFAULT_METRICS];
+let chartJSLoaded=false;
+function loadChartJS(cb){
+  if(chartJSLoaded){cb();return;}
+  const s=document.createElement('script');
+  s.src='https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js';
+  s.onload=()=>{chartJSLoaded=true;cb();};
+  document.head.appendChild(s);
 }
 
 function saveMetric(idx,val){
