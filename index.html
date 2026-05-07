@@ -1633,109 +1633,82 @@ function renderCashFlow(){
     }
   }
 
-  // ══ STEP 2: Parse Balance Sheet by SECTION ════════════════════════════
-  // Key insight: Xero groups BS items into sections like BANK, CURRENT ASSETS,
-  // CURRENT LIABILITIES etc. We must use the SECTION to classify items correctly,
-  // not just pattern-match names (which fails for custom account names).
+  // ══ STEP 2: Parse Balance Sheet ════════════════════════════════════
+  // Xero BS is nested: top-level "Assets"/"Liabilities" contain sub-sections
+  // like "Bank", "Current Assets", "Current Liabilities" etc.
+  // We walk all rows recursively to tag each line item with its sub-section.
 
-  const bsSections={}; // sectionTitle -> [{origName, amt}]
   const bsItemsList=[];
+  const bsSectionTotals={};
 
-  if(bsReports.length&&bsReports[0].Rows){
-    bsReports[0].Rows.forEach(section=>{
-      if(!section.Rows||!section.Title)return;
-      const sectionKey=section.Title.toLowerCase().trim();
-      if(!bsSections[sectionKey]) bsSections[sectionKey]=[];
-      section.Rows.forEach(row=>{
-        if(row.RowType==='Row'&&row.Cells){
-          const origName=row.Cells[0]?.Value||'';
-          const amt=parseFloat(String(row.Cells[1]?.Value||'0').replace(/,/g,''))||0;
-          const nameLower=origName.toLowerCase().trim();
-          bsSections[sectionKey].push({origName,nameLower,amt});
-          bsItemsList.push({origName,name:nameLower,amt,section:section.Title});
-        }
-        // Also capture SummaryRows (section totals)
-        if(row.RowType==='SummaryRow'&&row.Cells){
-          const origName=row.Cells[0]?.Value||'';
-          const amt=parseFloat(String(row.Cells[1]?.Value||'0').replace(/,/g,''))||0;
-          // Store section total with special key
-          bsSections[sectionKey+'__total']=[{origName,nameLower:origName.toLowerCase(),amt}];
-        }
-      });
+  function walkBSRows(rows, sectionTitle){
+    if(!rows)return;
+    rows.forEach(row=>{
+      if((row.RowType==='Section'||row.Title)&&row.Rows){
+        walkBSRows(row.Rows, row.Title||sectionTitle);
+      } else if(row.RowType==='Row'&&row.Cells){
+        const origName=row.Cells[0]?.Value||'';
+        const amt=parseFloat(String(row.Cells[1]?.Value||'0').replace(/,/g,''))||0;
+        if(origName) bsItemsList.push({origName,nameLower:origName.toLowerCase().trim(),amt,section:sectionTitle});
+      } else if(row.RowType==='SummaryRow'&&row.Cells){
+        const label=(row.Cells[0]?.Value||'').toLowerCase();
+        const amt=parseFloat(String(row.Cells[1]?.Value||'0').replace(/,/g,''))||0;
+        if(label) bsSectionTotals[label]=amt;
+        if(sectionTitle) bsSectionTotals[sectionTitle.toLowerCase()]=amt;
+      }
     });
   }
 
-  // Helper: sum all items in sections matching any of the section title patterns
-  function bsBySection(sectionPatterns){
-    let total=0;
-    const matched=new Set();
-    Object.keys(bsSections).forEach(secKey=>{
-      const matches=sectionPatterns.some(p=>new RegExp(p,'i').test(secKey));
-      if(matches&&!secKey.includes('__total')){
-        bsSections[secKey].forEach(item=>{
-          if(!matched.has(item.origName)){
-            total+=item.amt;
-            matched.add(item.origName);
-          }
-        });
+  if(bsReports.length&&bsReports[0].Rows){
+    bsReports[0].Rows.forEach(top=>{
+      walkBSRows(top.Rows, top.Title||'');
+    });
+  }
+
+  console.log('BS items:', bsItemsList.map(i=>'['+i.section+'] '+i.origName+'='+i.amt));
+  console.log('BS totals:', bsSectionTotals);
+
+  // Sum items by section title pattern
+  function bsBySection(patterns){
+    const matched=new Set(); let total=0;
+    bsItemsList.forEach(item=>{
+      if(matched.has(item.origName))return;
+      if(patterns.some(p=>new RegExp(p,'i').test(item.section))){
+        total+=item.amt; matched.add(item.origName);
       }
     });
     return total;
   }
 
-  // Helper: sum items matching NAME patterns anywhere in BS (fallback)
-  function bsByName(namePatterns){
-    let total=0;
-    const matched=new Set();
-    namePatterns.forEach(p=>{
+  // Sum items by name pattern
+  function bsByName(patterns){
+    const matched=new Set(); let total=0;
+    patterns.forEach(p=>{
       const rx=new RegExp(p,'i');
       bsItemsList.forEach(item=>{
-        if(!matched.has(item.origName)&&rx.test(item.name)){
-          total+=item.amt;
-          matched.add(item.origName);
+        if(!matched.has(item.origName)&&rx.test(item.nameLower)){
+          total+=item.amt; matched.add(item.origName);
         }
       });
     });
     return total;
   }
 
-  // Log BS sections for debugging
-  console.log('BS Sections found:', Object.keys(bsSections));
-  console.log('BS Items:', bsItemsList.map(i=>i.section+' | '+i.origName+' = '+i.amt));
+  // Cash & Bank: sum the "Bank" sub-section which has all bank accounts
+  const cashAndBank = bsBySection(['\bbank\b','cash and bank']) || bsByName(['cash','bank']);
 
-  // ── Cash & Bank: use BANK section (catches all bank accounts regardless of name) ──
-  const cashAndBank = bsBySection(['\bbank\b','cash and bank','cash at bank'])
-    || bsByName(['cash','bank']);
+  // Working capital — assets (positive = cash tied up)
+  const accountsRec   = bsBySection(['receivable','debtor','trade.*receiv']) || bsByName(['receivable','debtor']);
+  const inventory     = bsBySection(['inventor','stock']) || bsByName(['inventor','stock']);
+  const prepayments   = bsBySection(['prepay']) || bsByName(['prepay','prepaid','advance.*payment']);
+  const otherCurrAsset= bsBySection(['other.*current.*asset','other.*asset']) || bsByName(['gst.*receiv','input tax','sundry']);
 
-  // ── Working Capital: use section-based matching ──
-  const accountsRec   = bsBySection(['trade.*receiv','account.*receiv','debtor'])
-                     || bsByName(['receivable','debtor']);
-  const inventory     = bsBySection(['inventor','stock'])
-                     || bsByName(['inventor','stock']);
-  const prepayments   = bsBySection(['prepay','deposit'])
-                     || bsByName(['prepay','prepaid']);
-  const otherCurrAsset= bsBySection(['other.*current.*asset','sundry.*asset'])
-                     || bsByName(['gst receivable','gst refund','input tax credit']);
-  const accountsPay   = bsBySection(['trade.*payab','account.*payab','creditor'])
-                     || bsByName(['payable','creditor']);
-  const accruedLiab   = bsBySection(['accrual','accrued'])
-                     || bsByName(['accrual','accrued']);
-  const deferredRev   = bsBySection(['deferred','unearned'])
-                     || bsByName(['deferred revenue','unearned']);
-  const taxLiab       = bsBySection(['tax.*payable','gst.*payable','income.*tax'])
-                     || bsByName(['tax payable','gst payable','gst owing','output tax']);
-  const otherCurrLiab = bsBySection(['other.*current.*liab','other.*liab'])
-                     || bsByName(['cpf payable','salary payable','wages payable']);
-
-  // ── PPE / Intangibles: non-current assets ──
-  const ppe           = bsBySection(['property','plant.*equip','fixed.*asset','non.current.*asset'])
-                     || bsByName(['property','equipment','furniture','renovation','motor vehicle']);
-  const intangibles   = bsBySection(['intangible'])
-                     || bsByName(['intangible','goodwill','software asset','development']);
-
-  // ── Financing: long-term debt only (NOT share capital — it's a balance not a flow) ──
-  const longTermDebt  = bsBySection(['long.term.*loan','term.*loan','borrowing','hire.*purchase','finance.*lease'])
-                     || bsByName(['term loan','long.term','bank loan','hire purchase']);
+  // Liabilities: Xero stores as negative numbers, use Math.abs for display as positive balance
+  const accountsPay   = Math.abs(bsBySection(['payable','creditor','trade.*payab']) || bsByName(['payable','creditor']));
+  const accruedLiab   = Math.abs(bsBySection(['accrual','accrued']) || bsByName(['accrual','accrued']));
+  const deferredRev   = Math.abs(bsBySection(['deferred','unearned']) || bsByName(['deferred revenue','unearned']));
+  const taxLiab       = Math.abs(bsBySection(['tax.*payable','gst.*payable','income.*tax']) || bsByName(['tax payable','gst payable','output tax']));
+  const otherCurrLiab = Math.abs(bsBySection(['other.*current.*liab','other.*liab']) || bsByName(['cpf payable','salary payable','wages payable']));
 
   // ══ STEP 3: Build Cash Flow ════════════════════════════════════════════
   // IMPORTANT: We only have period-end balances. The indirect method correctly
