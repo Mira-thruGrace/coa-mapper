@@ -1020,7 +1020,23 @@ function getAccountsList(){
 
 function updateMapping(selectEl){
   const key=selectEl.getAttribute('data-account-id');
-  mappings[key]=selectEl.value;
+  const val=selectEl.value;
+  mappings[key]=val;
+
+  // Update the status badge in this row immediately
+  const row=selectEl.closest('tr');
+  if(row){
+    const lastCell=row.querySelector('td:last-child');
+    if(lastCell){
+      const isMapped=val&&val!=='[ Not mapped ]'&&val!=='';
+      lastCell.innerHTML=isMapped
+        ?'<span class="badge badge-mapped">Mapped</span>'
+        :'<span class="badge badge-unmapped">Unmapped</span>';
+    }
+  }
+
+  // Update header badges and progress bar
+  updateSectionBadges();
   updateMappingProgressBar();
 }
 
