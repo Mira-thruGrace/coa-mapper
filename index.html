@@ -1640,41 +1640,40 @@ function renderCashFlow(){
   }
 
   // ══ STEP 2: Parse Balance Sheet ════════════════════════════════════
-  // Xero BS is nested: top-level "Assets"/"Liabilities" contain sub-sections
-  // like "Bank", "Current Assets", "Current Liabilities" etc.
-  // We walk all rows recursively to tag each line item with its sub-section.
+  // From diagnostic: Xero sends Bank, Current Assets, Fixed Assets,
+  // Non-current Assets, Current Liabilities, Non-Current Liabilities, Equity
+  // as TOP-LEVEL sections (not nested). All amounts are POSITIVE.
 
   const bsItemsList=[];
   const bsSectionTotals={};
 
-  function walkBSRows(rows, sectionTitle){
-    if(!rows)return;
-    rows.forEach(row=>{
-      if((row.RowType==='Section'||row.Title)&&row.Rows){
-        walkBSRows(row.Rows, row.Title||sectionTitle);
-      } else if(row.RowType==='Row'&&row.Cells){
-        const origName=row.Cells[0]?.Value||'';
-        const amt=parseFloat(String(row.Cells[1]?.Value||'0').replace(/,/g,''))||0;
-        if(origName) bsItemsList.push({origName,nameLower:origName.toLowerCase().trim(),amt,section:sectionTitle});
-      } else if(row.RowType==='SummaryRow'&&row.Cells){
-        const label=(row.Cells[0]?.Value||'').toLowerCase();
-        const amt=parseFloat(String(row.Cells[1]?.Value||'0').replace(/,/g,''))||0;
-        if(label) bsSectionTotals[label]=amt;
-        if(sectionTitle) bsSectionTotals[sectionTitle.toLowerCase()]=amt;
-      }
-    });
-  }
-
+  // Each top-level Rows entry IS a section directly
   if(bsReports.length&&bsReports[0].Rows){
-    bsReports[0].Rows.forEach(top=>{
-      walkBSRows(top.Rows, top.Title||'');
+    bsReports[0].Rows.forEach(section=>{
+      const sectionTitle=section.Title||'';
+      if(!section.Rows)return;
+      section.Rows.forEach(row=>{
+        if(row.RowType==='Row'&&row.Cells){
+          const origName=row.Cells[0]?.Value||'';
+          const rawAmt=row.Cells[1]?.Value||'0';
+          const amt=parseFloat(String(rawAmt).replace(/,/g,''))||0;
+          if(origName) bsItemsList.push({origName,nameLower:origName.toLowerCase().trim(),amt,section:sectionTitle});
+        }
+        if(row.RowType==='SummaryRow'&&row.Cells){
+          const label=(row.Cells[0]?.Value||'').toLowerCase().trim();
+          const rawAmt=row.Cells[1]?.Value||'0';
+          const amt=parseFloat(String(rawAmt).replace(/,/g,''))||0;
+          bsSectionTotals[label]=amt;
+          if(sectionTitle) bsSectionTotals[sectionTitle.toLowerCase().trim()]=amt;
+        }
+      });
     });
   }
 
-  console.log('BS items:', bsItemsList.map(i=>'['+i.section+'] '+i.origName+'='+i.amt));
-  console.log('BS totals:', bsSectionTotals);
+  console.log('BS items parsed:', bsItemsList.map(i=>'['+i.section+'] '+i.origName+'='+i.amt));
+  console.log('BS section totals:', bsSectionTotals);
 
-  // Sum items by section title pattern
+  // Sum all items in a given section by exact or pattern match on section title
   function bsBySection(patterns){
     const matched=new Set(); let total=0;
     bsItemsList.forEach(item=>{
@@ -1686,7 +1685,18 @@ function renderCashFlow(){
     return total;
   }
 
-  // Sum items by name pattern
+  // Use pre-computed section total from Xero SummaryRow (most reliable)
+  function bsSectionSum(patterns){
+    for(const p of patterns){
+      const rx=new RegExp(p,'i');
+      for(const [k,v] of Object.entries(bsSectionTotals)){
+        if(rx.test(k)&&v!==0) return v;
+      }
+    }
+    return null;
+  }
+
+  // Sum items by name pattern (fallback)
   function bsByName(patterns){
     const matched=new Set(); let total=0;
     patterns.forEach(p=>{
@@ -1700,23 +1710,38 @@ function renderCashFlow(){
     return total;
   }
 
-  // Cash & Bank: sum the "Bank" sub-section which has all bank accounts
-  const cashAndBank = bsBySection(['\bbank\b','cash and bank']) || bsByName(['cash','bank']);
+  // ── Cash & Bank: "Bank" section contains all bank accounts ──
+  // Use SummaryRow "Total Bank" = 169,627.47 — exact match
+  const cashAndBank = bsSectionSum(['total bank','\bbank\b']) ?? bsBySection(['\bbank\b']);
 
-  // Working capital — assets (positive = cash tied up)
-  const accountsRec   = bsBySection(['receivable','debtor','trade.*receiv']) || bsByName(['receivable','debtor']);
-  const inventory     = bsBySection(['inventor','stock']) || bsByName(['inventor','stock']);
-  const prepayments   = bsBySection(['prepay']) || bsByName(['prepay','prepaid','advance.*payment']);
-  const otherCurrAsset= bsBySection(['other.*current.*asset','other.*asset']) || bsByName(['gst.*receiv','input tax','sundry']);
+  // ── Current Assets working capital items — lookup by name within Current Assets ──
+  function bsItem(namePat){
+    const rx=new RegExp(namePat,'i');
+    const found=bsItemsList.filter(i=>rx.test(i.nameLower)&&i.section==='Current Assets');
+    return found.reduce((s,i)=>s+i.amt,0)||bsItemsList.filter(i=>rx.test(i.nameLower)).reduce((s,i)=>s+i.amt,0);
+  }
 
-  // Liabilities: Xero stores as negative numbers, use Math.abs for display as positive balance
-  const accountsPay   = Math.abs(bsBySection(['payable','creditor','trade.*payab']) || bsByName(['payable','creditor']));
-  const accruedLiab   = Math.abs(bsBySection(['accrual','accrued']) || bsByName(['accrual','accrued']));
-  const deferredRev   = Math.abs(bsBySection(['deferred','unearned']) || bsByName(['deferred revenue','unearned']));
-  const taxLiab       = Math.abs(bsBySection(['tax.*payable','gst.*payable','income.*tax']) || bsByName(['tax payable','gst payable','output tax']));
-  const otherCurrLiab = Math.abs(bsBySection(['other.*current.*liab','other.*liab']) || bsByName(['cpf payable','salary payable','wages payable']));
+  const accountsRec   = bsItem('accounts receivable|^receivable$|^trade.*receiv');
+  const inventory     = bsItem('inventor|^stock$');
+  const prepayments   = bsItem('prepay|deposit paid');
+  const otherCurrAsset= bsItem('gst.*receiv|input tax|accrued revenue');
 
-  // ══ STEP 3: Build Cash Flow ════════════════════════════════════════════
+  // ── Current Liabilities — all positive in Xero for HR Easily ──
+  // Use section total directly and pick out specific items by name
+  function bsLiabItem(namePat){
+    const rx=new RegExp(namePat,'i');
+    return bsItemsList.filter(i=>rx.test(i.nameLower)&&
+      /current liabilit/i.test(i.section)).reduce((s,i)=>s+i.amt,0);
+  }
+
+  const accountsPay   = bsLiabItem('accounts payable|^payable$');
+  const accruedLiab   = bsLiabItem('accrued expense|accrued salary|accrued director');
+  const deferredRev   = bsLiabItem('deferred revenue|unearned');
+  const taxLiab       = bsLiabItem('gst|sst|vat|tax payable|output tax');
+  const wagesPayable  = bsLiabItem('wages payable|salary payable');
+  const otherCurrLiab = bsSectionSum(['total current liab']) ?? bsBySection(['current liabilit']);
+
+    // ══ STEP 3: Build Cash Flow ════════════════════════════════════════════
   // IMPORTANT: We only have period-end balances. The indirect method correctly
   // uses net profit + non-cash + working capital MOVEMENTS.
   // Since we have no opening balance sheet, we show balances with a clear disclaimer.
@@ -1727,6 +1752,7 @@ function renderCashFlow(){
   // Use Xero's own CF totals if available (most accurate)
   // Otherwise fall back to Net Profit + Depreciation only
   const operatingCF = xeroOperatingCF!==null ? xeroOperatingCF : (netProfit + nonCashAdjust);
+  // Note: otherCurrLiab here = total current liabilities (section sum)
   const investingCF = xeroInvestingCF!==null ? xeroInvestingCF : 0;
   const financingCF = xeroFinancingCF!==null ? xeroFinancingCF : 0;
   const netChangeCash = operatingCF + investingCF + financingCF;
@@ -1768,10 +1794,11 @@ function renderCashFlow(){
     +cfRow('Prepayments',prepayments,true,false,true)
     +cfRow('Other Current Assets',otherCurrAsset,true,false,true)
     +cfRow('Accounts Payable',accountsPay,true,false,true)
-    +cfRow('Accrued Liabilities',accruedLiab,true,false,true)
+    +cfRow('Accrued Expenses',accruedLiab,true,false,true)
     +cfRow('Deferred Revenue',deferredRev,true,false,true)
-    +cfRow('Tax Payable',taxLiab,true,false,true)
-    +cfRow('Other Current Liabilities',otherCurrLiab,true,false,true)
+    +cfRow('GST / Tax Payable',taxLiab,true,false,true)
+    +cfRow('Wages Payable',wagesPayable,true,false,true)
+    +cfRow('Total Current Liabilities',otherCurrLiab,true,false,true)
     +'</div>'
 
     +'<div class="cf-section">'
