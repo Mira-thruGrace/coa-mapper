@@ -1093,7 +1093,16 @@ function renderMapping(){
   s.bs.forEach(g=>g.items.forEach(item=>bsCats.push(item)));
   bsCats.push('[ Not mapped ]');
 
-  // Separate accounts into P&L and BS buckets
+  // ── Separate accounts into P&L and BS buckets ──
+  // Priority: use Xero account TYPE for clean classification
+  // Xero P&L types: REVENUE, SALES, OTHERINCOME, EXPENSE, OVERHEADS, DIRECTCOSTS, DEPRECIATN, WAGES
+  // Xero BS types: CURRENT, FIXED, NONCURRENT, PREPAYMENT, CURRLIAB, LIABILITY, TERMLIAB, EQUITY
+  const plTypes=new Set(['REVENUE','SALES','OTHERINCOME','EXPENSE','OVERHEADS','DIRECTCOSTS',
+    'DEPRECIATN','WAGES','DIRECTCOST','OVERHEAD','INCOME','OTHER_INCOME']);
+  const bsTypes=new Set(['CURRENT','FIXED','NONCURRENT','PREPAYMENT','CURRLIAB','LIABILITY',
+    'TERMLIAB','EQUITY','BANK','CREDITCARD','PAYABLE','RECEIVABLE']);
+
+  // Also collect names from actual reports as secondary classification
   const plAccountNames=new Set();
   const bsAccountNames=new Set();
   if(plReports.length&&plReports[0].Rows){
@@ -1103,10 +1112,27 @@ function renderMapping(){
     bsReports[0].Rows.forEach(sec=>{if(sec.Rows)sec.Rows.forEach(row=>{if(row.RowType==='Row'&&row.Cells)bsAccountNames.add(row.Cells[0]?.Value||'');});});
   }
 
-  const plAccounts=accounts.filter(a=>plAccountNames.has(a.name)||plAccountNames.has(a.id));
-  const bsAccounts=accounts.filter(a=>bsAccountNames.has(a.name)||bsAccountNames.has(a.id));
-  // Accounts in neither report — add to both
-  const bothAccounts=accounts.filter(a=>!plAccountNames.has(a.name)&&!bsAccountNames.has(a.name)&&!plAccountNames.has(a.id)&&!bsAccountNames.has(a.id));
+  function isPlAccount(a){
+    if(a.type&&plTypes.has(a.type.toUpperCase())) return true;
+    if(a.type&&bsTypes.has(a.type.toUpperCase())) return false;
+    // Fall back to report presence
+    if(plAccountNames.has(a.name)||plAccountNames.has(a.id)) return true;
+    if(bsAccountNames.has(a.name)||bsAccountNames.has(a.id)) return false;
+    return false; // default unmapped go to neither
+  }
+
+  function isBsAccount(a){
+    if(a.type&&bsTypes.has(a.type.toUpperCase())) return true;
+    if(a.type&&plTypes.has(a.type.toUpperCase())) return false;
+    if(bsAccountNames.has(a.name)||bsAccountNames.has(a.id)) return true;
+    if(plAccountNames.has(a.name)||plAccountNames.has(a.id)) return false;
+    return false;
+  }
+
+  const plAccounts=accounts.filter(a=>isPlAccount(a));
+  const bsAccounts=accounts.filter(a=>isBsAccount(a));
+  // Accounts that couldn't be classified — don't show in either (avoids BS in P&L)
+  const bothAccounts=[];
 
   function buildMappingTable(accs, cats, sectorName){
     if(!accs.length) return '<p style="padding:16px;color:var(--muted);font-size:13px;">No accounts found for this section.</p>';
@@ -1153,14 +1179,31 @@ function renderMapping(){
 
 // ── COA CSV upload/download ────────────────────────────────────────────
 function downloadCOATemplate(){
-  const accounts=getAccountsList();
-  let csv='Account Name,Account Code,Account Type,Standard COA Category\n';
-  if(accounts.length){
-    accounts.forEach(a=>{csv+='"'+a.name+'","'+(a.code||'')+'","'+(a.type||'')+'","'+(mappings[a.id]||'')+'"\n';});
+  // Template contains standard COA categories only — user fills in their account names
+  const sec=selectedSector?SECTORS[selectedSector]:null;
+  let csv='Standard COA Category,Section,Notes\n';
+  if(sec){
+    sec.pl.forEach(group=>{
+      group.items.forEach(item=>{
+        csv+='"'+item+'","P&L — '+group.cat+'","Map your P&L accounts to this category"\n';
+      });
+    });
+    sec.bs.forEach(group=>{
+      group.items.forEach(item=>{
+        csv+='"'+item+'","Balance Sheet — '+group.cat+'","Map your BS accounts to this category"\n';
+      });
+    });
   } else {
-    csv+='"Example Account","1001","REVENUE",""\n"Example Expense","5001","EXPENSE",""\n';
+    // Generic template when no sector selected
+    csv+='"Revenue - Sales","P&L — Revenue","Map your revenue accounts here"\n';
+    csv+='"Cost of Goods Sold","P&L — Cost of Revenue","Map your COGS accounts here"\n';
+    csv+='"Payroll & Salaries","P&L — Operating Expenses","Map your payroll accounts here"\n';
+    csv+='"Cash & Bank","Balance Sheet — Current Assets","Map your cash accounts here"\n';
+    csv+='"Accounts Receivable","Balance Sheet — Current Assets","Map your AR accounts here"\n';
+    csv+='"Accounts Payable","Balance Sheet — Current Liabilities","Map your AP accounts here"\n';
   }
-  dlCSV(csv,'coa_mapping_template.csv');
+  dlCSV(csv,'standard_coa_template.csv');
+  showMsg('✓ Standard COA template downloaded. Use this to understand available categories — then map your Xero accounts using the dropdowns above.','success');
 }
 
 function uploadCOAMapping(input){
@@ -1481,50 +1524,61 @@ function renderCashFlow(){
     });
   }
 
-  // Helper: find BS value by fuzzy name match
+  // Helper: SUM all BS items matching any of the patterns
   function bsFind(patterns){
+    let total=0;
+    const matched=new Set();
     for(const pattern of patterns){
       const regex=new RegExp(pattern,'i');
-      const found=bsItemsList.find(item=>regex.test(item.name));
-      if(found&&found.amt!==0) return found.amt;
+      bsItemsList.forEach(item=>{
+        if(!matched.has(item.origName)&&regex.test(item.name)){
+          total+=item.amt;
+          matched.add(item.origName);
+        }
+      });
     }
-    return 0;
+    return total;
   }
 
-  // Working capital items — look for actual account names in BS
-  const cashAndBank   = bsFind(['cash','bank','cash at bank','cash and bank','petty cash']);
-  const accountsRec   = bsFind(['trade receiv','account.*receiv','debtor']);
-  const inventory     = bsFind(['inventor','stock on hand','stock']);
-  const prepayments   = bsFind(['prepay','prepaid']);
-  const otherCurrAsset= bsFind(['other current asset','sundry debtor']);
-  const accountsPay   = bsFind(['trade payab','account.*payab','creditor','trade creditor']);
-  const accruedLiab   = bsFind(['accrual','accrued','accrued liabilit']);
-  const deferredRev   = bsFind(['deferred revenue','unearned revenue']);
-  const taxLiab       = bsFind(['tax payable','income tax payable','gst payable']);
-  const otherCurrLiab = bsFind(['other current liab','sundry creditor']);
+  // Debug: log all BS items so we can see what's available
+  console.log('BS items available for cash flow:', bsItemsList.map(i=>i.origName+' = '+i.amt));
+
+  // Working capital items — broad patterns to catch all Xero naming conventions
+  const cashAndBank   = bsFind(['cash','bank account','petty cash','current account','savings account']);
+  const accountsRec   = bsFind(['receivable','debtor','trade debtor','accounts receivable','trade and other receiv']);
+  const inventory     = bsFind(['inventor','stock','merchandise','finished goods','raw material']);
+  const prepayments   = bsFind(['prepay','prepaid','advance payment','deposit paid']);
+  const otherCurrAsset= bsFind(['other current','sundry debtor','other asset','gst receivable','gst refund','input tax']);
+  const accountsPay   = bsFind(['payable','creditor','trade creditor','accounts payable','trade and other payab']);
+  const accruedLiab   = bsFind(['accrual','accrued expense','accrued liabilit','provision']);
+  const deferredRev   = bsFind(['deferred revenue','unearned revenue','contract liabilit','deferred income']);
+  const taxLiab       = bsFind(['tax payable','income tax payable','gst payable','gst owing','output tax','corporate tax']);
+  const otherCurrLiab = bsFind(['other current liabilit','sundry creditor','other payable','cpf payable','salary payable','wages payable']);
 
   // PPE and intangibles for investing section
-  const ppe           = bsFind(['property.*plant','equipment','fixed asset','capital equipment']);
-  const intangibles   = bsFind(['intangible','goodwill','software asset']);
+  const ppe           = bsFind(['property','plant','equipment','fixed asset','capital equipment','furniture','renovation','motor vehicle','computer']);
+  const intangibles   = bsFind(['intangible','goodwill','software','licence','trademark','patent','development cost']);
 
   // Long term debt for financing
-  const longTermDebt  = bsFind(['long.term.*loan','term loan','long.term.*debt','bank loan']);
-  const shareCapital  = bsFind(['share capital','paid.in capital','contributed capital']);
+  const longTermDebt  = bsFind(['long.term','term loan','bank loan','borrowing','hire purchase','lease liabilit','finance lease']);
+  const shareCapital  = bsFind(['share capital','paid.in capital','contributed capital','ordinary share','preference share']);
+  const retainedEarnings = bsFind(['retained earning','accumulated profit','accumulated loss','retained profit']);
 
   // ── Step 3: Calculate operating CF (indirect method) ──
-  // Sign convention: increases in assets = cash outflow (negative)
-  //                  increases in liabilities = cash inflow (positive)
-  // Since we only have end-period BS (no opening BS), we show the balances as proxies
+  // Note: We only have period-end BS balances, not movements.
+  // The working capital figures shown are the closing balances which approximate
+  // the movement for the period (assumes opening balances were zero or immaterial).
   const operatingCF = netProfit
     + depreciation
-    - accountsRec        // increase in AR = cash outflow
-    - inventory          // increase in inventory = cash outflow
-    - prepayments        // increase in prepayments = cash outflow
-    - otherCurrAsset     // increase in other current assets = outflow
-    + accountsPay        // increase in AP = cash inflow
-    + accruedLiab        // increase in accruals = cash inflow
-    + deferredRev        // increase in deferred revenue = cash inflow
-    + taxLiab;           // increase in tax payable = cash inflow
+    - accountsRec
+    - inventory
+    - prepayments
+    - otherCurrAsset
+    + accountsPay
+    + accruedLiab
+    + deferredRev
+    + taxLiab
+    + otherCurrLiab;
 
   document.getElementById('sumCF').textContent=fmtMoney(operatingCF);
   document.getElementById('sumCF').className='summary-value '+(operatingCF>=0?'blue':'red');
@@ -1556,6 +1610,7 @@ function renderCashFlow(){
       ${cfRow('Increase / (Decrease) in Accrued Liabilities',accruedLiab,true)}
       ${cfRow('Increase / (Decrease) in Deferred Revenue',deferredRev,true)}
       ${cfRow('Increase / (Decrease) in Tax Payable',taxLiab,true)}
+      ${cfRow('Increase / (Decrease) in Other Current Liabilities',otherCurrLiab,true)}
       <div class="cf-row total"><span><strong>Net Cash from Operating Activities</strong></span><span class="amount ${operatingCF>=0?'pos':'neg'}"><strong>${fmtMoney(operatingCF)}</strong></span></div>
     </div>
 
@@ -1576,8 +1631,8 @@ function renderCashFlow(){
     <div class="cf-section">
       <div class="cf-row total" style="font-size:14px;">
         <span><strong>NET CHANGE IN CASH</strong></span>
-        <span class="amount ${(operatingCF-ppe-intangibles+longTermDebt+shareCapital)>=0?'pos':'neg'}" style="font-size:14px;">
-          <strong>${fmtMoney(operatingCF-ppe-intangibles+longTermDebt+shareCapital)}</strong>
+        <span class="amount ${(operatingCF+(-ppe-intangibles)+(longTermDebt+shareCapital))>=0?'pos':'neg'}" style="font-size:14px;">
+          <strong>${fmtMoney(operatingCF+(-ppe-intangibles)+(longTermDebt+shareCapital))}</strong>
         </span>
       </div>
     </div>
@@ -1585,9 +1640,11 @@ function renderCashFlow(){
     <div style="margin-top:16px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px 16px;font-size:12px;">
       <div style="font-weight:600;margin-bottom:6px;">Reconciliation</div>
       <div style="display:flex;gap:24px;flex-wrap:wrap;font-family:var(--mono);color:var(--muted);">
-        <span>Cash per Balance Sheet: <strong style="color:var(--text)">${fmtMoney(cashAndBank)}</strong></span>
-        <span>Net Profit: <strong style="color:var(--text)">${fmtMoney(netProfit)}</strong></span>
-        <span>Depreciation add-back: <strong style="color:var(--text)">${fmtMoney(depreciation)}</strong></span>
+        <span>Cash &amp; Bank per BS: <strong style="color:var(--text)">${fmtMoney(cashAndBank)}</strong></span>
+        <span>Net Profit per P&amp;L: <strong style="color:var(--text)">${fmtMoney(netProfit)}</strong></span>
+        <span>Depreciation: <strong style="color:var(--text)">${fmtMoney(depreciation)}</strong></span>
+        <span>AR: <strong style="color:var(--text)">${fmtMoney(accountsRec)}</strong></span>
+        <span>AP: <strong style="color:var(--text)">${fmtMoney(accountsPay)}</strong></span>
       </div>
       <div style="margin-top:6px;font-size:11px;color:var(--muted);">Note: Working capital changes shown above are end-period balances (not period movements) as only one Balance Sheet date is loaded. For accurate movements, load two Balance Sheet dates.</div>
     </div>`;
