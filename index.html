@@ -1309,41 +1309,78 @@ function downloadStandardCOATemplate(){
 
 function uploadCOAMapping(input){
   const file=input.files[0];
-  if(!file)return;
+  if(!file){showMsg('No file selected.','error');return;}
   const reader=new FileReader();
-  reader.onload=e=>{
+  reader.onload=function(e){
     try{
-      const lines=e.target.result.split(/\r?\n/).filter(l=>l.trim());
-      if(lines.length<2){showMsg('COA CSV must have at least a header and one row.','error');return;}
-      const headers=lines[0].split(',').map(h=>h.trim().replace(/"/g,'').toLowerCase());
-      const nameIdx=headers.findIndex(h=>h.includes('account')||h.includes('name'));
-      const catIdx=headers.findIndex(h=>h.includes('standard')||h.includes('category')||h.includes('coa'));
-      if(nameIdx===-1||catIdx===-1){showMsg('COA CSV must have "Account Name" and "Standard COA Category" columns.','error');return;}
-      let loaded=0;
-      lines.slice(1).forEach(line=>{
-        const cols=splitCSVLine(line);
-        const name=(cols[nameIdx]||'').trim().replace(/"/g,'');
-        const cat=(cols[catIdx]||'').trim().replace(/"/g,'');
-        if(!name||!cat)return;
-        // Match to account by name
-        const account=coaData.find(a=>a.Name===name)||{AccountID:name};
-        const key=account.AccountID||name;
-        if(cat&&cat!=='[ Not mapped ]'){mappings[key]=cat;loaded++;}
-      });
-      // Also update standardCOACategories so dropdowns show imported categories
-      standardCOACategories=[...newCats];
-      const statusEl=document.getElementById('coaUploadStatus');
-      if(statusEl){
-        statusEl.style.display='block';
-        statusEl.textContent='✓ Imported '+loaded+' account mappings'+(skipped>0?' ('+skipped+' rows skipped)':'');
+      const text=e.target.result;
+      const lines=text.split(/\r?\n/).filter(function(l){return l.trim();});
+      if(lines.length<2){showMsg('CSV must have a header row and at least one data row.','error');return;}
+
+      const headers=splitCSVLine(lines[0]).map(function(h){return h.trim().replace(/"/g,'').toLowerCase();});
+      const hasAccountType=headers.some(function(h){return h.includes('account type');});
+      const hasXero=headers.some(function(h){return h.includes('xero');});
+      const catColIdx=headers.findIndex(function(h){return h.includes('standard')||h.includes('category')||h.includes('coa');});
+
+      // Detect Option 2 — Standard COA definition (no Xero column, has account type)
+      if(hasAccountType&&!hasXero){
+        if(catColIdx===-1){showMsg('Option 2 CSV needs a Standard COA Category column.','error');return;}
+        const cats=[];
+        lines.slice(1).forEach(function(line){
+          const cols=splitCSVLine(line);
+          const cat=(cols[catColIdx]||'').trim().replace(/"/g,'');
+          if(cat&&cat!=='Standard COA Category') cats.push(cat);
+        });
+        standardCOACategories=cats.filter(function(v,i,a){return a.indexOf(v)===i;});
+        const sEl=document.getElementById('coaUploadStatus');
+        if(sEl){sEl.style.display='block';sEl.textContent='Standard COA loaded: '+standardCOACategories.length+' categories — dropdowns enabled.';}
+        showMsg('Standard COA imported — '+standardCOACategories.length+' categories loaded. Dropdowns are now enabled.','success');
+        renderMapping();
+        return;
       }
-      showMsg('✓ COA imported — '+loaded+' accounts mapped.','success');
+
+      // Option 1 — Full mapping (Xero account name + category)
+      const nameIdx=headers.findIndex(function(h){return h.includes('xero')||h.includes('account');});
+      const deptIdx=headers.findIndex(function(h){return h.includes('department')||h.includes('cost centre')||h.includes('cost center');});
+      if(nameIdx===-1){showMsg('CSV needs an "Xero Account Name" or "Account Name" column. Found headers: '+headers.join(', '),'error');return;}
+      if(catColIdx===-1){showMsg('CSV needs a "Standard COA Category" column. Found headers: '+headers.join(', '),'error');return;}
+
+      var loaded=0, skipped=0;
+      var newCats=standardCOACategories.slice();
+
+      lines.slice(1).forEach(function(line){
+        var cols=splitCSVLine(line);
+        var name=(cols[nameIdx]||'').trim().replace(/"/g,'');
+        var cat=(cols[catColIdx]||'').trim().replace(/"/g,'');
+        var dept=deptIdx>=0?(cols[deptIdx]||'').trim().replace(/"/g,''):'';
+        if(!name||!cat||cat==='Standard COA Category'){skipped++;return;}
+        var xeroAcc=coaData.find(function(a){return a.Name===name;});
+        var key=xeroAcc?xeroAcc.AccountID:name;
+        mappings[key]=cat;
+        if(newCats.indexOf(cat)===-1) newCats.push(cat);
+        if(dept) departments[key]=dept;
+        loaded++;
+      });
+
+      standardCOACategories=newCats.filter(function(v,i,a){return a.indexOf(v)===i;});
+
+      var sEl=document.getElementById('coaUploadStatus');
+      if(sEl){
+        sEl.style.display='block';
+        sEl.textContent='Imported: '+loaded+' accounts mapped'+(skipped>0?' ('+skipped+' skipped)':'')+' · '+standardCOACategories.length+' categories in dropdowns';
+      }
+      showMsg('Mapping imported — '+loaded+' accounts mapped.','success');
       renderMapping();
       updateMappingProgressBar();
-    }catch(err){showMsg('Error reading file: '+err.message,'error');}
+
+    }catch(err){
+      showMsg('Error reading CSV: '+err.message,'error');
+      console.error('uploadCOAMapping error:',err);
+    }
   };
-  reader.onerror=function(){showMsg('Could not read file. Please try again.','error');};
+  reader.onerror=function(){showMsg('Could not read the file. Please try again.','error');};
   reader.readAsText(file);
+  input.value='';
 }
 
 // ── Mapping progress bar ──────────────────────────────────────────────────────
