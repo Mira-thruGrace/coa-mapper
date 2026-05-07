@@ -366,9 +366,10 @@
         <div style="font-size:12px;color:var(--muted);">Map your Xero accounts to your standard Chart of Accounts. P&amp;L and Balance Sheet are mapped separately.</div>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;">
-        <button class="btn btn-secondary btn-sm" onclick="downloadCOATemplate()">⬇ Download Template</button>
+        <button class="btn btn-secondary btn-sm" onclick="downloadCOATemplate()" title="Download your Xero accounts list — fill in the Standard COA Category column and import back">⬇ Option 1: Mapping Template</button>
+        <button class="btn btn-secondary btn-sm" onclick="downloadStandardCOATemplate()" title="Download a blank Standard COA template — define your categories then import to enable dropdowns">⬇ Option 2: Standard COA Template</button>
         <label class="btn btn-secondary btn-sm" style="cursor:pointer;margin:0;">
-          📂 Import Standard COA
+          📂 Import CSV
           <input type="file" accept=".csv" id="coaUploadInput" onchange="uploadCOAMapping(this)" style="display:none;">
         </label>
         <button class="btn btn-secondary btn-sm" onclick="exportSingleCSV('map')">⬇ Export Mapping</button>
@@ -377,12 +378,11 @@
 
     <!-- Upload instructions -->
     <div class="info-box" style="margin-bottom:14px;">
-      <strong>How to import your Standard COA:</strong><br>
-      1. Click <strong>Download Template</strong> — get a CSV with your Xero account names already listed.<br>
-      2. Fill in the <strong>Standard COA Category</strong> column for each account.<br>
-      3. Click <strong>Import Standard COA</strong> — all matched accounts will be auto-mapped.<br>
-      4. You can also map manually using the dropdowns below.
-      <div id="coaUploadStatus" style="display:none;margin-top:6px;padding:6px 10px;background:var(--accent-light);border-radius:6px;color:var(--accent);font-weight:600;font-size:12px;"></div>
+      <strong>Two ways to map your accounts:</strong><br>
+      <strong>Option 1 — Full Auto-Map:</strong> Click <strong>Option 1: Mapping Template</strong> → your Xero accounts are pre-listed → fill in the Standard COA Category and Department columns → click <strong>Import CSV</strong> → all accounts are mapped automatically.<br>
+      <strong>Option 2 — Define then Map:</strong> Click <strong>Option 2: Standard COA Template</strong> → define your standard categories → click <strong>Import CSV</strong> → category dropdowns are enabled → map each account manually in the table below.<br>
+      You can also type directly into the category fields without importing anything.
+      <div id="coaUploadStatus" style="display:none;margin-top:8px;padding:8px 12px;background:var(--accent-light);border-radius:6px;color:var(--accent);font-weight:600;font-size:12px;"></div>
     </div>
 
     <!-- Progress bars -->
@@ -626,7 +626,7 @@ const SECTORS={
 
 // ══ STATE ═════════════════════════════════════════════════════════════════════
 let selectedSector=null;
-let coaData=[], plReports=[], bsReports=[], mappings={};
+let coaData=[], plReports=[], bsReports=[], mappings={}, directCFData=null;
 let csvPL=[], csvBS=[], csvMetrics=[];
 let dataMode='xero';
 let userMetrics=[];
@@ -1093,67 +1093,45 @@ function renderCOA(){
 }
 
 // ── Mapping (dashboard tab) ──────────────────────────────────────────────────
-function renderMapping(){
+// standardCOACategories: built from imported Standard COA CSV (option 2)
+// or from auto-import mapping CSV (option 1)
+let standardCOACategories=[];
 
+function renderMapping(){
   const accounts=getAccountsList();
   const noAccMsg='<p style="padding:20px;color:var(--muted);font-size:13px;">No accounts loaded yet. Connect to Xero or upload a CSV first.</p>';
   if(!accounts.length){
     document.getElementById('mapContentPL').innerHTML=noAccMsg;
     document.getElementById('mapContentBS').innerHTML=noAccMsg;
+    updateMappingProgressBar();
     return;
   }
 
-  updateMappingProgressBar();
-
-  if(!selectedSector){
-    const warn='<div class="warn-box" style="margin:16px;">Please select a sector above to enable COA mapping.</div>';
-    document.getElementById('mapContentPL').innerHTML=warn;
-    document.getElementById('mapContentBS').innerHTML=warn;
-    return;
-  }
-
-  const s=SECTORS[selectedSector];
-
-  // Build separate category lists
-  const plCats=[];
-  s.pl.forEach(g=>g.items.forEach(item=>plCats.push(item)));
-  plCats.push('[ Not mapped ]');
-
-  const bsCats=[];
-  s.bs.forEach(g=>g.items.forEach(item=>bsCats.push(item)));
-  bsCats.push('[ Not mapped ]');
-
-  // ── Separate accounts into P&L and BS buckets ──
-  // Priority: use Xero account TYPE for clean classification
-  // Xero P&L types: REVENUE, SALES, OTHERINCOME, EXPENSE, OVERHEADS, DIRECTCOSTS, DEPRECIATN, WAGES
-  // Xero BS types: CURRENT, FIXED, NONCURRENT, PREPAYMENT, CURRLIAB, LIABILITY, TERMLIAB, EQUITY
+  // ── Classify accounts by Xero TYPE (no sector needed) ──
   const plTypes=new Set(['REVENUE','SALES','OTHERINCOME','EXPENSE','OVERHEADS','DIRECTCOSTS',
     'DEPRECIATN','WAGES','DIRECTCOST','OVERHEAD','INCOME','OTHER_INCOME']);
   const bsTypes=new Set(['CURRENT','FIXED','NONCURRENT','PREPAYMENT','CURRLIAB','LIABILITY',
     'TERMLIAB','EQUITY','BANK','CREDITCARD','PAYABLE','RECEIVABLE']);
 
-  // Also collect names from actual reports as secondary classification
   const plAccountNames=new Set();
   const bsAccountNames=new Set();
-  if(plReports.length&&plReports[0].Rows){
+  if(plReports.length&&plReports[0].Rows)
     plReports[0].Rows.forEach(sec=>{if(sec.Rows)sec.Rows.forEach(row=>{if(row.RowType==='Row'&&row.Cells)plAccountNames.add(row.Cells[0]?.Value||'');});});
-  }
-  if(bsReports.length&&bsReports[0].Rows){
+  if(bsReports.length&&bsReports[0].Rows)
     bsReports[0].Rows.forEach(sec=>{if(sec.Rows)sec.Rows.forEach(row=>{if(row.RowType==='Row'&&row.Cells)bsAccountNames.add(row.Cells[0]?.Value||'');});});
-  }
 
   function isPlAccount(a){
-    if(a.type&&plTypes.has(a.type.toUpperCase())) return true;
-    if(a.type&&bsTypes.has(a.type.toUpperCase())) return false;
-    // Fall back to report presence
+    const t=(a.type||'').toUpperCase();
+    if(plTypes.has(t)) return true;
+    if(bsTypes.has(t)) return false;
     if(plAccountNames.has(a.name)||plAccountNames.has(a.id)) return true;
     if(bsAccountNames.has(a.name)||bsAccountNames.has(a.id)) return false;
-    return false; // default unmapped go to neither
+    return false;
   }
-
   function isBsAccount(a){
-    if(a.type&&bsTypes.has(a.type.toUpperCase())) return true;
-    if(a.type&&plTypes.has(a.type.toUpperCase())) return false;
+    const t=(a.type||'').toUpperCase();
+    if(bsTypes.has(t)) return true;
+    if(plTypes.has(t)) return false;
     if(bsAccountNames.has(a.name)||bsAccountNames.has(a.id)) return true;
     if(plAccountNames.has(a.name)||plAccountNames.has(a.id)) return false;
     return false;
@@ -1161,50 +1139,86 @@ function renderMapping(){
 
   const plAccounts=accounts.filter(a=>isPlAccount(a));
   const bsAccounts=accounts.filter(a=>isBsAccount(a));
-  // Accounts that couldn't be classified — don't show in either (avoids BS in P&L)
-  const bothAccounts=[];
 
-  function buildMappingTable(accs, cats, sectorName){
+  // ── Build category dropdown options ──
+  // Use imported standard COA categories if available, otherwise free-text input
+  const hasCats=standardCOACategories.length>0;
+
+  function buildMappingTable(accs, section){
     if(!accs.length) return '<p style="padding:16px;color:var(--muted);font-size:13px;">No accounts found for this section.</p>';
     const mapped=accs.filter(a=>mappings[a.id]&&mappings[a.id]!=='[ Not mapped ]').length;
-    let html=`<div style="padding:10px 18px;border-bottom:1px solid var(--border);font-size:12px;color:var(--muted);">
-      <span class="badge badge-mapped">${mapped} Mapped</span> &nbsp;
-      <span class="badge badge-unmapped">${accs.length-mapped} Unmapped</span>
-      <span style="margin-left:8px;">of ${accs.length} accounts</span>
-    </div>`;
-    html+='<table><thead><tr><th>Code</th><th>Account Name</th><th>Type</th><th>'+sectorName+' Standard COA</th><th>Status</th></tr></thead><tbody>';
+    let html='<div style="padding:10px 18px;border-bottom:1px solid var(--border);font-size:12px;color:var(--muted);">'
+      +'<span class="badge badge-mapped">'+mapped+' Mapped</span> &nbsp;'
+      +'<span class="badge badge-unmapped">'+(accs.length-mapped)+' Unmapped</span>'
+      +'<span style="margin-left:8px;">of '+accs.length+' accounts</span>'
+      +(hasCats?'':' &nbsp;<span style="color:var(--accent2);">· Import Standard COA to enable dropdown mapping</span>')
+      +'</div>';
+    html+='<table><thead><tr>'
+      +'<th>Code</th>'
+      +'<th>Account Name</th>'
+      +'<th>Xero Type</th>'
+      +'<th>Standard COA Category</th>'
+      +'<th>Department / Cost Centre</th>'
+      +'<th>Status</th>'
+      +'</tr></thead><tbody>';
     accs.forEach(a=>{
       const key=a.id;
       const cur=mappings[key]||'';
+      const dept=departments[key]||'';
       const isMapped=cur&&cur!=='[ Not mapped ]';
-      const opts=cats.map(s=>`<option value="${s}"${cur===s?' selected':''}>${s}</option>`).join('');
-      html+=`<tr>
-        <td><span style="font-family:var(--mono);font-size:11px;color:var(--muted)">${a.code||'—'}</span></td>
-        <td><strong>${a.name}</strong></td>
-        <td>${getTypeBadge(a.type||'')}</td>
-        <td><select class="mapping-select" data-account-id="${key}" onchange="updateMapping(this)"><option value="">— Select —</option>${opts}</select></td>
-        <td>${isMapped?'<span class="badge badge-mapped">Mapped</span>':'<span class="badge badge-unmapped">Unmapped</span>'}</td>
-      </tr>`;
+      let catInput;
+      if(hasCats){
+        // Dropdown from imported Standard COA
+        const opts='<option value="">— Select category —</option>'
+          +standardCOACategories.map(cat=>'<option value="'+cat+'"'+(cur===cat?' selected':'')+'>'+cat+'</option>').join('');
+        catInput='<select class="mapping-select" data-account-id="'+key+'" onchange="updateMapping(this)">'+opts+'</select>';
+      } else {
+        // Free-text input when no standard COA imported yet
+        catInput='<input type="text" class="mapping-select" data-account-id="'+key+'"'
+          +' value="'+cur.replace(/"/g,'&quot;')+'"'
+          +' placeholder="Type category name..."'
+          +' onchange="updateMapping(this)" oninput="updateMapping(this)"'
+          +' style="min-width:180px;">';
+      }
+      const deptInput='<input type="text" data-dept-id="'+key+'"'
+        +' value="'+dept.replace(/"/g,'&quot;')+'"'
+        +' placeholder="e.g. Sales, Ops..."'
+        +' onchange="updateDept(this)"'
+        +' style="width:130px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;font-family:var(--sans);">';
+      html+='<tr>'
+        +'<td><span style="font-family:var(--mono);font-size:11px;color:var(--muted)">'+(a.code||'—')+'</span></td>'
+        +'<td><strong>'+a.name+'</strong></td>'
+        +'<td>'+getTypeBadge(a.type||'')+'</td>'
+        +'<td>'+catInput+'</td>'
+        +'<td>'+deptInput+'</td>'
+        +'<td>'+(isMapped?'<span class="badge badge-mapped">Mapped</span>':'<span class="badge badge-unmapped">Unmapped</span>')+'</td>'
+        +'</tr>';
     });
     html+='</tbody></table>';
     return html;
   }
 
-  const sName=SECTORS[selectedSector].name;
-  document.getElementById('mapContentPL').innerHTML=buildMappingTable([...plAccounts,...bothAccounts], plCats, sName);
-  document.getElementById('mapContentBS').innerHTML=buildMappingTable(bsAccounts, bsCats, sName);
+  document.getElementById('mapContentPL').innerHTML=buildMappingTable(plAccounts,'pl');
+  document.getElementById('mapContentBS').innerHTML=buildMappingTable(bsAccounts,'bs');
 
-  // Update section badges
-  const plMapped=[...plAccounts,...bothAccounts].filter(a=>mappings[a.id]&&mappings[a.id]!=='[ Not mapped ]').length;
-  const plTotal=[...plAccounts,...bothAccounts].length;
+  // Update progress
+  const plMapped=plAccounts.filter(a=>mappings[a.id]&&mappings[a.id]!=='[ Not mapped ]').length;
   const bsMapped=bsAccounts.filter(a=>mappings[a.id]&&mappings[a.id]!=='[ Not mapped ]').length;
-  const bsTotal=bsAccounts.length;
   const plBadge=document.getElementById('plMapBadge');
-  if(plBadge){plBadge.textContent=plMapped===plTotal&&plTotal>0?'Complete':'Incomplete';plBadge.className=plMapped===plTotal&&plTotal>0?'badge badge-mapped':'badge badge-unmapped';}
+  if(plBadge){const d=plMapped===plAccounts.length&&plAccounts.length>0;plBadge.textContent=d?'Complete ✓':'Incomplete ('+plMapped+'/'+plAccounts.length+')';plBadge.className=d?'badge badge-mapped':'badge badge-unmapped';}
   const bsBadge=document.getElementById('bsMapBadge');
-  if(bsBadge){bsBadge.textContent=bsMapped===bsTotal&&bsTotal>0?'Complete':'Incomplete';bsBadge.className=bsMapped===bsTotal&&bsTotal>0?'badge badge-mapped':'badge badge-unmapped';}
-  document.getElementById('plMapMeta').textContent=plMapped+' of '+plTotal+' accounts mapped';
-  document.getElementById('bsMapMeta').textContent=bsMapped+' of '+bsTotal+' accounts mapped';
+  if(bsBadge){const d=bsMapped===bsAccounts.length&&bsAccounts.length>0;bsBadge.textContent=d?'Complete ✓':'Incomplete ('+bsMapped+'/'+bsAccounts.length+')';bsBadge.className=d?'badge badge-mapped':'badge badge-unmapped';}
+  const plMeta=document.getElementById('plMapMeta');if(plMeta)plMeta.textContent=plMapped+' of '+plAccounts.length+' P&L accounts mapped';
+  const bsMeta=document.getElementById('bsMapMeta');if(bsMeta)bsMeta.textContent=bsMapped+' of '+bsAccounts.length+' BS accounts mapped';
+  updateMappingProgressBar();
+}
+
+// Department storage
+let departments={};
+
+function updateDept(input){
+  const key=input.getAttribute('data-dept-id');
+  departments[key]=input.value;
 }
 
 
@@ -1252,27 +1266,39 @@ function toggleSection(contentId,toggleId){
 }
 // ── COA CSV upload/download ────────────────────────────────────────────
 function downloadCOATemplate(){
-  // Template format: Xero Account Name | Standard COA Category
-  // User fills in column A with their exact Xero account names
+  // Option 1: Full mapping template — Xero accounts + category column to fill
   const accounts=getAccountsList();
-  let csv='"Xero Account Name","Standard COA Category","Section"\n';
+  let csv='"Xero Account Name","Xero Account Code","Xero Type","Standard COA Category","Department / Cost Centre"\n';
   if(accounts.length){
-    // Pre-populate with existing Xero accounts so user just fills in the category
     accounts.forEach(a=>{
-      const existing=mappings[a.id]||'';
-      const section=a.type?a.type:'';
-      csv+='"'+a.name.replace(/"/g,'""')+'","'+existing+'","'+section+'"\n';
+      const cat=mappings[a.id]||'';
+      const dept=departments[a.id]||'';
+      csv+='"'+a.name.replace(/"/g,'""')+'","'+(a.code||'')+'","'+(a.type||'')+'","'+cat+'","'+dept+'"\n';
     });
   } else {
-    // Generic sample rows if no accounts loaded yet
-    csv+='"Example Revenue Account","Revenue - Sales","REVENUE"\n';
-    csv+='"Example Salary Account","Payroll & Salaries","OVERHEADS"\n';
-    csv+='"Example Bank Account","Cash & Bank","BANK"\n';
-    csv+='"Example AR Account","Accounts Receivable","CURRENT"\n';
-    csv+='"Example AP Account","Accounts Payable","CURRLIAB"\n';
+    csv+='"Revenue Account Example","4001","REVENUE","","Sales"\n';
+    csv+='"Salary Expense Example","6001","OVERHEADS","","HR"\n';
+    csv+='"Bank Account Example","1001","BANK","","Operations"\n';
   }
-  dlCSV(csv,'coa_mapping_template.csv');
-  showMsg('✓ Template downloaded. Fill in the Standard COA Category column then Import Standard COA.','success');
+  dlCSV(csv,'mapping_template_option1.csv');
+  showMsg('✓ Option 1 template downloaded — fill in Standard COA Category and Department, then Import.','success');
+}
+
+function downloadStandardCOATemplate(){
+  // Option 2: Blank standard COA template — user defines their own COA structure
+  let csv='"Standard COA Category","Account Type (Asset/Liability/Equity/Revenue/Expense)","Description","Department / Cost Centre"\n';
+  csv+='"Revenue - Sales","Revenue","Main product/service revenue",""\n';
+  csv+='"Revenue - Services","Revenue","Professional services revenue",""\n';
+  csv+='"Cost of Goods Sold","Expense","Direct cost of products sold",""\n';
+  csv+='"Payroll & Salaries","Expense","All staff compensation",""\n';
+  csv+='"Rent & Occupancy","Expense","Office and premises costs",""\n';
+  csv+='"Cash & Bank","Asset","Bank accounts and cash on hand",""\n';
+  csv+='"Accounts Receivable","Asset","Amounts owed by customers",""\n';
+  csv+='"Accounts Payable","Liability","Amounts owed to suppliers",""\n';
+  csv+='"Share Capital","Equity","Shareholder contributions",""\n';
+  csv+='"Retained Earnings","Equity","Accumulated profits/losses",""\n';
+  dlCSV(csv,'standard_coa_template_option2.csv');
+  showMsg('✓ Option 2 template downloaded — define your standard categories, then import to enable dropdown mapping.','success');
 }
 
 function uploadCOAMapping(input){
@@ -1298,6 +1324,8 @@ function uploadCOAMapping(input){
         const key=account.AccountID||name;
         if(cat&&cat!=='[ Not mapped ]'){mappings[key]=cat;loaded++;}
       });
+      // Also update standardCOACategories so dropdowns show imported categories
+      standardCOACategories=[...newCats];
       const statusEl=document.getElementById('coaUploadStatus');
       if(statusEl){
         statusEl.style.display='block';
@@ -1544,6 +1572,27 @@ function renderCashFlow(){
     return;
   }
 
+  // ── If Xero direct CF is available, extract working capital movements from it ──
+  // This makes the indirect method accurate by using real movements not just balances
+  let xeroOperatingCF=null, xeroInvestingCF=null, xeroFinancingCF=null;
+  let xeroNetChangeCash=null;
+  if(directCFData&&directCFData.Rows){
+    directCFData.Rows.forEach(section=>{
+      if(!section.Rows)return;
+      section.Rows.forEach(row=>{
+        if(row.RowType==='SummaryRow'&&row.Cells){
+          const nm=(row.Cells[0]?.Value||'').toLowerCase();
+          const amt=parseFloat(String(row.Cells[1]?.Value||'0').replace(/,/g,''))||0;
+          if(/operating/i.test(nm)) xeroOperatingCF=amt;
+          if(/investing/i.test(nm)) xeroInvestingCF=amt;
+          if(/financing/i.test(nm)) xeroFinancingCF=amt;
+          if(/net.*cash|closing/i.test(nm)) xeroNetChangeCash=amt;
+        }
+      });
+    });
+    console.log('Xero direct CF found — Operating:',xeroOperatingCF,'Investing:',xeroInvestingCF,'Financing:',xeroFinancingCF);
+  }
+
   // ══ STEP 1: Extract from P&L ══════════════════════════════════════════
   let netProfit=0, depreciation=0;
   // Try to get net profit from the last SummaryRow of the report
@@ -1696,13 +1745,13 @@ function renderCashFlow(){
   // Working capital lines are shown as reference balances, clearly labelled.
 
   const nonCashAdjust = depreciation;
-  // Conservative: only use net profit + depreciation as reliable operating CF
-  // Working capital items displayed but noted as balances not movements
-  const operatingCF = netProfit + nonCashAdjust;
-  const investingCF = 0; // Cannot determine without two BS dates
-  const financingCF = longTermDebt; // Only long-term debt movement
-
+  // Use Xero's own CF totals if available (most accurate)
+  // Otherwise fall back to Net Profit + Depreciation only
+  const operatingCF = xeroOperatingCF!==null ? xeroOperatingCF : (netProfit + nonCashAdjust);
+  const investingCF = xeroInvestingCF!==null ? xeroInvestingCF : 0;
+  const financingCF = xeroFinancingCF!==null ? xeroFinancingCF : 0;
   const netChangeCash = operatingCF + investingCF + financingCF;
+  const usingXeroCF = xeroOperatingCF!==null;
 
   document.getElementById('sumCF').textContent=fmtMoney(operatingCF);
   document.getElementById('sumCF').className='summary-value '+(operatingCF>=0?'blue':'red');
@@ -1717,10 +1766,12 @@ function renderCashFlow(){
   };
 
   cfEl.innerHTML=
-    '<div class="info-box" style="margin-bottom:16px;">'
-    +'<strong>Indirect Method:</strong> Net Profit + non-cash items. '
-    +'Working capital lines show <em>end-period balances</em> (not movements) because only one Balance Sheet date is loaded — they are shown for reference only and do not affect the totals. '
-    +'To get accurate movements, load two Balance Sheet dates.'
+    '<div class="'+(usingXeroCF?'success-box':'info-box')+'" style="margin-bottom:16px;">'
+    +(usingXeroCF
+      ?'✓ <strong>Using Xero direct Cash Flow data</strong> — totals below are pulled directly from Xero Cash Flow report for accuracy. The indirect calculation shows the workings.'
+      :'<strong>Indirect Method (estimated):</strong> Net Profit + Depreciation only. '
+       +'Xero Cash Flow report was not available on this plan/account. '
+       +'Working capital lines show end-period balances for reference — they do not affect the totals.')
     +'</div>'
 
     +'<div class="cf-section">'
@@ -1746,20 +1797,24 @@ function renderCashFlow(){
 
     +'<div class="cf-section">'
     +'<div class="cf-header"><span>B. Investing Activities</span><span style="font-family:var(--mono);font-size:12px;">SGD</span></div>'
-    +'<div class="cf-row indent" style="color:var(--muted);font-style:italic;"><span>Requires two Balance Sheet dates to calculate movements</span><span class="amount">—</span></div>'
-    +'<div class="cf-row total"><span><strong>Net Cash from Investing Activities</strong></span><span class="amount">0.00</span></div>'
+    +(usingXeroCF&&investingCF!==0
+      ? cfRow('Net Investing Activities (from Xero)',investingCF)
+      : '<div class="cf-row indent" style="color:var(--muted);font-style:italic;"><span>Not available — requires Xero Cash Flow report or two Balance Sheet dates</span><span class="amount">—</span></div>')
+    +'<div class="cf-row total"><span><strong>Net Cash from Investing Activities</strong></span><span class="amount '+(investingCF>=0?'pos':'neg')+'"><strong>'+fmtMoney(investingCF)+'</strong></span></div>'
     +'</div>'
 
     +'<div class="cf-section">'
     +'<div class="cf-header"><span>C. Financing Activities</span><span style="font-family:var(--mono);font-size:12px;">SGD</span></div>'
-    +'<div class="cf-row indent" style="color:var(--muted);font-style:italic;"><span>Requires two Balance Sheet dates to calculate debt/equity movements</span><span class="amount">—</span></div>'
-    +'<div class="cf-row total"><span><strong>Net Cash from Financing Activities</strong></span><span class="amount">0.00</span></div>'
+    +(usingXeroCF&&financingCF!==0
+      ? cfRow('Net Financing Activities (from Xero)',financingCF)
+      : '<div class="cf-row indent" style="color:var(--muted);font-style:italic;"><span>Not available — requires Xero Cash Flow report or two Balance Sheet dates</span><span class="amount">—</span></div>')
+    +'<div class="cf-row total"><span><strong>Net Cash from Financing Activities</strong></span><span class="amount '+(financingCF>=0?'pos':'neg')+'"><strong>'+fmtMoney(financingCF)+'</strong></span></div>'
     +'</div>'
 
     +'<div class="cf-section">'
     +'<div class="cf-row total" style="font-size:14px;">'
-    +'<span><strong>NET CASH FROM OPERATIONS</strong></span>'
-    +'<span class="amount '+(operatingCF>=0?'pos':'neg')+'" style="font-size:14px;"><strong>'+fmtMoney(operatingCF)+'</strong></span>'
+    +'<span><strong>NET CHANGE IN CASH</strong></span>'
+    +'<span class="amount '+(netChangeCash>=0?'pos':'neg')+'" style="font-size:14px;"><strong>'+fmtMoney(netChangeCash)+'</strong></span>'
     +'</div></div>'
 
     +'<div style="margin-top:16px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:14px 18px;font-size:12px;">'
@@ -2047,8 +2102,13 @@ function exportSingleCSV(type){
     filename='chart_of_accounts_'+date+'.csv';
   }else if(type==='map'){
     const accounts=getAccountsList();
-    csv='Code,Account Name,Type,Standard COA Category,Status\n';
-    accounts.forEach(a=>{const mapped=mappings[a.id]||'';csv+=`"${a.code||''}","${a.name||''}","${a.type||''}","${mapped}","${mapped&&mapped!=='[ Not mapped ]'?'Mapped':'Unmapped'}"\n`;});
+    csv='Code,Account Name,Xero Type,Standard COA Category,Department / Cost Centre,Status\n';
+    accounts.forEach(a=>{
+      const mapped=mappings[a.id]||'';
+      const dept=departments[a.id]||'';
+      const status=mapped&&mapped!=='[ Not mapped ]'?'Mapped':'Unmapped';
+      csv+='"'+(a.code||'')+'","'+(a.name||'')+'","'+(a.type||'')+'","'+mapped+'","'+dept+'","'+status+'"\n';
+    });
     filename='coa_mapping_'+date+'.csv';
   }else if(type==='rpl'){
     const rows=document.querySelectorAll('#rplContent tbody tr');
