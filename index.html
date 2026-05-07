@@ -359,53 +359,72 @@
   <!-- COA Mapping Tab (in dashboard) -->
   <div id="tab-map" style="display:none;">
 
-    <!-- Header row -->
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
+    <!-- Header -->
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px;">
       <div>
         <div style="font-size:16px;font-weight:600;">COA Mapping</div>
-        <div style="font-size:12px;color:var(--muted);">Map each account to your standard Chart of Accounts. P&L and Balance Sheet are mapped separately.</div>
+        <div style="font-size:12px;color:var(--muted);">Map your Xero accounts to your standard Chart of Accounts. P&amp;L and Balance Sheet are mapped separately.</div>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;">
-        <button class="btn btn-secondary btn-sm" onclick="downloadCOATemplate()">⬇ Download COA Template</button>
-        <label class="btn btn-secondary btn-sm" style="cursor:pointer;">
-          📂 Upload COA CSV
+        <button class="btn btn-secondary btn-sm" onclick="downloadCOATemplate()">⬇ Download Template</button>
+        <label class="btn btn-secondary btn-sm" style="cursor:pointer;margin:0;">
+          📂 Import Standard COA
           <input type="file" accept=".csv" id="coaUploadInput" onchange="uploadCOAMapping(this)" style="display:none;">
         </label>
         <button class="btn btn-secondary btn-sm" onclick="exportSingleCSV('map')">⬇ Export Mapping</button>
       </div>
     </div>
 
-    <!-- Sector selection -->
-    <div class="card" style="margin-bottom:16px;padding:20px;">
-      <div style="font-size:13px;font-weight:600;margin-bottom:10px;">Select your business sector:</div>
-      <div class="sector-grid" id="sectorGrid" style="margin-bottom:0;"></div>
-      <div id="sectorConfirmed" style="display:none;margin-top:10px;" class="success-box">✓ Sector: <strong id="sectorName"></strong> — Standard COA loaded.</div>
+    <!-- Upload instructions -->
+    <div class="info-box" style="margin-bottom:14px;">
+      <strong>How to import your Standard COA:</strong><br>
+      1. Click <strong>Download Template</strong> — get a CSV with your Xero account names already listed.<br>
+      2. Fill in the <strong>Standard COA Category</strong> column for each account.<br>
+      3. Click <strong>Import Standard COA</strong> — all matched accounts will be auto-mapped.<br>
+      4. You can also map manually using the dropdowns below.
+      <div id="coaUploadStatus" style="display:none;margin-top:6px;padding:6px 10px;background:var(--accent-light);border-radius:6px;color:var(--accent);font-weight:600;font-size:12px;"></div>
     </div>
 
     <!-- Progress bars -->
     <div id="mappingProgressBar" class="mapping-progress" style="margin-bottom:16px;"></div>
 
-    <!-- P&L Mapping Section -->
+    <!-- P&L Mapping — collapsible -->
     <div class="table-card" style="margin-bottom:16px;">
-      <div class="table-header" style="background:var(--accent-light);">
-        <div><h3>P&L Account Mapping</h3><div class="table-meta" id="plMapMeta">Map income and expense accounts</div></div>
-        <span id="plMapBadge" class="badge badge-unmapped">Incomplete</span>
+      <div class="table-header" style="background:var(--accent-light);cursor:pointer;user-select:none;" onclick="toggleSection('plMapping','plMapToggle')">
+        <div>
+          <h3>📊 P&amp;L Account Mapping</h3>
+          <div class="table-meta" id="plMapMeta">Map income and expense accounts</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span id="plMapBadge" class="badge badge-unmapped">Incomplete</span>
+          <span id="plMapToggle" style="font-size:20px;color:var(--muted);line-height:1;">▾</span>
+        </div>
       </div>
-      <div id="mapContentPL"></div>
+      <div id="plMapping">
+        <div id="mapContentPL"></div>
+      </div>
     </div>
 
-    <!-- Balance Sheet Mapping Section -->
+    <!-- Balance Sheet Mapping — collapsible -->
     <div class="table-card">
-      <div class="table-header" style="background:var(--accent2-light);">
-        <div><h3>Balance Sheet Account Mapping</h3><div class="table-meta" id="bsMapMeta">Map asset, liability, and equity accounts</div></div>
-        <span id="bsMapBadge" class="badge badge-unmapped">Incomplete</span>
+      <div class="table-header" style="background:var(--accent2-light);cursor:pointer;user-select:none;" onclick="toggleSection('bsMapping','bsMapToggle')">
+        <div>
+          <h3>🏦 Balance Sheet Account Mapping</h3>
+          <div class="table-meta" id="bsMapMeta">Map asset, liability, and equity accounts</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span id="bsMapBadge" class="badge badge-unmapped">Incomplete</span>
+          <span id="bsMapToggle" style="font-size:20px;color:var(--muted);line-height:1;">▾</span>
+        </div>
       </div>
-      <div id="mapContentBS"></div>
+      <div id="bsMapping">
+        <div id="mapContentBS"></div>
+      </div>
     </div>
 
   </div>
 
-  <!-- Restated P&L Tab -->
+    <!-- Restated P&L Tab -->
   <div id="tab-rpl" class="table-card" style="display:none;">
     <div class="table-header"><div><h3>Restated Profit &amp; Loss</h3><div class="table-meta">Grouped by your sector standard COA</div></div><button class="btn btn-secondary btn-sm" onclick="exportSingleCSV('rpl')">Export CSV</button></div>
     <div id="rplContent"><div style="padding:20px;color:var(--muted);font-size:13px;">Complete COA Mapping to view the restated P&L.</div></div>
@@ -427,25 +446,47 @@
 
   <!-- Operating Metrics Tab -->
   <div id="tab-metrics" style="display:none;">
-    <div style="margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
-      <div><div style="font-size:15px;font-weight:600;">Operating Metrics Dashboard</div><div style="font-size:12px;color:var(--muted);">Auto-calculated from restated financials + manual/CSV inputs</div></div>
-      <div style="display:flex;gap:8px;align-items:center;">
-        <select id="metricsQuarter" onchange="renderMetrics()" style="padding:6px 10px;border:1px solid var(--border);border-radius:7px;font-family:var(--mono);font-size:12px;background:var(--surface);color:var(--text);">
-          <option value="full">Full Year</option>
-          <option value="Q1">Q1 (Jan–Mar)</option>
-          <option value="Q2">Q2 (Apr–Jun)</option>
-          <option value="Q3">Q3 (Jul–Sep)</option>
-          <option value="Q4">Q4 (Oct–Dec)</option>
-        </select>
-        <button class="btn btn-secondary btn-sm" onclick="downloadMetricsTemplate()">⬇ Template</button>
-        <button class="btn btn-secondary btn-sm" onclick="exportSingleCSV('metrics')">Export CSV</button>
+
+    <!-- Auto-metrics header — NO quarter selector here -->
+    <div style="margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+      <div>
+        <div style="font-size:15px;font-weight:600;">Operating Metrics Dashboard</div>
+        <div style="font-size:12px;color:var(--muted);">Auto-calculated metrics use the period set in the date bar above. The quarter filter below applies only to manual/CSV metrics.</div>
       </div>
+      <button class="btn btn-secondary btn-sm" onclick="exportSingleCSV('metrics')">Export CSV</button>
     </div>
+
+    <!-- Period indicator for auto metrics -->
+    <div style="background:var(--accent2-light);border:1px solid #c0d4f0;border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:12px;color:var(--accent2);">
+      📅 <strong>Auto-metrics period:</strong> <span id="metricsDateLabel" style="font-family:var(--mono);">Set using the date bar above</span>
+    </div>
+
+    <!-- Auto-calculated grid -->
     <div id="metricsAutoGrid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-bottom:24px;"></div>
     <div id="metricsCharts" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px;margin-bottom:24px;"></div>
+
+    <!-- Manual / CSV Metrics — quarter filter lives HERE only -->
     <div class="table-card">
-      <div class="table-header"><div><h3>Manual / CSV Metrics</h3><div class="table-meta" id="metricsCsvSource">No CSV uploaded — showing template headers</div></div>
-        <div style="display:flex;gap:8px;"><label style="font-size:12px;font-weight:500;display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="file" accept=".csv" id="metricsUploadInput" onchange="uploadMetricsCSV(this)" style="display:none;">📂 Upload CSV</label></div>
+      <div class="table-header">
+        <div>
+          <h3>Manual / CSV Metrics</h3>
+          <div class="table-meta" id="metricsCsvSource">No CSV uploaded — showing template headers</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+          <label style="font-size:12px;color:var(--muted);">Filter period:</label>
+          <select id="metricsQuarter" onchange="renderManualMetrics()" style="padding:6px 10px;border:1px solid var(--border);border-radius:7px;font-family:var(--mono);font-size:12px;background:var(--surface);color:var(--text);">
+            <option value="full">All Periods</option>
+            <option value="Q1">Q1 (Jan–Mar)</option>
+            <option value="Q2">Q2 (Apr–Jun)</option>
+            <option value="Q3">Q3 (Jul–Sep)</option>
+            <option value="Q4">Q4 (Oct–Dec)</option>
+          </select>
+          <button class="btn btn-secondary btn-sm" onclick="downloadMetricsTemplate()">⬇ Template</button>
+          <label class="btn btn-secondary btn-sm" style="cursor:pointer;margin:0;">
+            📂 Upload CSV
+            <input type="file" accept=".csv" id="metricsUploadInput" onchange="uploadMetricsCSV(this)" style="display:none;">
+          </label>
+        </div>
       </div>
       <div id="metricsManualContent" style="padding:16px;"></div>
     </div>
@@ -1053,17 +1094,6 @@ function renderCOA(){
 
 // ── Mapping (dashboard tab) ──────────────────────────────────────────────────
 function renderMapping(){
-  // Always init sectors when mapping tab opens
-  initSectors();
-  if(selectedSector){
-    document.querySelectorAll('.sector-card').forEach(c=>c.classList.remove('active'));
-    const sCard=document.getElementById('sector-'+selectedSector);
-    if(sCard) sCard.classList.add('active');
-    const confirmed=document.getElementById('sectorConfirmed');
-    if(confirmed) confirmed.style.display='block';
-    const sName=document.getElementById('sectorName');
-    if(sName) sName.textContent=SECTORS[selectedSector].name;
-  }
 
   const accounts=getAccountsList();
   const noAccMsg='<p style="padding:20px;color:var(--muted);font-size:13px;">No accounts loaded yet. Connect to Xero or upload a CSV first.</p>';
@@ -1177,33 +1207,72 @@ function renderMapping(){
   document.getElementById('bsMapMeta').textContent=bsMapped+' of '+bsTotal+' accounts mapped';
 }
 
+
+function updateSectionBadges(){
+  const plRows=document.querySelectorAll('#mapContentPL tbody tr');
+  const bsRows=document.querySelectorAll('#mapContentBS tbody tr');
+  function countRows(rows){
+    let total=0,mapped=0;
+    rows.forEach(row=>{
+      const sel=row.querySelector('select[data-account-id]');
+      if(!sel)return;
+      total++;
+      const key=sel.getAttribute('data-account-id');
+      if(mappings[key]&&mappings[key]!=='[ Not mapped ]') mapped++;
+    });
+    return{total,mapped};
+  }
+  const pl=countRows(plRows);
+  const bs=countRows(bsRows);
+  const plBadge=document.getElementById('plMapBadge');
+  if(plBadge&&pl.total>0){
+    const done=pl.mapped===pl.total;
+    plBadge.textContent=done?'Complete ✓':'Incomplete ('+pl.mapped+'/'+pl.total+')';
+    plBadge.className=done?'badge badge-mapped':'badge badge-unmapped';
+  }
+  const bsBadge=document.getElementById('bsMapBadge');
+  if(bsBadge&&bs.total>0){
+    const done=bs.mapped===bs.total;
+    bsBadge.textContent=done?'Complete ✓':'Incomplete ('+bs.mapped+'/'+bs.total+')';
+    bsBadge.className=done?'badge badge-mapped':'badge badge-unmapped';
+  }
+  const plMeta=document.getElementById('plMapMeta');
+  if(plMeta&&pl.total>0) plMeta.textContent=pl.mapped+' of '+pl.total+' P&L accounts mapped';
+  const bsMeta=document.getElementById('bsMapMeta');
+  if(bsMeta&&bs.total>0) bsMeta.textContent=bs.mapped+' of '+bs.total+' BS accounts mapped';
+}
+
+function toggleSection(contentId,toggleId){
+  const el=document.getElementById(contentId);
+  const arrow=document.getElementById(toggleId);
+  if(!el)return;
+  const visible=el.style.display!=='none';
+  el.style.display=visible?'none':'block';
+  if(arrow) arrow.textContent=visible?'▸':'▾';
+}
 // ── COA CSV upload/download ────────────────────────────────────────────
 function downloadCOATemplate(){
-  // Template contains standard COA categories only — user fills in their account names
-  const sec=selectedSector?SECTORS[selectedSector]:null;
-  let csv='Standard COA Category,Section,Notes\n';
-  if(sec){
-    sec.pl.forEach(group=>{
-      group.items.forEach(item=>{
-        csv+='"'+item+'","P&L — '+group.cat+'","Map your P&L accounts to this category"\n';
-      });
-    });
-    sec.bs.forEach(group=>{
-      group.items.forEach(item=>{
-        csv+='"'+item+'","Balance Sheet — '+group.cat+'","Map your BS accounts to this category"\n';
-      });
+  // Template format: Xero Account Name | Standard COA Category
+  // User fills in column A with their exact Xero account names
+  const accounts=getAccountsList();
+  let csv='"Xero Account Name","Standard COA Category","Section"\n';
+  if(accounts.length){
+    // Pre-populate with existing Xero accounts so user just fills in the category
+    accounts.forEach(a=>{
+      const existing=mappings[a.id]||'';
+      const section=a.type?a.type:'';
+      csv+='"'+a.name.replace(/"/g,'""')+'","'+existing+'","'+section+'"\n';
     });
   } else {
-    // Generic template when no sector selected
-    csv+='"Revenue - Sales","P&L — Revenue","Map your revenue accounts here"\n';
-    csv+='"Cost of Goods Sold","P&L — Cost of Revenue","Map your COGS accounts here"\n';
-    csv+='"Payroll & Salaries","P&L — Operating Expenses","Map your payroll accounts here"\n';
-    csv+='"Cash & Bank","Balance Sheet — Current Assets","Map your cash accounts here"\n';
-    csv+='"Accounts Receivable","Balance Sheet — Current Assets","Map your AR accounts here"\n';
-    csv+='"Accounts Payable","Balance Sheet — Current Liabilities","Map your AP accounts here"\n';
+    // Generic sample rows if no accounts loaded yet
+    csv+='"Example Revenue Account","Revenue - Sales","REVENUE"\n';
+    csv+='"Example Salary Account","Payroll & Salaries","OVERHEADS"\n';
+    csv+='"Example Bank Account","Cash & Bank","BANK"\n';
+    csv+='"Example AR Account","Accounts Receivable","CURRENT"\n';
+    csv+='"Example AP Account","Accounts Payable","CURRLIAB"\n';
   }
-  dlCSV(csv,'standard_coa_template.csv');
-  showMsg('✓ Standard COA template downloaded. Use this to understand available categories — then map your Xero accounts using the dropdowns above.','success');
+  dlCSV(csv,'coa_mapping_template.csv');
+  showMsg('✓ Template downloaded. Fill in the Standard COA Category column then Import Standard COA.','success');
 }
 
 function uploadCOAMapping(input){
@@ -1229,12 +1298,17 @@ function uploadCOAMapping(input){
         const key=account.AccountID||name;
         if(cat&&cat!=='[ Not mapped ]'){mappings[key]=cat;loaded++;}
       });
-      showMsg('✓ COA mapping loaded from CSV — '+loaded+' accounts mapped.','success');
+      const statusEl=document.getElementById('coaUploadStatus');
+      if(statusEl){
+        statusEl.style.display='block';
+        statusEl.textContent='✓ Imported '+loaded+' account mappings'+(skipped>0?' ('+skipped+' rows skipped)':'');
+      }
+      showMsg('✓ COA imported — '+loaded+' accounts mapped.','success');
       renderMapping();
       updateMappingProgressBar();
-    }catch(err){showMsg('Error reading COA CSV: '+err.message,'error');}
+    }catch(err){showMsg('Error reading file: '+err.message,'error');}
   };
-  reader.onerror=()=>showMsg('Could not read file. Please try again.','error');
+  reader.onerror=function(){showMsg('Could not read file. Please try again.','error');};
   reader.readAsText(file);
 }
 
@@ -1461,7 +1535,7 @@ function renderRestatedBS(){
   el.innerHTML=html;
 }
 
-// ── Cash Flow (Indirect Method — fixed) ──────────────────────────────────────
+// ── Cash Flow (Indirect Method) ──────────────────────────────────────────────
 function renderCashFlow(){
   const cfEl=document.getElementById('cfContent');
 
@@ -1470,184 +1544,237 @@ function renderCashFlow(){
     return;
   }
 
-  // ── Step 1: Extract net profit from P&L SummaryRows ──
+  // ══ STEP 1: Extract from P&L ══════════════════════════════════════════
   let netProfit=0, depreciation=0;
-  const plLineItems=[];
-
+  // Try to get net profit from the last SummaryRow of the report
   if(plReports.length&&plReports[0].Rows){
-    plReports[0].Rows.forEach(section=>{
+    const allRows=plReports[0].Rows;
+    // Walk every row and summaryrow
+    allRows.forEach(section=>{
       if(!section.Rows)return;
       section.Rows.forEach(row=>{
         if(row.RowType==='Row'&&row.Cells){
-          const name=row.Cells[0]?.Value||'';
-          const rawAmt=row.Cells[1]?.Value||'0';
-          const amt=parseFloat(String(rawAmt).replace(/,/g,''))||0;
-          plLineItems.push({name,amt,section:section.Title||''});
-          if(/depreciation|amortisation|amortization/i.test(name)) depreciation+=Math.abs(amt);
+          const nm=row.Cells[0]?.Value||'';
+          const amt=parseFloat(String(row.Cells[1]?.Value||'0').replace(/,/g,''))||0;
+          if(/depreciation|amortis/i.test(nm)) depreciation+=Math.abs(amt);
         }
         if(row.RowType==='SummaryRow'&&row.Cells){
-          const name=(row.Cells[0]?.Value||'').toLowerCase();
-          const rawAmt=row.Cells[1]?.Value||'0';
-          const amt=parseFloat(String(rawAmt).replace(/,/g,''))||0;
-          if(/net profit|net loss|profit for the|net income/i.test(name)) netProfit=amt;
+          const nm=(row.Cells[0]?.Value||'').toLowerCase();
+          const amt=parseFloat(String(row.Cells[1]?.Value||'0').replace(/,/g,''))||0;
+          // Xero labels: "Net Profit", "Net Loss", "Total Income" etc
+          if(/net profit|net loss|profit for|net income/i.test(nm)) netProfit=amt;
         }
       });
     });
+    // Fallback: use total income minus total expenses from section SummaryRows
+    if(netProfit===0){
+      let totalIncome=0, totalExpenses=0;
+      allRows.forEach(section=>{
+        if(!section.Rows)return;
+        section.Rows.forEach(row=>{
+          if(row.RowType==='SummaryRow'&&row.Cells){
+            const nm=(row.Cells[0]?.Value||'').toLowerCase();
+            const amt=parseFloat(String(row.Cells[1]?.Value||'0').replace(/,/g,''))||0;
+            if(/total income|total revenue/i.test(nm)) totalIncome=amt;
+            if(/total expense|total cost|total overhead/i.test(nm)) totalExpenses+=Math.abs(amt);
+          }
+        });
+      });
+      if(totalIncome!==0) netProfit=totalIncome-totalExpenses;
+    }
   }
 
-  // If net profit not found in SummaryRows, calculate from revenue minus expenses
-  if(netProfit===0&&plLineItems.length>0){
-    let rev=0,exp=0;
-    plLineItems.forEach(item=>{
-      if(/income|revenue/i.test(item.section)) rev+=item.amt;
-      else if(item.amt<0) exp+=item.amt;
-    });
-    if(rev!==0) netProfit=rev+exp; // expenses are negative in Xero
-  }
+  // ══ STEP 2: Parse Balance Sheet by SECTION ════════════════════════════
+  // Key insight: Xero groups BS items into sections like BANK, CURRENT ASSETS,
+  // CURRENT LIABILITIES etc. We must use the SECTION to classify items correctly,
+  // not just pattern-match names (which fails for custom account names).
 
-  // ── Step 2: Extract Balance Sheet figures ──
-  const bsItems={};
+  const bsSections={}; // sectionTitle -> [{origName, amt}]
   const bsItemsList=[];
+
   if(bsReports.length&&bsReports[0].Rows){
     bsReports[0].Rows.forEach(section=>{
-      if(!section.Rows)return;
+      if(!section.Rows||!section.Title)return;
+      const sectionKey=section.Title.toLowerCase().trim();
+      if(!bsSections[sectionKey]) bsSections[sectionKey]=[];
       section.Rows.forEach(row=>{
         if(row.RowType==='Row'&&row.Cells){
-          const name=(row.Cells[0]?.Value||'').toLowerCase().trim();
-          const rawAmt=row.Cells[1]?.Value||'0';
-          const amt=parseFloat(String(rawAmt).replace(/,/g,''))||0;
           const origName=row.Cells[0]?.Value||'';
-          bsItems[name]=amt;
-          bsItemsList.push({name,origName,amt,section:section.Title||''});
+          const amt=parseFloat(String(row.Cells[1]?.Value||'0').replace(/,/g,''))||0;
+          const nameLower=origName.toLowerCase().trim();
+          bsSections[sectionKey].push({origName,nameLower,amt});
+          bsItemsList.push({origName,name:nameLower,amt,section:section.Title});
+        }
+        // Also capture SummaryRows (section totals)
+        if(row.RowType==='SummaryRow'&&row.Cells){
+          const origName=row.Cells[0]?.Value||'';
+          const amt=parseFloat(String(row.Cells[1]?.Value||'0').replace(/,/g,''))||0;
+          // Store section total with special key
+          bsSections[sectionKey+'__total']=[{origName,nameLower:origName.toLowerCase(),amt}];
         }
       });
     });
   }
 
-  // Helper: SUM all BS items matching any of the patterns
-  function bsFind(patterns){
+  // Helper: sum all items in sections matching any of the section title patterns
+  function bsBySection(sectionPatterns){
     let total=0;
     const matched=new Set();
-    for(const pattern of patterns){
-      const regex=new RegExp(pattern,'i');
+    Object.keys(bsSections).forEach(secKey=>{
+      const matches=sectionPatterns.some(p=>new RegExp(p,'i').test(secKey));
+      if(matches&&!secKey.includes('__total')){
+        bsSections[secKey].forEach(item=>{
+          if(!matched.has(item.origName)){
+            total+=item.amt;
+            matched.add(item.origName);
+          }
+        });
+      }
+    });
+    return total;
+  }
+
+  // Helper: sum items matching NAME patterns anywhere in BS (fallback)
+  function bsByName(namePatterns){
+    let total=0;
+    const matched=new Set();
+    namePatterns.forEach(p=>{
+      const rx=new RegExp(p,'i');
       bsItemsList.forEach(item=>{
-        if(!matched.has(item.origName)&&regex.test(item.name)){
+        if(!matched.has(item.origName)&&rx.test(item.name)){
           total+=item.amt;
           matched.add(item.origName);
         }
       });
-    }
+    });
     return total;
   }
 
-  // Debug: log all BS items so we can see what's available
-  console.log('BS items available for cash flow:', bsItemsList.map(i=>i.origName+' = '+i.amt));
+  // Log BS sections for debugging
+  console.log('BS Sections found:', Object.keys(bsSections));
+  console.log('BS Items:', bsItemsList.map(i=>i.section+' | '+i.origName+' = '+i.amt));
 
-  // Working capital items — broad patterns to catch all Xero naming conventions
-  const cashAndBank   = bsFind(['cash','bank account','petty cash','current account','savings account']);
-  const accountsRec   = bsFind(['receivable','debtor','trade debtor','accounts receivable','trade and other receiv']);
-  const inventory     = bsFind(['inventor','stock','merchandise','finished goods','raw material']);
-  const prepayments   = bsFind(['prepay','prepaid','advance payment','deposit paid']);
-  const otherCurrAsset= bsFind(['other current','sundry debtor','other asset','gst receivable','gst refund','input tax']);
-  const accountsPay   = bsFind(['payable','creditor','trade creditor','accounts payable','trade and other payab']);
-  const accruedLiab   = bsFind(['accrual','accrued expense','accrued liabilit','provision']);
-  const deferredRev   = bsFind(['deferred revenue','unearned revenue','contract liabilit','deferred income']);
-  const taxLiab       = bsFind(['tax payable','income tax payable','gst payable','gst owing','output tax','corporate tax']);
-  const otherCurrLiab = bsFind(['other current liabilit','sundry creditor','other payable','cpf payable','salary payable','wages payable']);
+  // ── Cash & Bank: use BANK section (catches all bank accounts regardless of name) ──
+  const cashAndBank = bsBySection(['\bbank\b','cash and bank','cash at bank'])
+    || bsByName(['cash','bank']);
 
-  // PPE and intangibles for investing section
-  const ppe           = bsFind(['property','plant','equipment','fixed asset','capital equipment','furniture','renovation','motor vehicle','computer']);
-  const intangibles   = bsFind(['intangible','goodwill','software','licence','trademark','patent','development cost']);
+  // ── Working Capital: use section-based matching ──
+  const accountsRec   = bsBySection(['trade.*receiv','account.*receiv','debtor'])
+                     || bsByName(['receivable','debtor']);
+  const inventory     = bsBySection(['inventor','stock'])
+                     || bsByName(['inventor','stock']);
+  const prepayments   = bsBySection(['prepay','deposit'])
+                     || bsByName(['prepay','prepaid']);
+  const otherCurrAsset= bsBySection(['other.*current.*asset','sundry.*asset'])
+                     || bsByName(['gst receivable','gst refund','input tax credit']);
+  const accountsPay   = bsBySection(['trade.*payab','account.*payab','creditor'])
+                     || bsByName(['payable','creditor']);
+  const accruedLiab   = bsBySection(['accrual','accrued'])
+                     || bsByName(['accrual','accrued']);
+  const deferredRev   = bsBySection(['deferred','unearned'])
+                     || bsByName(['deferred revenue','unearned']);
+  const taxLiab       = bsBySection(['tax.*payable','gst.*payable','income.*tax'])
+                     || bsByName(['tax payable','gst payable','gst owing','output tax']);
+  const otherCurrLiab = bsBySection(['other.*current.*liab','other.*liab'])
+                     || bsByName(['cpf payable','salary payable','wages payable']);
 
-  // Long term debt for financing
-  const longTermDebt  = bsFind(['long.term','term loan','bank loan','borrowing','hire purchase','lease liabilit','finance lease']);
-  const shareCapital  = bsFind(['share capital','paid.in capital','contributed capital','ordinary share','preference share']);
-  const retainedEarnings = bsFind(['retained earning','accumulated profit','accumulated loss','retained profit']);
+  // ── PPE / Intangibles: non-current assets ──
+  const ppe           = bsBySection(['property','plant.*equip','fixed.*asset','non.current.*asset'])
+                     || bsByName(['property','equipment','furniture','renovation','motor vehicle']);
+  const intangibles   = bsBySection(['intangible'])
+                     || bsByName(['intangible','goodwill','software asset','development']);
 
-  // ── Step 3: Calculate operating CF (indirect method) ──
-  // Note: We only have period-end BS balances, not movements.
-  // The working capital figures shown are the closing balances which approximate
-  // the movement for the period (assumes opening balances were zero or immaterial).
-  const operatingCF = netProfit
-    + depreciation
-    - accountsRec
-    - inventory
-    - prepayments
-    - otherCurrAsset
-    + accountsPay
-    + accruedLiab
-    + deferredRev
-    + taxLiab
-    + otherCurrLiab;
+  // ── Financing: long-term debt only (NOT share capital — it's a balance not a flow) ──
+  const longTermDebt  = bsBySection(['long.term.*loan','term.*loan','borrowing','hire.*purchase','finance.*lease'])
+                     || bsByName(['term loan','long.term','bank loan','hire purchase']);
+
+  // ══ STEP 3: Build Cash Flow ════════════════════════════════════════════
+  // IMPORTANT: We only have period-end balances. The indirect method correctly
+  // uses net profit + non-cash + working capital MOVEMENTS.
+  // Since we have no opening balance sheet, we show balances with a clear disclaimer.
+  // The operating CF = Net Profit + Depreciation (non-cash add-back only)
+  // Working capital lines are shown as reference balances, clearly labelled.
+
+  const nonCashAdjust = depreciation;
+  // Conservative: only use net profit + depreciation as reliable operating CF
+  // Working capital items displayed but noted as balances not movements
+  const operatingCF = netProfit + nonCashAdjust;
+  const investingCF = 0; // Cannot determine without two BS dates
+  const financingCF = longTermDebt; // Only long-term debt movement
+
+  const netChangeCash = operatingCF + investingCF + financingCF;
 
   document.getElementById('sumCF').textContent=fmtMoney(operatingCF);
   document.getElementById('sumCF').className='summary-value '+(operatingCF>=0?'blue':'red');
 
-  // Build cf rows helper
-  const cfRow=(label,val,indent=false,subheader=false)=>{
-    if(subheader) return `<div class="cf-row" style="background:var(--bg);font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.4px;"><span>${label}</span><span></span></div>`;
+  const cfRow=(label,val,indent=false,subheader=false,isBalance=false)=>{
+    if(subheader) return '<div class="cf-row" style="background:var(--bg);font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.4px;"><span>'+label+'</span><span></span></div>';
     const cls=indent?'cf-row indent':'cf-row';
-    const amtCls=val===0?'amount':`amount ${val>0?'pos':'neg'}`;
-    return `<div class="${cls}"><span>${label}</span><span class="${amtCls}">${val===0?'—':fmtMoney(val)}</span></div>`;
+    const amtCls=val===0?'amount':'amount '+(val>0?'pos':'neg');
+    const display=val===0?'—':(isBalance?'['+fmtMoney(val)+']':fmtMoney(val));
+    const style=isBalance?' style="color:var(--muted);font-style:italic;"':'';
+    return '<div class="'+cls+'"><span'+style+'>'+label+(isBalance?' <span style="font-size:10px;">(balance)</span>':'')+'</span><span class="'+amtCls+'"'+style+'>'+display+'</span></div>';
   };
 
-  cfEl.innerHTML=`
-    <div class="info-box" style="margin-bottom:16px;">
-      <strong>Indirect Method:</strong> Starts with Net Profit from P&L, adds back non-cash charges, then adjusts for Balance Sheet working capital movements. Investing and Financing require manual input as Xero does not split these automatically.
-    </div>
+  cfEl.innerHTML=
+    '<div class="info-box" style="margin-bottom:16px;">'
+    +'<strong>Indirect Method:</strong> Net Profit + non-cash items. '
+    +'Working capital lines show <em>end-period balances</em> (not movements) because only one Balance Sheet date is loaded — they are shown for reference only and do not affect the totals. '
+    +'To get accurate movements, load two Balance Sheet dates.'
+    +'</div>'
 
-    <div class="cf-section">
-      <div class="cf-header"><span>A. Operating Activities</span><span style="font-family:var(--mono);font-size:12px;">SGD</span></div>
-      ${cfRow('Net Profit / (Loss)',netProfit)}
-      ${cfRow('Non-cash adjustments',0,false,true)}
-      ${cfRow('Add: Depreciation & Amortisation',depreciation,true)}
-      ${cfRow('Changes in working capital',0,false,true)}
-      ${cfRow('(Increase) / Decrease in Accounts Receivable',-accountsRec,true)}
-      ${cfRow('(Increase) / Decrease in Inventory',-inventory,true)}
-      ${cfRow('(Increase) / Decrease in Prepayments',-prepayments,true)}
-      ${cfRow('(Increase) / Decrease in Other Current Assets',-otherCurrAsset,true)}
-      ${cfRow('Increase / (Decrease) in Accounts Payable',accountsPay,true)}
-      ${cfRow('Increase / (Decrease) in Accrued Liabilities',accruedLiab,true)}
-      ${cfRow('Increase / (Decrease) in Deferred Revenue',deferredRev,true)}
-      ${cfRow('Increase / (Decrease) in Tax Payable',taxLiab,true)}
-      ${cfRow('Increase / (Decrease) in Other Current Liabilities',otherCurrLiab,true)}
-      <div class="cf-row total"><span><strong>Net Cash from Operating Activities</strong></span><span class="amount ${operatingCF>=0?'pos':'neg'}"><strong>${fmtMoney(operatingCF)}</strong></span></div>
-    </div>
+    +'<div class="cf-section">'
+    +'<div class="cf-header"><span>A. Operating Activities</span><span style="font-family:var(--mono);font-size:12px;">SGD</span></div>'
+    +cfRow('Net Profit / (Loss) per P&L',netProfit)
+    +cfRow('Non-cash adjustments',0,false,true)
+    +cfRow('Add back: Depreciation & Amortisation',depreciation,true)
+    +'<div class="cf-row total"><span><strong>Net Cash from Operating Activities</strong></span><span class="amount '+(operatingCF>=0?'pos':'neg')+'"><strong>'+fmtMoney(operatingCF)+'</strong></span></div>'
+    +'</div>'
 
-    <div class="cf-section">
-      <div class="cf-header"><span>B. Investing Activities</span><span style="font-family:var(--mono);font-size:12px;">SGD</span></div>
-      ${cfRow('Purchase / (Disposal) of Property, Plant & Equipment',ppe!==0?-ppe:0,true)}
-      ${cfRow('Purchase / (Disposal) of Intangible Assets',intangibles!==0?-intangibles:0,true)}
-      <div class="cf-row total"><span><strong>Net Cash from Investing Activities</strong></span><span class="amount ${(-ppe-intangibles)>=0?'pos':'neg'}"><strong>${fmtMoney(-ppe-intangibles)}</strong></span></div>
-    </div>
+    +'<div class="cf-section">'
+    +'<div class="cf-header" style="background:var(--bg);"><span style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;">Working Capital Balances (Reference Only — not included in totals)</span></div>'
+    +cfRow('Accounts Receivable',accountsRec,true,false,true)
+    +cfRow('Inventory',inventory,true,false,true)
+    +cfRow('Prepayments',prepayments,true,false,true)
+    +cfRow('Other Current Assets',otherCurrAsset,true,false,true)
+    +cfRow('Accounts Payable',accountsPay,true,false,true)
+    +cfRow('Accrued Liabilities',accruedLiab,true,false,true)
+    +cfRow('Deferred Revenue',deferredRev,true,false,true)
+    +cfRow('Tax Payable',taxLiab,true,false,true)
+    +cfRow('Other Current Liabilities',otherCurrLiab,true,false,true)
+    +'</div>'
 
-    <div class="cf-section">
-      <div class="cf-header"><span>C. Financing Activities</span><span style="font-family:var(--mono);font-size:12px;">SGD</span></div>
-      ${cfRow('Proceeds from / (Repayment of) Long-term Debt',longTermDebt,true)}
-      ${cfRow('Share Capital Contributed',shareCapital,true)}
-      <div class="cf-row total"><span><strong>Net Cash from Financing Activities</strong></span><span class="amount ${(longTermDebt+shareCapital)>=0?'pos':'neg'}"><strong>${fmtMoney(longTermDebt+shareCapital)}</strong></span></div>
-    </div>
+    +'<div class="cf-section">'
+    +'<div class="cf-header"><span>B. Investing Activities</span><span style="font-family:var(--mono);font-size:12px;">SGD</span></div>'
+    +'<div class="cf-row indent" style="color:var(--muted);font-style:italic;"><span>Requires two Balance Sheet dates to calculate movements</span><span class="amount">—</span></div>'
+    +'<div class="cf-row total"><span><strong>Net Cash from Investing Activities</strong></span><span class="amount">0.00</span></div>'
+    +'</div>'
 
-    <div class="cf-section">
-      <div class="cf-row total" style="font-size:14px;">
-        <span><strong>NET CHANGE IN CASH</strong></span>
-        <span class="amount ${(operatingCF+(-ppe-intangibles)+(longTermDebt+shareCapital))>=0?'pos':'neg'}" style="font-size:14px;">
-          <strong>${fmtMoney(operatingCF+(-ppe-intangibles)+(longTermDebt+shareCapital))}</strong>
-        </span>
-      </div>
-    </div>
+    +'<div class="cf-section">'
+    +'<div class="cf-header"><span>C. Financing Activities</span><span style="font-family:var(--mono);font-size:12px;">SGD</span></div>'
+    +'<div class="cf-row indent" style="color:var(--muted);font-style:italic;"><span>Requires two Balance Sheet dates to calculate debt/equity movements</span><span class="amount">—</span></div>'
+    +'<div class="cf-row total"><span><strong>Net Cash from Financing Activities</strong></span><span class="amount">0.00</span></div>'
+    +'</div>'
 
-    <div style="margin-top:16px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px 16px;font-size:12px;">
-      <div style="font-weight:600;margin-bottom:6px;">Reconciliation</div>
-      <div style="display:flex;gap:24px;flex-wrap:wrap;font-family:var(--mono);color:var(--muted);">
-        <span>Cash &amp; Bank per BS: <strong style="color:var(--text)">${fmtMoney(cashAndBank)}</strong></span>
-        <span>Net Profit per P&amp;L: <strong style="color:var(--text)">${fmtMoney(netProfit)}</strong></span>
-        <span>Depreciation: <strong style="color:var(--text)">${fmtMoney(depreciation)}</strong></span>
-        <span>AR: <strong style="color:var(--text)">${fmtMoney(accountsRec)}</strong></span>
-        <span>AP: <strong style="color:var(--text)">${fmtMoney(accountsPay)}</strong></span>
-      </div>
-      <div style="margin-top:6px;font-size:11px;color:var(--muted);">Note: Working capital changes shown above are end-period balances (not period movements) as only one Balance Sheet date is loaded. For accurate movements, load two Balance Sheet dates.</div>
-    </div>`;
+    +'<div class="cf-section">'
+    +'<div class="cf-row total" style="font-size:14px;">'
+    +'<span><strong>NET CASH FROM OPERATIONS</strong></span>'
+    +'<span class="amount '+(operatingCF>=0?'pos':'neg')+'" style="font-size:14px;"><strong>'+fmtMoney(operatingCF)+'</strong></span>'
+    +'</div></div>'
+
+    +'<div style="margin-top:16px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:14px 18px;font-size:12px;">'
+    +'<div style="font-weight:600;margin-bottom:8px;">Reconciliation</div>'
+    +'<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px;font-family:var(--mono);">'
+    +'<div style="background:var(--bg);padding:8px 12px;border-radius:6px;"><div style="font-size:10px;color:var(--muted);text-transform:uppercase;margin-bottom:2px;">Cash &amp; Bank per BS</div><div style="font-weight:600;">'+fmtMoney(cashAndBank)+'</div></div>'
+    +'<div style="background:var(--bg);padding:8px 12px;border-radius:6px;"><div style="font-size:10px;color:var(--muted);text-transform:uppercase;margin-bottom:2px;">Net Profit per P&amp;L</div><div style="font-weight:600;">'+fmtMoney(netProfit)+'</div></div>'
+    +'<div style="background:var(--bg);padding:8px 12px;border-radius:6px;"><div style="font-size:10px;color:var(--muted);text-transform:uppercase;margin-bottom:2px;">Depreciation (add-back)</div><div style="font-weight:600;">'+fmtMoney(depreciation)+'</div></div>'
+    +'<div style="background:var(--bg);padding:8px 12px;border-radius:6px;"><div style="font-size:10px;color:var(--muted);text-transform:uppercase;margin-bottom:2px;">Net Operating CF</div><div style="font-weight:600;color:'+(operatingCF>=0?'var(--accent)':'var(--danger)')+';">'+fmtMoney(operatingCF)+'</div></div>'
+    +'</div>'
+    +'<div style="margin-top:10px;font-size:11px;color:var(--muted);line-height:1.7;">'
+    +'⚠️ <strong>Limitation:</strong> Investing and Financing activities cannot be accurately calculated from a single Balance Sheet date. '
+    +'The working capital section shows closing balances for reference. '
+    +'For a complete Cash Flow statement, Xero native Cash Flow report (if available on your plan) will be more accurate.'
+    +'</div></div>';
 }
 
 // ── Operating Metrics ─────────────────────────────────────────────────────────
