@@ -1904,6 +1904,8 @@ function renderCashFlow(){
       if(change!==0||!hasPrior) invItems.push({name,curr,prior,change,cashImpact,dir:mapping.dir,type:xType});
     }
     if(mapping.tag==='F'){
+      // Exclude Retained Earnings — this is an accumulated P&L balance, not a cash flow item
+      if(/retained earning|accumulated profit|accumulated loss|retained profit|current year earning/i.test(name)) return;
       const cashImpact=mapping.dir==='LIAB'?change:-change;
       if(change!==0||!hasPrior) finItems.push({name,curr,prior,change,cashImpact,dir:mapping.dir,type:xType});
     }
@@ -1921,7 +1923,10 @@ function renderCashFlow(){
       if(curr!==0){
         if(mapping.tag==='O') opItems.push({name,curr,prior:0,change:curr,cashImpact,dir:mapping.dir,type:xType});
         if(mapping.tag==='I') invItems.push({name,curr,prior:0,change:curr,cashImpact:(-curr),dir:mapping.dir,type:xType});
-        if(mapping.tag==='F') finItems.push({name,curr,prior:0,change:curr,cashImpact,dir:mapping.dir,type:xType});
+        if(mapping.tag==='F'){
+          if(/retained earning|accumulated profit|accumulated loss|retained profit|current year earning/i.test(name)) return;
+          finItems.push({name,curr,prior:0,change:curr,cashImpact,dir:mapping.dir,type:xType});
+        }
       }
     });
     // Cash balance for reconciliation
