@@ -367,11 +367,14 @@
         <div style="font-size:12px;color:var(--muted);">Map your Xero accounts to your standard Chart of Accounts. P&amp;L and Balance Sheet are mapped separately.</div>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;">
-        <button class="btn btn-secondary btn-sm" onclick="downloadCOATemplate()" title="Download your Xero accounts list — fill in the Standard COA Category column and import back">⬇ Option 1: Mapping Template</button>
-        <button class="btn btn-secondary btn-sm" onclick="downloadStandardCOATemplate()" title="Download a blank Standard COA template — define your categories then import to enable dropdowns">⬇ Option 2: Standard COA Template</button>
-        <label class="btn btn-secondary btn-sm" style="cursor:pointer;margin:0;">
+        <button class="btn btn-secondary btn-sm" onclick="downloadCOATemplate()" title="Download your Xero accounts — fill in Standard COA Category column and import back">⬇ Mapping Template</button>
+        <label class="btn btn-secondary btn-sm" style="cursor:pointer;margin:0;" title="Import filled mapping template OR a master COA file">
           📂 Import CSV
           <input type="file" accept=".csv" id="coaUploadInput" onchange="uploadCOAMapping(this)" style="display:none;">
+        </label>
+        <label class="btn btn-primary btn-sm" style="cursor:pointer;margin:0;" title="Import your master COA file (e.g. from Javeriya) — enables structured dropdowns for all accounts">
+          📋 Import Master COA
+          <input type="file" accept=".csv" id="masterCOAInput" onchange="uploadMasterCOA(this)" style="display:none;">
         </label>
         <button class="btn btn-secondary btn-sm" onclick="exportSingleCSV('map')">⬇ Export Mapping</button>
       </div>
@@ -379,11 +382,13 @@
 
     <!-- Upload instructions -->
     <div class="info-box" style="margin-bottom:14px;">
-      <strong>Two ways to map your accounts:</strong><br>
-      <strong>Option 1 — Full Auto-Map:</strong> Click <strong>Option 1: Mapping Template</strong> → your Xero accounts are pre-listed → fill in the Standard COA Category and Department columns → click <strong>Import CSV</strong> → all accounts are mapped automatically.<br>
-      <strong>Option 2 — Define then Map:</strong> Click <strong>Option 2: Standard COA Template</strong> → define your standard categories → click <strong>Import CSV</strong> → category dropdowns are enabled → map each account manually in the table below.<br>
-      You can also type directly into the category fields without importing anything.
+      <strong>How to map your accounts:</strong><br>
+      <strong>Revenue &amp; COGS accounts</strong> automatically show sector-suggested categories grouped by industry. Select from the list or choose <em>✏️ Enter custom category</em> for your own.<br>
+      <strong>All other accounts</strong> use a free-text field — just type the category name.<br>
+      <strong>Mapping Template:</strong> Download your Xero accounts pre-listed → fill in Standard COA Category + Department → Import CSV to auto-map everything at once.<br>
+      <strong>Import Master COA:</strong> Upload your firm's master COA file (CSV with columns: Group, Category) to replace suggestions with your own structured categories across all accounts.
       <div id="coaUploadStatus" style="display:none;margin-top:8px;padding:8px 12px;background:var(--accent-light);border-radius:6px;color:var(--accent);font-weight:600;font-size:12px;"></div>
+      <div id="masterCOAStatus" style="display:none;margin-top:6px;padding:8px 12px;background:var(--accent2-light);border-radius:6px;color:var(--accent2);font-weight:600;font-size:12px;"></div>
     </div>
 
     <!-- Progress bars -->
@@ -657,6 +662,25 @@ const SECTORS={
     ]
   }
 };
+
+// ══ SUGGESTED CATEGORIES — multi-sector revenue & COGS suggestions ═══════════
+const SUGGESTED_REVENUE=[
+  {group:'SaaS / Software',  items:['Recurring Revenue (SaaS)','Professional Services Revenue','Implementation Revenue','Licence Revenue','Usage-Based Revenue']},
+  {group:'E-Commerce',       items:['Product Sales','Marketplace Fees','Shipping Revenue','Subscription Revenue']},
+  {group:'Professional Svcs',items:['Consulting Fees','Project Revenue','Retainer Revenue','Advisory Fees','Reimbursable Expenses']},
+  {group:'Fintech / HR Tech', items:['Subscription Revenue','Transaction Fee Revenue','Platform Fee Revenue','Payroll Processing Revenue']},
+  {group:'General',          items:['Revenue — Other','Interest Income','Grant Income','Other Operating Income']},
+];
+const SUGGESTED_COGS=[
+  {group:'SaaS / Software',  items:['Hosting & Infrastructure','Customer Success Costs','Support Costs','Third-party Software Costs','Onboarding Costs']},
+  {group:'E-Commerce',       items:['Product Cost / Cost of Goods Sold','Fulfilment Costs','Shipping Costs','Payment Processing Fees','Returns & Refunds']},
+  {group:'Professional Svcs',items:['Direct Staff Costs — Billable','Contractor Costs','Project-related Expenses','Travel — Billable']},
+  {group:'Fintech / HR Tech', items:['Payment Processing Costs','Compliance & Regulatory Costs','Infrastructure Costs','Customer Success']},
+  {group:'General',          items:['Cost of Goods Sold','Cost of Services','Direct Materials','Direct Labour']},
+];
+
+// Master COA — uploaded by user (e.g. Javeriya master COA)
+let masterCOA=null; // {pl:[{group,items}], bs:[{group,items}]} — overrides suggestions when loaded
 
 // ══ STATE ═════════════════════════════════════════════════════════════════════
 let selectedSector=null;
@@ -1224,6 +1248,63 @@ function renderMapping(){
   // Use imported standard COA categories if available, otherwise free-text input
   const hasCats=standardCOACategories.length>0;
 
+  // ── Build the category dropdown/input for a given account ──
+  function buildCatInput(key, cur, xeroType){
+    const t=(xeroType||'').toUpperCase();
+    const isRev=['REVENUE','SALES','OTHERINCOME'].includes(t);
+    const isCogs=['DIRECTCOSTS','DIRECTCOST'].includes(t);
+    const isExp=['OVERHEADS','EXPENSE','WAGES','DEPRECIATN'].includes(t);
+
+    // If master COA loaded, use it as primary options
+    // If standard COA categories imported, use those
+    // Otherwise: Revenue/COGS get sector-suggested grouped dropdown; expenses get flat dropdown + custom
+    if(masterCOA){
+      const groups=masterCOA.pl||[];
+      let opts='<option value="">— Select category —</option>';
+      opts+=groups.map(g=>'<optgroup label="'+g.group+'">'+g.items.map(item=>'<option value="'+item+'"'+(cur===item?' selected':'')+'>'+item+'</option>').join('')+'</optgroup>').join('');
+      opts+='<option value="__custom__">✏️ Enter custom category…</option>';
+      return buildSelectWithCustom(key, cur, opts);
+    }
+
+    if(hasCats){
+      // User-imported standard COA — flat dropdown + custom option
+      let opts='<option value="">— Select category —</option>'
+        +standardCOACategories.map(cat=>'<option value="'+cat+'"'+(cur===cat?' selected':'')+'>'+cat+'</option>').join('');
+      opts+='<option value="__custom__">✏️ Enter custom category…</option>';
+      return buildSelectWithCustom(key, cur, opts);
+    }
+
+    if(isRev||isCogs){
+      // Tiered grouped dropdown with sector suggestions + custom option
+      const suggestions=isRev?SUGGESTED_REVENUE:SUGGESTED_COGS;
+      let opts='<option value="">— Select or type custom… —</option>';
+      suggestions.forEach(function(g){
+        opts+='<optgroup label="'+g.group+'">';
+        g.items.forEach(function(item){opts+='<option value="'+item+'"'+(cur===item?' selected':'')+'>'+item+'</option>';});
+        opts+='</optgroup>';
+      });
+      opts+='<optgroup label="─────────────"><option disabled>─────────────</option></optgroup>';
+      opts+='<option value="__custom__">✏️ Enter custom category…</option>';
+      return buildSelectWithCustom(key, cur, opts);
+    }
+
+    // All other accounts: free-text input (fastest for bulk mapping)
+    return '<input type="text" class="mapping-select" data-account-id="'+key+'"'
+      +' value="'+cur.replace(/"/g,'&quot;')+'"'
+      +' placeholder="Type category name..."'
+      +' onchange="updateMapping(this)" oninput="updateMapping(this)"'
+      +' style="min-width:180px;">';
+  }
+
+  // Dropdown with "Enter custom" that switches to text input
+  function buildSelectWithCustom(key, cur, opts){
+    // If current value is custom (not in opts), show text input directly
+    return '<div style="display:flex;gap:4px;align-items:center;">'
+      +'<select class="mapping-select" data-account-id="'+key+'" onchange="handleCatChange(this)" style="min-width:180px;">'+opts+'</select>'
+      +(cur?'<span style="font-size:10px;color:var(--accent);white-space:nowrap;">✓</span>':'')
+      +'</div>';
+  }
+
   function buildMappingTable(accs, section){
     if(!accs.length) return '<p style="padding:16px;color:var(--muted);font-size:13px;">No accounts found for this section.</p>';
     const mapped=accs.filter(a=>mappings[a.id]&&mappings[a.id]!=='[ Not mapped ]').length;
@@ -1231,12 +1312,9 @@ function renderMapping(){
       +'<span class="badge badge-mapped">'+mapped+' Mapped</span> &nbsp;'
       +'<span class="badge badge-unmapped">'+(accs.length-mapped)+' Unmapped</span>'
       +'<span style="margin-left:8px;">of '+accs.length+' accounts</span>'
-      +(hasCats?'':' &nbsp;<span style="color:var(--accent2);">· Import Standard COA to enable dropdown mapping</span>')
       +'</div>';
     html+='<table><thead><tr>'
-      +'<th>Code</th>'
-      +'<th>Account Name</th>'
-      +'<th>Xero Type</th>'
+      +'<th>Code</th><th>Account Name</th><th>Xero Type</th>'
       +'<th>Standard COA Category</th>'
       +'<th>Department / Cost Centre</th>'
       +'<th>Status</th>'
@@ -1246,25 +1324,12 @@ function renderMapping(){
       const cur=mappings[key]||'';
       const dept=departments[key]||'';
       const isMapped=cur&&cur!=='[ Not mapped ]';
-      let catInput;
-      if(hasCats){
-        // Dropdown from imported Standard COA
-        const opts='<option value="">— Select category —</option>'
-          +standardCOACategories.map(cat=>'<option value="'+cat+'"'+(cur===cat?' selected':'')+'>'+cat+'</option>').join('');
-        catInput='<select class="mapping-select" data-account-id="'+key+'" onchange="updateMapping(this)">'+opts+'</select>';
-      } else {
-        // Free-text input when no standard COA imported yet
-        catInput='<input type="text" class="mapping-select" data-account-id="'+key+'"'
-          +' value="'+cur.replace(/"/g,'&quot;')+'"'
-          +' placeholder="Type category name..."'
-          +' onchange="updateMapping(this)" oninput="updateMapping(this)"'
-          +' style="min-width:180px;">';
-      }
+      const catInput=buildCatInput(key, cur, a.type);
       const deptInput='<input type="text" data-dept-id="'+key+'"'
         +' value="'+dept.replace(/"/g,'&quot;')+'"'
         +' placeholder="e.g. Sales, Ops..."'
         +' onchange="updateDept(this)"'
-        +' style="width:130px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;font-family:var(--sans);">';
+        +' style="width:120px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;">';
       html+='<tr>'
         +'<td><span style="font-family:var(--mono);font-size:11px;color:var(--muted)">'+(a.code||'—')+'</span></td>'
         +'<td><strong>'+a.name+'</strong></td>'
@@ -1299,6 +1364,76 @@ let departments={};
 function updateDept(input){
   const key=input.getAttribute('data-dept-id');
   departments[key]=input.value;
+}
+
+// Handle category dropdown change — if "Enter custom" selected, swap to text input
+function handleCatChange(sel){
+  if(sel.value==='__custom__'){
+    const key=sel.getAttribute('data-account-id');
+    const cur=mappings[key]||'';
+    // Replace the select with a text input
+    const wrapper=sel.closest('div');
+    if(wrapper){
+      const inp=document.createElement('input');
+      inp.type='text'; inp.className='mapping-select';
+      inp.setAttribute('data-account-id',key);
+      inp.value=cur; inp.placeholder='Type your custom category...';
+      inp.style.minWidth='200px';
+      inp.addEventListener('change',function(){updateMapping(inp);});
+      inp.addEventListener('input',function(){updateMapping(inp);});
+      const btn=document.createElement('button');
+      btn.textContent='↩'; btn.title='Back to dropdown';
+      btn.style.cssText='padding:4px 8px;border:1px solid var(--border);border-radius:6px;font-size:11px;cursor:pointer;background:var(--bg);';
+      btn.addEventListener('click',function(){revertToDropdown(btn,key);});
+      wrapper.innerHTML='';
+      wrapper.appendChild(inp); wrapper.appendChild(btn);
+      inp.focus();
+    }
+  } else {
+    updateMapping(sel);
+  }
+}
+
+// Revert custom text input back to dropdown
+function revertToDropdown(btn, key){
+  const row=btn.closest('tr');
+  if(!row)return;
+  const acc=getAccountsList().find(a=>a.id===key);
+  if(!acc)return;
+  const catCell=btn.closest('td');
+  catCell.innerHTML=buildCatInputStandalone(key, mappings[key]||'', acc.type);
+}
+
+// Standalone version of buildCatInput (callable outside renderMapping scope)
+function buildCatInputStandalone(key, cur, xeroType){
+  const t=(xeroType||'').toUpperCase();
+  const isRev=['REVENUE','SALES','OTHERINCOME'].includes(t);
+  const isCogs=['DIRECTCOSTS','DIRECTCOST'].includes(t);
+
+  if(masterCOA){
+    const groups=masterCOA.pl||[];
+    let opts='<option value="">— Select category —</option>';
+    opts+=groups.map(g=>'<optgroup label="'+g.group+'">'+g.items.map(item=>'<option value="'+item+'"'+(cur===item?' selected':'')+'>'+item+'</option>').join('')+'</optgroup>').join('');
+    opts+='<option value="__custom__">✏️ Enter custom category…</option>';
+    return '<div style="display:flex;gap:4px;align-items:center;"><select class="mapping-select" data-account-id="'+key+'" onchange="handleCatChange(this)" style="min-width:180px;">'+opts+'</select></div>';
+  }
+  if(standardCOACategories.length>0){
+    let opts='<option value="">— Select category —</option>'+standardCOACategories.map(cat=>'<option value="'+cat+'"'+(cur===cat?' selected':'')+'>'+cat+'</option>').join('');
+    opts+='<option value="__custom__">✏️ Enter custom category…</option>';
+    return '<div style="display:flex;gap:4px;align-items:center;"><select class="mapping-select" data-account-id="'+key+'" onchange="handleCatChange(this)" style="min-width:180px;">'+opts+'</select></div>';
+  }
+  if(isRev||isCogs){
+    const suggestions=isRev?SUGGESTED_REVENUE:SUGGESTED_COGS;
+    let opts='<option value="">— Select or type custom… —</option>';
+    suggestions.forEach(function(g){
+      opts+='<optgroup label="'+g.group+'">';
+      g.items.forEach(function(item){opts+='<option value="'+item+'"'+(cur===item?' selected':'')+'>'+item+'</option>';});
+      opts+='</optgroup>';
+    });
+    opts+='<option value="__custom__">✏️ Enter custom category…</option>';
+    return '<div style="display:flex;gap:4px;align-items:center;"><select class="mapping-select" data-account-id="'+key+'" onchange="handleCatChange(this)" style="min-width:180px;">'+opts+'</select></div>';
+  }
+  return '<input type="text" class="mapping-select" data-account-id="'+key+'" value="'+cur.replace(/"/g,'&quot;')+'" placeholder="Type category name..." onchange="updateMapping(this)" oninput="updateMapping(this)" style="min-width:180px;">';
 }
 
 
@@ -1345,6 +1480,72 @@ function toggleSection(contentId,toggleId){
   if(arrow) arrow.textContent=visible?'▸':'▾';
 }
 // ── COA CSV upload/download ────────────────────────────────────────────
+// ── Master COA upload (e.g. Javeriya's master COA) ───────────────────────────
+function uploadMasterCOA(input){
+  const file=input.files[0];
+  if(!file)return;
+  const reader=new FileReader();
+  reader.onload=function(e){
+    try{
+      const lines=e.target.result.split(/\r?\n/).filter(function(l){return l.trim();});
+      if(lines.length<2){showMsg('Master COA CSV needs header + data rows.','error');return;}
+      const headers=splitCSVLine(lines[0]).map(function(h){return h.trim().replace(/"/g,'').toLowerCase();});
+
+      // Support formats:
+      // A) Group, Category (grouped structure)
+      // B) Category, Account Type (flat with type)
+      // C) Just Category (flat list)
+      const groupIdx=headers.findIndex(function(h){return h.includes('group')||h.includes('section')||h.includes('parent');});
+      const catIdx=headers.findIndex(function(h){return h.includes('category')||h.includes('name')||h.includes('standard');});
+      const typeIdx=headers.findIndex(function(h){return h.includes('type')||h.includes('account type');});
+
+      if(catIdx===-1){showMsg('Master COA CSV must have a Category or Name column.','error');return;}
+
+      // Build grouped structure
+      const groups={};
+      lines.slice(1).forEach(function(line){
+        const cols=splitCSVLine(line);
+        const cat=(cols[catIdx]||'').trim().replace(/"/g,'');
+        const group=groupIdx>=0?(cols[groupIdx]||'').trim().replace(/"/g,''):'General';
+        const type=typeIdx>=0?(cols[typeIdx]||'').trim().replace(/"/g,''):'';
+        if(!cat) return;
+        if(!groups[group]) groups[group]=[];
+        if(groups[group].indexOf(cat)===-1) groups[group].push(cat);
+      });
+
+      const plGroups=[], bsGroups=[], allGroups=[];
+      Object.keys(groups).forEach(function(g){
+        const items=groups[g];
+        allGroups.push({group:g,items:items});
+        // Classify group into P&L vs BS by name
+        if(/asset|liabilit|equity|capital|cash|bank|receiv|payab|debt|loan/i.test(g)){
+          bsGroups.push({group:g,items:items});
+        } else {
+          plGroups.push({group:g,items:items});
+        }
+      });
+
+      masterCOA={pl:allGroups, bs:bsGroups.length?bsGroups:allGroups};
+
+      // Also populate standardCOACategories for compatibility
+      standardCOACategories=[];
+      allGroups.forEach(function(g){g.items.forEach(function(item){standardCOACategories.push(item);});});
+
+      const total=standardCOACategories.length;
+      const statusEl=document.getElementById('masterCOAStatus');
+      if(statusEl){
+        statusEl.style.display='block';
+        statusEl.textContent='✓ Master COA loaded from "'+file.name+'" — '+total+' categories in '+Object.keys(groups).length+' groups. Dropdowns updated.';
+      }
+      showMsg('✓ Master COA imported — '+total+' categories loaded across '+Object.keys(groups).length+' groups.','success');
+      renderMapping();
+      input.value='';
+    }catch(err){showMsg('Error reading Master COA: '+err.message,'error');}
+  };
+  reader.onerror=function(){showMsg('Could not read file.','error');};
+  reader.readAsText(file);
+}
+
 function downloadCOATemplate(){
   // Option 1: Full mapping template — Xero accounts + category column to fill
   const accounts=getAccountsList();
