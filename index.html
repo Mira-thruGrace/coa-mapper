@@ -473,19 +473,18 @@
         <div style="font-size:12px;color:var(--muted);">Map your Xero accounts to your standard Chart of Accounts. P&amp;L and Balance Sheet are mapped separately.</div>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;">
-        <button class="btn btn-primary btn-sm" onclick="autoMapAccounts()" style="gap:6px;">
-          ✨ Auto-Map Accounts
-        </button>
-        <button class="btn btn-secondary btn-sm" onclick="downloadCOATemplate()">⬇ Download Template</button>
+        <button class="btn btn-primary btn-sm" onclick="autoMapAccounts()">✨ Auto-Map</button>
+        <button class="btn btn-secondary btn-sm" onclick="toggleBulkPanel()">☰ Bulk Map</button>
+        <button class="btn btn-secondary btn-sm" onclick="downloadCOATemplate()">⬇ Template</button>
         <label class="btn btn-secondary btn-sm" style="cursor:pointer;margin:0;">
           📂 Import CSV
           <input type="file" accept=".csv" id="coaUploadInput" onchange="uploadCOAMapping(this)" style="display:none;">
         </label>
         <label class="btn btn-secondary btn-sm" style="cursor:pointer;margin:0;">
-          📋 Import Master COA
+          📋 Master COA
           <input type="file" accept=".csv" id="masterCOAInput" onchange="uploadMasterCOA(this)" style="display:none;">
         </label>
-        <button class="btn btn-secondary btn-sm" onclick="exportSingleCSV('map')">⬇ Export Mapping</button>
+        <button class="btn btn-secondary btn-sm" onclick="exportSingleCSV('map')">⬇ Export</button>
       </div>
     </div>
 
@@ -504,6 +503,70 @@
     <!-- Status messages -->
     <div id="coaUploadStatus" style="display:none;margin-bottom:10px;padding:8px 14px;background:var(--accent-light);border-radius:8px;color:var(--accent);font-weight:600;font-size:12px;"></div>
     <div id="masterCOAStatus" style="display:none;margin-bottom:10px;padding:8px 14px;background:var(--accent2-light);border-radius:8px;color:var(--accent2);font-weight:600;font-size:12px;"></div>
+
+    <!-- Bulk Map Panel (hidden by default) -->
+    <div id="bulkMapPanel" style="display:none;background:var(--surface);border:1px solid var(--accent);border-radius:12px;padding:18px 20px;margin-bottom:16px;box-shadow:0 0 0 3px rgba(37,99,235,0.06);">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px;">
+        <div>
+          <div style="font-size:14px;font-weight:700;margin-bottom:2px;">☰ Bulk Mapping</div>
+          <div style="font-size:12px;color:var(--muted);">Select accounts from the table below, then apply a section and category to all of them at once.</div>
+        </div>
+        <button onclick="toggleBulkPanel()" style="padding:5px 10px;border:1px solid var(--border);border-radius:6px;cursor:pointer;background:var(--bg);font-size:12px;">✕ Close</button>
+      </div>
+
+      <!-- Bulk controls row -->
+      <div style="display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap;padding:14px 16px;background:var(--bg);border-radius:8px;margin-bottom:12px;">
+        <div style="flex:1;min-width:140px;">
+          <label style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.4px;display:block;margin-bottom:5px;">Apply to</label>
+          <select id="bulkTarget" style="width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;background:var(--surface);">
+            <option value="pl">P&L accounts</option>
+            <option value="bs">BS accounts</option>
+          </select>
+        </div>
+        <div style="flex:1;min-width:160px;">
+          <label style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.4px;display:block;margin-bottom:5px;">Section</label>
+          <select id="bulkSection" onchange="refreshBulkCatOpts()" style="width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;background:var(--surface);">
+            <option value="">— Keep existing —</option>
+            <option value="Revenue">💰 Revenue</option>
+            <option value="COGS">🏭 COGS</option>
+            <option value="OpEx — Sales & Marketing">📊 OpEx — Sales & Marketing</option>
+            <option value="OpEx — Research & Development">📊 OpEx — Research & Development</option>
+            <option value="OpEx — General & Administrative">📊 OpEx — General & Administrative</option>
+            <option value="Other">📎 Other / Non-Operating</option>
+            <option value="Current Assets">🏦 Current Assets</option>
+            <option value="Non-Current Assets">🏗 Non-Current Assets</option>
+            <option value="Current Liabilities">📋 Current Liabilities</option>
+            <option value="Non-Current Liabilities">📋 Non-Current Liabilities</option>
+            <option value="Equity">💎 Equity</option>
+          </select>
+        </div>
+        <div style="flex:2;min-width:200px;">
+          <label style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.4px;display:block;margin-bottom:5px;">Category</label>
+          <select id="bulkCategory" style="width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;background:var(--surface);">
+            <option value="">— Keep existing —</option>
+          </select>
+        </div>
+        <div style="min-width:120px;">
+          <label style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.4px;display:block;margin-bottom:5px;">Department</label>
+          <input type="text" id="bulkDept" placeholder="e.g. R&D, G&A…" style="width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;font-family:var(--sans);">
+        </div>
+        <button onclick="applyBulkMap()" style="padding:8px 18px;background:var(--accent);color:white;border:none;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;">
+          Apply to selected →
+        </button>
+      </div>
+
+      <!-- Account checklist -->
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;flex-wrap:wrap;gap:8px;">
+        <div style="font-size:12px;font-weight:600;">Select accounts to bulk-map:</div>
+        <div style="display:flex;gap:8px;">
+          <button onclick="bulkSelectAll()" style="padding:4px 10px;border:1px solid var(--border);border-radius:5px;font-size:11px;cursor:pointer;background:var(--bg);">Select all</button>
+          <button onclick="bulkSelectUnmapped()" style="padding:4px 10px;border:1px solid var(--border);border-radius:5px;font-size:11px;cursor:pointer;background:var(--bg);">Unmapped only</button>
+          <button onclick="bulkSelectNone()" style="padding:4px 10px;border:1px solid var(--border);border-radius:5px;font-size:11px;cursor:pointer;background:var(--bg);">Deselect all</button>
+        </div>
+      </div>
+      <div id="bulkAccountList" style="max-height:280px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;background:var(--surface);"></div>
+      <div id="bulkStatus" style="margin-top:10px;font-size:12px;color:var(--muted);"></div>
+    </div>
 
     <!-- STEP 2: Progress bars -->
     <div id="mappingProgressBar" class="mapping-progress" style="margin-bottom:16px;"></div>
@@ -2348,6 +2411,193 @@ function uploadMasterCOA(input){
   reader.readAsText(file);
 }
 
+// ══ BULK MAP FUNCTIONS ═══════════════════════════════════════════════════════
+
+function toggleBulkPanel(){
+  var panel=document.getElementById('bulkMapPanel');
+  if(!panel)return;
+  var isOpen=panel.style.display!=='none';
+  panel.style.display=isOpen?'none':'block';
+  if(!isOpen) refreshBulkAccountList();
+}
+
+function refreshBulkCatOpts(){
+  var secVal=document.getElementById('bulkSection').value;
+  var targetType=document.getElementById('bulkTarget').value;
+  var catSel=document.getElementById('bulkCategory');
+  var opts='<option value="">— Keep existing —</option>';
+
+  // Determine if this is a BS or PL section
+  var bsSections_=new Set(['Current Assets','Non-Current Assets','Current Liabilities','Non-Current Liabilities','Equity']);
+  var isBs=bsSections_.has(secVal);
+  var sectorData=selectedSector&&SECTORS[selectedSector]?SECTORS[selectedSector]:null;
+
+  if(sectorData&&secVal){
+    var items=null;
+    if(isBs){
+      var bsMap={'Current Assets':'current_assets','Non-Current Assets':'noncurrent_assets',
+        'Current Liabilities':'current_liabilities','Non-Current Liabilities':'noncurrent_liabilities','Equity':'equity'};
+      items=sectorData.bs&&bsMap[secVal]?sectorData.bs[bsMap[secVal]]:null;
+    } else {
+      var plData=sectorData.pl;
+      if(plData){
+        if(secVal==='Revenue') items=plData.revenue;
+        else if(secVal==='COGS') items=plData.cogs;
+        else if(secVal==='Other') items=plData.other;
+        else if(secVal.startsWith('OpEx — ')){
+          var grp=secVal.replace('OpEx — ','');
+          items=plData.opex&&plData.opex[grp]?plData.opex[grp]:null;
+        }
+      }
+    }
+    if(items){
+      items.forEach(function(item){opts+='<option value="'+item+'">'+item+'</option>';});
+    }
+  }
+  opts+='<option value="__custom__">✏️ Enter custom…</option>';
+  catSel.innerHTML=opts;
+  catSel.onchange=function(){
+    if(catSel.value==='__custom__'){
+      var inp=prompt('Enter custom category name:');
+      if(inp){
+        var opt=document.createElement('option');
+        opt.value=inp; opt.text=inp; opt.selected=true;
+        catSel.insertBefore(opt, catSel.lastElementChild);
+        catSel.value=inp;
+      }
+    }
+  };
+}
+
+function refreshBulkAccountList(){
+  var targetType=document.getElementById('bulkTarget').value;
+  var container=document.getElementById('bulkAccountList');
+  var accounts=getAccountsList();
+
+  var alwaysBsTypes=new Set(['BANK','CREDITCARD','EQUITY','CURRLIAB','LIABILITY','TERMLIAB',
+    'CURRENT','FIXED','NONCURRENT','PREPAYMENT','PAYABLE','RECEIVABLE']);
+
+  // Get accounts in the loaded reports (same logic as mapping table)
+  var plNames=new Set(), bsNames=new Set();
+  if(plReports.length&&plReports[0].Rows)
+    plReports[0].Rows.forEach(function(s){if(s.Rows)s.Rows.forEach(function(r){if(r.RowType==='Row'&&r.Cells&&r.Cells[0]?.Value)plNames.add(r.Cells[0].Value);});});
+  if(bsReports.length&&bsReports[0].Rows)
+    bsReports[0].Rows.forEach(function(s){if(s.Rows)s.Rows.forEach(function(r){if(r.RowType==='Row'&&r.Cells&&r.Cells[0]?.Value)bsNames.add(r.Cells[0].Value);});});
+
+  var filtered;
+  if(targetType==='pl'){
+    filtered=accounts.filter(function(a){
+      if(alwaysBsTypes.has((a.type||'').toUpperCase()))return false;
+      return plNames.has(a.name)||plNames.has(a.id);
+    });
+  } else {
+    filtered=accounts.filter(function(a){return bsNames.has(a.name)||bsNames.has(a.id);});
+  }
+
+  if(!filtered.length){container.innerHTML='<div style="padding:14px;color:var(--muted);font-size:12px;">No accounts found. Load '+(targetType==='pl'?'P&L':'Balance Sheet')+' data first.</div>';return;}
+
+  var html='<table style="width:100%;border-collapse:collapse;">'
+    +'<thead><tr style="background:var(--bg);">'
+    +'<th style="padding:8px 12px;width:36px;"><input type="checkbox" id="bulkChkAll" onchange="bulkToggleAll(this)" style="width:14px;height:14px;"></th>'
+    +'<th style="padding:8px 12px;font-size:11px;color:var(--muted);text-align:left;">Code</th>'
+    +'<th style="padding:8px 12px;font-size:11px;color:var(--muted);text-align:left;">Account Name</th>'
+    +'<th style="padding:8px 12px;font-size:11px;color:var(--muted);text-align:left;">Current Section</th>'
+    +'<th style="padding:8px 12px;font-size:11px;color:var(--muted);text-align:left;">Current Category</th>'
+    +'<th style="padding:8px 12px;font-size:11px;color:var(--muted);text-align:left;">Status</th>'
+    +'</tr></thead><tbody>';
+
+  filtered.forEach(function(a){
+    var key=a.id;
+    var cat=mappings[key]||'';
+    var sec=(targetType==='pl'?plSections[key]:bsSections[key])||'';
+    var dept=departments[key]||'';
+    var isMapped=cat&&cat!=='[ Not mapped ]';
+    html+='<tr style="border-bottom:1px solid var(--border);">'
+      +'<td style="padding:8px 12px;"><input type="checkbox" class="bulk-chk" data-id="'+key+'" style="width:14px;height:14px;"'+(isMapped?' checked':'')+' ></td>'
+      +'<td style="padding:8px 12px;font-family:var(--mono);font-size:11px;color:var(--muted);">'+(a.code||'—')+'</td>'
+      +'<td style="padding:8px 12px;font-size:13px;"><strong>'+a.name+'</strong></td>'
+      +'<td style="padding:8px 12px;font-size:12px;color:var(--muted);">'+(sec||'—')+'</td>'
+      +'<td style="padding:8px 12px;font-size:12px;">'+(cat||'<span style="color:var(--muted);">—</span>')+'</td>'
+      +'<td style="padding:8px 12px;">'+(isMapped
+        ?'<span class="badge badge-mapped">Mapped</span>'
+        :'<span class="badge badge-unmapped">Unmapped</span>')
+      +'</td>'
+      +'</tr>';
+  });
+  html+='</tbody></table>';
+  container.innerHTML=html;
+  document.getElementById('bulkStatus').textContent=filtered.length+' accounts shown.';
+  // Refresh cat opts for current section
+  refreshBulkCatOpts();
+}
+
+function bulkToggleAll(chk){
+  document.querySelectorAll('.bulk-chk').forEach(function(c){c.checked=chk.checked;});
+}
+
+function bulkSelectAll(){
+  var allChk=document.getElementById('bulkChkAll');
+  if(allChk) allChk.checked=true;
+  document.querySelectorAll('.bulk-chk').forEach(function(c){c.checked=true;});
+}
+function bulkSelectNone(){
+  var allChk=document.getElementById('bulkChkAll');
+  if(allChk) allChk.checked=false;
+  document.querySelectorAll('.bulk-chk').forEach(function(c){c.checked=false;});
+}
+function bulkSelectUnmapped(){
+  var allChk=document.getElementById('bulkChkAll');
+  if(allChk) allChk.checked=false;
+  document.querySelectorAll('.bulk-chk').forEach(function(c){
+    var key=c.getAttribute('data-id');
+    var isMapped=mappings[key]&&mappings[key]!=='[ Not mapped ]';
+    c.checked=!isMapped;
+  });
+}
+
+function applyBulkMap(){
+  var secVal=document.getElementById('bulkSection').value;
+  var catVal=document.getElementById('bulkCategory').value;
+  var deptVal=document.getElementById('bulkDept').value.trim();
+  var targetType=document.getElementById('bulkTarget').value;
+  var checked=document.querySelectorAll('.bulk-chk:checked');
+
+  if(!checked.length){showMsg('No accounts selected. Tick the checkboxes first.','error');return;}
+  if(!secVal&&!catVal&&!deptVal){showMsg('Choose at least a Section, Category, or Department to apply.','error');return;}
+
+  var applied=0;
+  checked.forEach(function(chk){
+    var key=chk.getAttribute('data-id');
+    if(secVal){
+      if(targetType==='pl') plSections[key]=secVal;
+      else bsSections[key]=secVal;
+    }
+    if(catVal&&catVal!=='__custom__') mappings[key]=catVal;
+    if(deptVal) departments[key]=deptVal;
+    applied++;
+  });
+
+  var msg='✓ Applied to '+applied+' accounts';
+  if(secVal) msg+=' — Section: '+secVal;
+  if(catVal&&catVal!=='__custom__') msg+=' — Category: '+catVal;
+  if(deptVal) msg+=' — Dept: '+deptVal;
+  document.getElementById('bulkStatus').textContent=msg;
+  showMsg(msg,'success');
+
+  // Refresh the account list and mapping tables
+  refreshBulkAccountList();
+  renderMapping();
+  updateMappingProgressBar();
+}
+
+// Also refresh bulk list when target changes
+document.addEventListener('DOMContentLoaded',function(){
+  var tgt=document.getElementById('bulkTarget');
+  if(tgt) tgt.onchange=function(){refreshBulkAccountList();refreshBulkCatOpts();};
+});
+
+// ══ END BULK MAP FUNCTIONS ════════════════════════════════════════════════════
+
 function downloadCOATemplate(){
   // Standard COA template only — no Xero accounts included
   // User defines their own categories; import enables dropdown mapping
@@ -2578,10 +2828,6 @@ function renderBS(){
 // Groups by user-defined mappings only — no sector required
 function renderRestatedPL(){
   const el=document.getElementById('rplContent');
-  if(!Object.keys(mappings).length){
-    el.innerHTML='<div class="warn-box" style="margin:16px;">⚠️ No mappings yet. Go to <strong>COA Mapping</strong> tab and map your accounts first.</div>';
-    return;
-  }
   if(!plReports.length){el.innerHTML='<div class="warn-box" style="margin:16px;">⚠️ No P&L data loaded.</div>';return;}
 
   const lineItems=[];
@@ -2719,29 +2965,54 @@ function renderRestatedPL(){
 
   totalOther=renderRPLSection('OTHER / NON-OPERATING',otherCats,false);
   var totalExp=totalCOGS+totalOpex+totalOther;
+
+  // ── Unmapped accounts — always shown with totals ──
+  var unmappedIncTotal=0, unmappedExpTotal=0;
   if(unmappedIncome.length){
-    html+='<tr class="unmapped-section-row"><td colspan="3" style="padding:8px 14px">Unmapped Income</td></tr>';
-    unmappedIncome.forEach(function(item){html+='<tr style="background:var(--amber-light)"><td style="padding-left:20px;color:var(--amber)">'+item.name+'</td><td></td><td class="amount pos">'+fmtMoney(item.amt)+'</td></tr>';});
+    html+='<tr class="unmapped-section-row"><td colspan="3" style="padding:8px 14px">⚠ UNMAPPED INCOME</td></tr>';
+    unmappedIncome.forEach(function(item){
+      unmappedIncTotal+=item.amt;
+      html+='<tr style="background:#fffbeb;"><td style="padding-left:20px;color:#92400e;">'+item.name+'</td>'
+        +'<td style="font-size:11px;color:#92400e;">'+item.section+'</td>'
+        +'<td class="amount pos">'+fmtMoney(item.amt)+'</td></tr>';
+    });
+    html+='<tr style="background:#fef3c7;font-weight:600;"><td style="padding-left:14px;color:#92400e;" colspan="2">Total Unmapped Income</td>'
+      +'<td class="amount pos" style="color:#92400e;">'+fmtMoney(unmappedIncTotal)+'</td></tr>';
   }
   if(unmappedExpense.length){
-    html+='<tr class="unmapped-section-row"><td colspan="3" style="padding:8px 14px">Unmapped Expenses</td></tr>';
-    unmappedExpense.forEach(function(item){html+='<tr style="background:var(--amber-light)"><td style="padding-left:20px;color:var(--amber)">'+item.name+'</td><td></td><td class="amount neg">'+fmtMoney(item.amt)+'</td></tr>';});
+    html+='<tr class="unmapped-section-row"><td colspan="3" style="padding:8px 14px">⚠ UNMAPPED EXPENSES</td></tr>';
+    unmappedExpense.forEach(function(item){
+      unmappedExpTotal+=Math.abs(item.amt);
+      html+='<tr style="background:#fffbeb;"><td style="padding-left:20px;color:#92400e;">'+item.name+'</td>'
+        +'<td style="font-size:11px;color:#92400e;">'+item.section+'</td>'
+        +'<td class="amount neg">'+fmtMoney(Math.abs(item.amt))+'</td></tr>';
+    });
+    html+='<tr style="background:#fef3c7;font-weight:600;"><td style="padding-left:14px;color:#92400e;" colspan="2">Total Unmapped Expenses</td>'
+      +'<td class="amount neg" style="color:#92400e;">'+fmtMoney(unmappedExpTotal)+'</td></tr>';
   }
 
-  var net=totalRev-totalExp;
-  html+='<tr class="total-row"><td colspan="2"><strong>NET PROFIT / (LOSS)</strong></td><td class="amount '+(net>=0?'pos':'neg')+'"><strong>'+fmtMoney(net)+'</strong></td></tr>';
+  // Net profit includes unmapped items so the total is always correct
+  var net=totalRev+unmappedIncTotal-(totalExp+unmappedExpTotal);
+  html+='<tr class="total-row"><td colspan="2"><strong>NET PROFIT / (LOSS)</strong></td>'
+    +'<td class="amount '+(net>=0?'pos':'neg')+'"><strong>'+fmtMoney(net)+'</strong></td></tr>';
   html+='</tbody></table>';
-  el.innerHTML=html;
+
+  // Summary banner at top showing mapping progress
+  var mappedCount=Object.keys(catTotals).length;
+  var unmappedCount=unmappedIncome.length+unmappedExpense.length;
+  var total=mappedCount+unmappedCount;
+  var bannerColor=unmappedCount===0?'var(--green-light)':'#fffbeb';
+  var bannerBorder=unmappedCount===0?'#a7f3d0':'#fde68a';
+  var bannerText=unmappedCount===0?'✓ All accounts mapped':'⚠️ '+unmappedCount+' of '+total+' accounts not yet mapped — shown at the bottom. Go to COA Mapping to assign them.';
+  var bannerTextColor=unmappedCount===0?'#065f46':'#92400e';
+  var banner='<div style="background:'+bannerColor+';border:1px solid '+bannerBorder+';border-radius:8px;padding:10px 14px;margin:14px 16px;font-size:12px;color:'+bannerTextColor+';font-weight:500;">'+bannerText+'</div>';
+  el.innerHTML=banner+html;
 }
 
 // ── Restated Balance Sheet ────────────────────────────────────────────────────
 // Groups by user-defined mappings only — no sector required
 function renderRestatedBS(){
   const el=document.getElementById('rbsContent');
-  if(!Object.keys(mappings).length){
-    el.innerHTML='<div class="warn-box" style="margin:16px;">⚠️ No mappings yet. Go to <strong>COA Mapping</strong> tab and map your accounts first.</div>';
-    return;
-  }
   if(!bsReports.length){el.innerHTML='<div class="warn-box" style="margin:16px;">⚠️ No Balance Sheet data loaded.</div>';return;}
 
   const lineItems=[];
@@ -2848,26 +3119,47 @@ function renderRestatedBS(){
 
   totalEquityAmt=renderBSSec('EQUITY',equityCats);
 
+  // Unmapped items — always shown with totals
+  var unmappedTotal=0;
   if(unmappedItems.length){
-    html+='<tr class="unmapped-section-row"><td colspan="3" style="padding:8px 14px">UNMAPPED ITEMS</td></tr>';
+    html+='<tr class="unmapped-section-row"><td colspan="3" style="padding:8px 14px">⚠ UNMAPPED ITEMS</td></tr>';
     unmappedItems.forEach(function(item){
-      html+='<tr style="background:var(--amber-light)"><td style="padding-left:20px;color:var(--amber)">'+item.name
-        +'</td><td style="font-size:11px;color:var(--amber)">'+item.section+'</td>'
-        +'<td class="amount">'+fmtMoney(item.amt)+'</td></tr>';
+      unmappedTotal+=item.amt;
+      html+='<tr style="background:#fffbeb;"><td style="padding-left:20px;color:#92400e;">'+item.name+'</td>'
+        +'<td style="font-size:11px;color:#92400e;">'+item.section+'</td>'
+        +'<td class="amount" style="color:#92400e;">'+fmtMoney(item.amt)+'</td></tr>';
     });
+    html+='<tr style="background:#fef3c7;font-weight:600;"><td style="padding-left:14px;color:#92400e;" colspan="2">Total Unmapped Items</td>'
+      +'<td class="amount" style="font-weight:700;color:#92400e;">'+fmtMoney(unmappedTotal)+'</td></tr>';
   }
 
   var totalLiabEquity=totalLiab+totalEquityAmt;
   var diff=totalAssets-totalLiabEquity;
   html+='<tr class="total-row"><td colspan="2"><strong>TOTAL LIABILITIES + EQUITY</strong></td>'
     +'<td class="amount pos"><strong>'+fmtMoney(totalLiabEquity)+'</strong></td></tr>';
-  html+='<tr style="background:'+(Math.abs(diff)<1?'var(--green-light)':'var(--danger-light)')+';padding:8px 14px;">'
-    +'<td colspan="2" style="font-size:12px;padding:8px 14px;font-weight:600;color:'+(Math.abs(diff)<1?'#065f46':'#991b1b')+'">'
-    +(Math.abs(diff)<1?'✓ Balance sheet balances':'⚠️ Out of balance — check unmapped accounts or BS section assignments')+'</td>'
-    +'<td class="amount" style="font-weight:700;color:'+(Math.abs(diff)<1?'#065f46':'#991b1b')+'">'+fmtMoney(Math.abs(diff))+'</td>'
+
+  // Balance check — only meaningful when mapping is complete
+  var balCheckBg=unmappedItems.length>0?'#fffbeb':(Math.abs(diff)<1?'var(--green-light)':'var(--danger-light)');
+  var balCheckColor=unmappedItems.length>0?'#92400e':(Math.abs(diff)<1?'#065f46':'#991b1b');
+  var balCheckMsg=unmappedItems.length>0
+    ?'⚠️ '+unmappedItems.length+' unmapped items ('+fmtMoney(unmappedTotal)+') excluded from totals — assign BS sections to balance'
+    :(Math.abs(diff)<1?'✓ Balance sheet balances':'⚠️ Out of balance — check BS section assignments');
+  html+='<tr style="background:'+balCheckBg+';">'
+    +'<td colspan="2" style="font-size:12px;padding:10px 16px;font-weight:600;color:'+balCheckColor+'">'+balCheckMsg+'</td>'
+    +'<td class="amount" style="font-weight:700;color:'+balCheckColor+';">'+(unmappedItems.length>0?'':fmtMoney(Math.abs(diff)))+'</td>'
     +'</tr>';
   html+='</tbody></table>';
-  el.innerHTML=html;
+
+  // Summary banner
+  var mappedCountBS=Object.keys(catTotals).length;
+  var unmappedCountBS=unmappedItems.length;
+  var totalBS=mappedCountBS+unmappedCountBS;
+  var bsBannerColor=unmappedCountBS===0?'var(--green-light)':'#fffbeb';
+  var bsBannerBorder=unmappedCountBS===0?'#a7f3d0':'#fde68a';
+  var bsBannerText=unmappedCountBS===0?'✓ All accounts mapped':'⚠️ '+unmappedCountBS+' of '+totalBS+' accounts not yet mapped — shown at the bottom. Go to COA Mapping to assign BS sections.';
+  var bsBannerColor2=unmappedCountBS===0?'#065f46':'#92400e';
+  var bsBanner='<div style="background:'+bsBannerColor+';border:1px solid '+bsBannerBorder+';border-radius:8px;padding:10px 14px;margin:14px 16px;font-size:12px;color:'+bsBannerColor2+';font-weight:500;">'+bsBannerText+'</div>';
+  el.innerHTML=bsBanner+html;
 }
 
 // ── Cash Flow (Indirect Method) ──────────────────────────────────────────────
