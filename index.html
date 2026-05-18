@@ -321,7 +321,33 @@
         <option value="CASH">Cash</option>
       </select>
     </div>
+    <div style="display:flex;align-items:center;gap:8px;">
+      <label>Currency</label>
+      <select id="reportCurrency" onchange="updateCurrency(this.value)" style="padding:6px 10px;border:1px solid var(--border);border-radius:7px;font-family:var(--mono);font-size:12px;background:var(--surface);color:var(--text);min-width:76px;">
+        <option value="SGD" selected>SGD</option>
+        <option value="USD">USD</option>
+        <option value="HKD">HKD</option>
+        <option value="MYR">MYR</option>
+        <option value="IDR">IDR</option>
+        <option value="PHP">PHP</option>
+        <option value="AUD">AUD</option>
+        <option value="GBP">GBP</option>
+        <option value="EUR">EUR</option>
+        <option value="JPY">JPY</option>
+        <option value="CNY">CNY</option>
+        <option value="INR">INR</option>
+        <option value="THB">THB</option>
+        <option value="VND">VND</option>
+      </select>
+    </div>
     <button class="btn btn-primary btn-sm" onclick="applyDateFilter()" style="margin-left:auto;">Apply →</button>
+  </div>
+
+  <!-- Currency badge -->
+  <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+    <span style="font-size:12px;color:var(--muted);">All amounts in</span>
+    <span class="badge" style="background:var(--accent2-light);color:var(--accent2);font-family:var(--mono);font-size:11px;" id="currencyBadge">SGD</span>
+    <span class="currency-label" style="display:none;">SGD</span>
   </div>
 
   <!-- Summary cards -->
@@ -678,6 +704,17 @@ let csvPL=[], csvBS=[], csvMetrics=[];
 let dataMode='xero';
 let userMetrics=[];
 let dataSources={pl:'—',bs:'—',coa:'—',priorBs:'',timestamp:'—'};
+let reportCurrency='SGD'; // active currency for display
+
+function updateCurrency(val){
+  reportCurrency=val||document.getElementById('reportCurrency')?.value||'SGD';
+  // Update currency badge and labels everywhere
+  var badge=document.getElementById('currencyBadge');
+  if(badge) badge.textContent=reportCurrency;
+  document.querySelectorAll('.currency-label').forEach(function(el){el.textContent=reportCurrency;});
+  // Re-render to pick up new currency in meta labels
+  renderPL(); renderBS();
+}
 
 // ── Sector setup ────────────────────────────────────────────────────────────
 function initSectors(){
@@ -1502,6 +1539,53 @@ function renderMapping(){
       +'<option value="Equity"'+(cur==='Equity'?' selected':'')+'>💎 Equity</option>';
   }
 
+  // ── Build ALL category options (used when no section is selected yet) ──────
+  function buildAllCatOpts(key, cur, reportSection){
+    var opts='<option value="">— Select category —</option>';
+    if(reportSection==='bs'){
+      var sec=selectedSector&&SECTORS[selectedSector]?SECTORS[selectedSector].bs:null;
+      if(sec){
+        var labelMap={'current_assets':'Current Assets','noncurrent_assets':'Non-Current Assets',
+          'current_liabilities':'Current Liabilities','noncurrent_liabilities':'Non-Current Liabilities','equity':'Equity'};
+        Object.keys(labelMap).forEach(function(k){
+          if(sec[k]&&sec[k].length){
+            opts+='<optgroup label="'+labelMap[k]+'">';
+            sec[k].forEach(function(item){opts+='<option value="'+item+'"'+(cur===item?' selected':'')+'>'+item+'</option>';});
+            opts+='</optgroup>';
+          }
+        });
+      }
+    } else {
+      var sec=selectedSector&&SECTORS[selectedSector]?SECTORS[selectedSector].pl:null;
+      if(sec){
+        if(sec.revenue&&sec.revenue.length){
+          opts+='<optgroup label="💰 Revenue">';
+          sec.revenue.forEach(function(item){opts+='<option value="'+item+'"'+(cur===item?' selected':'')+'>'+item+'</option>';});
+          opts+='</optgroup>';
+        }
+        if(sec.cogs&&sec.cogs.length){
+          opts+='<optgroup label="🏭 COGS">';
+          sec.cogs.forEach(function(item){opts+='<option value="'+item+'"'+(cur===item?' selected':'')+'>'+item+'</option>';});
+          opts+='</optgroup>';
+        }
+        if(sec.opex){
+          Object.keys(sec.opex).forEach(function(g){
+            opts+='<optgroup label="📊 OpEx — '+g+'">';
+            sec.opex[g].forEach(function(item){opts+='<option value="'+item+'"'+(cur===item?' selected':'')+'>'+item+'</option>';});
+            opts+='</optgroup>';
+          });
+        }
+        if(sec.other&&sec.other.length){
+          opts+='<optgroup label="📎 Other / Non-Operating">';
+          sec.other.forEach(function(item){opts+='<option value="'+item+'"'+(cur===item?' selected':'')+'>'+item+'</option>';});
+          opts+='</optgroup>';
+        }
+      }
+    }
+    opts+='<option value="__custom__">✏️ Enter custom category…</option>';
+    return opts;
+  }
+
   // ── Get category options filtered by section ──────────────────────────────
   function getCatOptsForSection(key, cur, sectionVal, reportSection){
     if(reportSection==='bs'){
@@ -1541,8 +1625,8 @@ function renderMapping(){
         }
       }
     }
-    // Fallback — show all sector cats
-    return null;
+    // Fallback — no section selected or no sector: show all
+    return null; // caller will use buildAllCatOpts
   }
 
   function buildMappingTable(accs, section){
@@ -1576,17 +1660,16 @@ function renderMapping(){
       const secInput='<select '+secAttr+'="'+key+'" onchange="'+secChange+'" '
         +'style="width:100%;padding:5px 7px;border:1px solid var(--border);border-radius:6px;font-size:12px;">'+secOpts+'</select>';
 
-      // Category dropdown — filtered by chosen section
+      // Category column: always a dropdown
+      // If section selected → filtered items for that section
+      // If no section → all sector categories grouped
+      // Always includes "✏️ Enter custom…" at the bottom
       const filteredOpts=getCatOptsForSection(key, cur, secVal, section);
-      let catInput;
-      if(filteredOpts){
-        catInput='<div style="display:flex;gap:4px;align-items:center;">'
-          +'<select class="mapping-select" data-account-id="'+key+'" onchange="handleCatChange(this)" style="min-width:180px;">'+filteredOpts+'</select>'
-          +(isMapped?'<span style="font-size:10px;color:var(--accent);">✓</span>':'')
-          +'</div>';
-      } else {
-        catInput=buildCatInput(key, cur, a.type, section);
-      }
+      const allOpts=filteredOpts||buildAllCatOpts(key, cur, section);
+      const catInput='<div style="display:flex;gap:4px;align-items:center;" id="catcell-'+key+'">'
+        +'<select class="mapping-select" data-account-id="'+key+'" onchange="handleCatChange(this)" style="min-width:190px;">'+allOpts+'</select>'
+        +(isMapped?'<span style="font-size:10px;color:var(--accent);" title="Mapped">✓</span>':'')
+        +'</div>';
 
       const deptInput='<input type="text" data-dept-id="'+key+'"'
         +' value="'+dept.replace(/"/g,'&quot;')+'"'
@@ -1695,16 +1778,17 @@ function handleCatChange(sel){
     // Replace the select with a text input
     const wrapper=sel.closest('div');
     if(wrapper){
-      const inp=document.createElement('input');
+      var inp=document.createElement('input');
       inp.type='text'; inp.className='mapping-select';
       inp.setAttribute('data-account-id',key);
-      inp.value=cur; inp.placeholder='Type your custom category...';
-      inp.style.minWidth='200px';
+      inp.value=(cur&&cur!=='__custom__'?cur:'');
+      inp.placeholder='Type your custom category...';
+      inp.style.cssText='min-width:190px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;';
       inp.addEventListener('change',function(){updateMapping(inp);});
       inp.addEventListener('input',function(){updateMapping(inp);});
-      const btn=document.createElement('button');
-      btn.textContent='↩'; btn.title='Back to dropdown';
-      btn.style.cssText='padding:4px 8px;border:1px solid var(--border);border-radius:6px;font-size:11px;cursor:pointer;background:var(--bg);';
+      var btn=document.createElement('button');
+      btn.textContent='↩'; btn.title='Back to list';
+      btn.style.cssText='padding:4px 8px;border:1px solid var(--border);border-radius:6px;font-size:11px;cursor:pointer;background:var(--bg);white-space:nowrap;';
       btn.addEventListener('click',function(){revertToDropdown(btn,key);});
       wrapper.innerHTML='';
       wrapper.appendChild(inp); wrapper.appendChild(btn);
@@ -2098,13 +2182,13 @@ function renderPL(){
   const from=document.getElementById('dateFrom')?.value||(new Date().getFullYear()+'-01-01');
   const to=document.getElementById('dateTo')?.value||new Date().toISOString().split('T')[0];
   const basis=document.getElementById('reportBasis')?.value||'ACCRUAL';
-  renderReport(plReports,'plContent','plMeta','Period: '+from+' to '+to+' · '+basis+' · Source: '+dataSources.pl,true);
+  renderReport(plReports,'plContent','plMeta','Period: '+from+' to '+to+' · '+basis+' · '+reportCurrency+' · Source: '+dataSources.pl,true);
 }
 
 function renderBS(){
   const asAt=document.getElementById('dateBS')?.value||new Date().toISOString().split('T')[0];
   const basis=document.getElementById('reportBasis')?.value||'ACCRUAL';
-  renderReport(bsReports,'bsContent','bsMeta','As at: '+asAt+' · '+basis+' · Source: '+dataSources.bs,false);
+  renderReport(bsReports,'bsContent','bsMeta','As at: '+asAt+' · '+basis+' · '+reportCurrency+' · Source: '+dataSources.bs,false);
 }
 
 // ── Restated P&L ─────────────────────────────────────────────────────────────
@@ -2555,7 +2639,7 @@ function renderCashFlow(){
   cfEl.innerHTML=noPriorNote+accuracyNote
 
     +'<div class="cf-section">'
-    +'<div class="cf-header"><span>A. Operating Activities</span><span style="font-family:var(--mono);font-size:12px;">SGD</span></div>'
+    +'<div class="cf-header"><span>A. Operating Activities</span><span style="font-family:var(--mono);font-size:12px;">'+reportCurrency+'</span></div>'
     +cfRow('Net Income / (Loss)',netProfit,false)
     +cfRow('Non-cash items',0,false,true)
     +cfRow('Add back: Depreciation & Amortisation',depreciation,true)
