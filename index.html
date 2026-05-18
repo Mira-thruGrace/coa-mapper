@@ -361,18 +361,18 @@
   <div id="tab-map" style="display:none;">
 
     <!-- Header -->
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
       <div>
         <div style="font-size:16px;font-weight:600;">COA Mapping</div>
         <div style="font-size:12px;color:var(--muted);">Map your Xero accounts to your standard Chart of Accounts. P&amp;L and Balance Sheet are mapped separately.</div>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;">
-        <button class="btn btn-secondary btn-sm" onclick="downloadCOATemplate()" title="Download your Xero accounts — fill in Standard COA Category column and import back">⬇ Mapping Template</button>
-        <label class="btn btn-secondary btn-sm" style="cursor:pointer;margin:0;" title="Import filled mapping template OR a master COA file">
+        <button class="btn btn-secondary btn-sm" onclick="downloadCOATemplate()">⬇ Download Template</button>
+        <label class="btn btn-secondary btn-sm" style="cursor:pointer;margin:0;">
           📂 Import CSV
           <input type="file" accept=".csv" id="coaUploadInput" onchange="uploadCOAMapping(this)" style="display:none;">
         </label>
-        <label class="btn btn-primary btn-sm" style="cursor:pointer;margin:0;" title="Import your master COA file (e.g. from Javeriya) — enables structured dropdowns for all accounts">
+        <label class="btn btn-primary btn-sm" style="cursor:pointer;margin:0;">
           📋 Import Master COA
           <input type="file" accept=".csv" id="masterCOAInput" onchange="uploadMasterCOA(this)" style="display:none;">
         </label>
@@ -380,21 +380,26 @@
       </div>
     </div>
 
-    <!-- Upload instructions -->
-    <div class="info-box" style="margin-bottom:14px;">
-      <strong>How to map your accounts:</strong><br>
-      <strong>Revenue &amp; COGS accounts</strong> automatically show sector-suggested categories grouped by industry. Select from the list or choose <em>✏️ Enter custom category</em> for your own.<br>
-      <strong>All other accounts</strong> use a free-text field — just type the category name.<br>
-      <strong>Mapping Template:</strong> Download your Xero accounts pre-listed → fill in Standard COA Category + Department → Import CSV to auto-map everything at once.<br>
-      <strong>Import Master COA:</strong> Upload your firm's master COA file (CSV with columns: Group, Category) to replace suggestions with your own structured categories across all accounts.
-      <div id="coaUploadStatus" style="display:none;margin-top:8px;padding:8px 12px;background:var(--accent-light);border-radius:6px;color:var(--accent);font-weight:600;font-size:12px;"></div>
-      <div id="masterCOAStatus" style="display:none;margin-top:6px;padding:8px 12px;background:var(--accent2-light);border-radius:6px;color:var(--accent2);font-weight:600;font-size:12px;"></div>
+    <!-- STEP 1: Sector selector -->
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px 20px;margin-bottom:16px;">
+      <div style="font-size:13px;font-weight:600;margin-bottom:12px;">
+        Step 1 — Select your business sector
+        <span style="font-weight:400;color:var(--muted);margin-left:8px;font-size:12px;">This loads the standard COA categories into the dropdowns below</span>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:10px;" id="sectorGrid"></div>
+      <div id="sectorConfirmed" style="display:none;margin-top:12px;padding:8px 14px;background:var(--accent-light);border-radius:8px;font-size:12px;color:var(--accent);font-weight:600;">
+        ✓ Sector: <span id="sectorName"></span> — Category dropdowns are now active below.
+      </div>
     </div>
 
-    <!-- Progress bars -->
+    <!-- Status messages -->
+    <div id="coaUploadStatus" style="display:none;margin-bottom:10px;padding:8px 14px;background:var(--accent-light);border-radius:8px;color:var(--accent);font-weight:600;font-size:12px;"></div>
+    <div id="masterCOAStatus" style="display:none;margin-bottom:10px;padding:8px 14px;background:var(--accent2-light);border-radius:8px;color:var(--accent2);font-weight:600;font-size:12px;"></div>
+
+    <!-- STEP 2: Progress bars -->
     <div id="mappingProgressBar" class="mapping-progress" style="margin-bottom:16px;"></div>
 
-    <!-- P&L Mapping — collapsible -->
+    <!-- STEP 2: P&L Mapping — collapsible -->
     <div class="table-card" style="margin-bottom:16px;">
       <div class="table-header" style="background:var(--accent-light);cursor:pointer;user-select:none;" onclick="toggleSection('plMapping','plMapToggle')">
         <div>
@@ -692,17 +697,18 @@ function initSectors(){
 
 function selectSector(key){
   selectedSector=key;
-  document.querySelectorAll('.sector-card').forEach(c=>c.classList.remove('active'));
-  const sCard=document.getElementById('sector-'+key);
-  if(sCard) sCard.classList.add('active');
-  const confirmed=document.getElementById('sectorConfirmed');
-  if(confirmed) confirmed.style.display='block';
-  const sName=document.getElementById('sectorName');
-  if(sName) sName.textContent=SECTORS[key].name;
-  // Re-render mapping with new sector
+  // Update all sector cards (there may be multiple grids on the page)
+  document.querySelectorAll('.sector-card').forEach(function(card){card.classList.remove('active');});
+  document.querySelectorAll('#sector-'+key).forEach(function(card){card.classList.add('active');});
+  // Show confirmed message
+  document.querySelectorAll('#sectorConfirmed').forEach(function(el){el.style.display='block';});
+  document.querySelectorAll('#sectorName').forEach(function(el){el.textContent=SECTORS[key].name;});
+  // Update dashboard badge
+  var badge=document.getElementById('dashSectorBadge');
+  if(badge) badge.textContent=SECTORS[key].icon+' '+SECTORS[key].name;
+  // Re-render mapping so dropdowns load with sector categories
   renderMapping();
   updateMappingProgressBar();
-  document.getElementById('dashSectorBadge').textContent=SECTORS[key].icon+' '+SECTORS[key].name;
 }
 
 // ── Mode toggle ─────────────────────────────────────────────────────────────
@@ -1221,6 +1227,14 @@ function getSectorBSCats(){
 }
 
 function renderMapping(){
+  // Always refresh the sector grid when this tab is opened
+  initSectors();
+  // Restore active state if sector already selected
+  if(selectedSector){
+    document.querySelectorAll('#sector-'+selectedSector).forEach(function(card){card.classList.add('active');});
+    document.querySelectorAll('#sectorConfirmed').forEach(function(el){el.style.display='block';});
+    document.querySelectorAll('#sectorName').forEach(function(el){el.textContent=SECTORS[selectedSector]?SECTORS[selectedSector].name:'';});
+  }
   const accounts=getAccountsList();
   const noAccMsg='<p style="padding:20px;color:var(--muted);font-size:13px;">No accounts loaded yet. Connect to Xero or upload a CSV first.</p>';
   if(!accounts.length){
