@@ -852,10 +852,18 @@ async function autoLoadFromXero(code){
     if(!tokenData.access_token) throw new Error(tokenData.error||'Token exchange failed');
     const token=tokenData.access_token;
 
-    setProgress('Finding your Xero organisation...');
+    setProgress('Finding your Xero organisations...');
     const connRes=await fetch(WORKER_URL+'/connections',{headers:{'Authorization':'Bearer '+token}});
     const connections=await connRes.json();
     if(!connections.length) throw new Error('No Xero organisations found');
+
+    // ── If multiple organisations, show a picker before loading data ──────────
+    if(connections.length>1){
+      showCompanyPicker(connections, token);
+      return;
+    }
+
+    // Single organisation — proceed directly
     const tenant=connections[0];
     const tenantId=tenant.tenantId;
     const tenantName=tenant.tenantName;
@@ -921,6 +929,113 @@ async function autoLoadFromXero(code){
 }
 
 function setProgress(msg){const el=document.getElementById('loadProgress');if(el) el.textContent=msg;}
+
+// ── Company picker — shown when multiple Xero orgs are authorised ─────────
+function showCompanyPicker(connections, token){
+  const card=document.getElementById('xeroConnectCard');
+  let html='<div style="padding:28px 24px;">'
+    +'<div style="font-size:18px;font-weight:600;margin-bottom:6px;">Select a company</div>'
+    +'<div style="font-size:13px;color:var(--muted);margin-bottom:20px);">You have access to '+connections.length+' Xero organisations. Choose which one to load.</div>'
+    +'<div style="display:grid;gap:10px;">';
+
+  connections.forEach(function(conn,i){
+    html+='<div class="xero-company-card" data-tenant-id="'+conn.tenantId+'" data-tenant-name="'+conn.tenantName.replace(/"/g,'&quot;')+'" '
+      +'style="display:flex;align-items:center;gap:14px;padding:14px 18px;border:2px solid var(--border);border-radius:10px;cursor:pointer;background:var(--surface);transition:all 0.15s;">'
+      +'<div style="width:40px;height:40px;border-radius:10px;background:var(--accent);color:white;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;flex-shrink:0;">'
+      +conn.tenantName.charAt(0).toUpperCase()+'</div>'
+      +'<div style="flex:1;">'
+      +'<div style="font-weight:600;font-size:14px;">'+conn.tenantName+'</div>'
+      +'<div style="font-size:11px;color:var(--muted);font-family:var(--mono);">'+conn.tenantId+'</div>'
+      +'</div>'
+      +'<div style="font-size:20px;color:var(--muted);">→</div>'
+      +'</div>';
+  });
+
+  html+='</div>'
+    +'<div style="margin-top:16px;font-size:11px;color:var(--muted);">You can switch companies later using the Reload Data button.</div>'
+    +'</div>';
+
+  card.innerHTML=html;
+  // Store token and connections for use when user picks a company
+  sessionStorage.setItem('xero_access_token_temp', token);
+  sessionStorage.setItem('xero_connections', JSON.stringify(connections));
+  // Attach click handlers via DOM (avoids inline onclick quote issues)
+  card.querySelectorAll('.xero-company-card').forEach(function(el){
+    el.addEventListener('mouseover',function(){el.style.borderColor='var(--accent)';el.style.background='var(--accent-light)';});
+    el.addEventListener('mouseout',function(){el.style.borderColor='var(--border)';el.style.background='var(--surface)';});
+    el.addEventListener('click',function(){
+      loadFromTenant(el.getAttribute('data-tenant-id'), el.getAttribute('data-tenant-name'));
+    });
+  });
+}
+
+async function loadFromTenant(tenantId, tenantName){
+  const token=sessionStorage.getItem('xero_access_token_temp')||sessionStorage.getItem('xero_access_token');
+  if(!token){showMsg('Session expired. Please reconnect to Xero.','error');return;}
+
+  document.getElementById('xeroConnectCard').innerHTML=`
+    <div style="text-align:center;padding:40px 20px;">
+      <div style="font-size:36px;margin-bottom:16px;">⏳</div>
+      <div style="font-size:16px;font-weight:600;margin-bottom:8px;">Loading ${tenantName}...</div>
+      <div style="font-size:13px;color:var(--muted);" id="loadProgress">Loading Chart of Accounts...</div>
+    </div>`;
+
+  try{
+    setProgress('Loading Chart of Accounts...');
+    const coaRes=await fetch(WORKER_URL+'/xero?path=/Accounts?Status=ACTIVE&tenantId='+tenantId,{headers:{'Authorization':'Bearer '+token}});
+    const coaData2=await coaRes.json();
+    coaData=coaData2.Accounts||[];
+
+    const today=new Date();
+    const fromDate=today.getFullYear()+'-01-01';
+    const toDate=today.toISOString().split('T')[0];
+
+    setProgress('Loading Profit & Loss...');
+    const plRes=await fetch(WORKER_URL+'/xero?path=/Reports/ProfitAndLoss?fromDate='+fromDate+'%26toDate='+toDate+'%26reportBasis=ACCRUAL&tenantId='+tenantId,{headers:{'Authorization':'Bearer '+token}});
+    const plData=await plRes.json();
+    plReports=plData.Reports||[];
+
+    setProgress('Loading Balance Sheet...');
+    const bsRes=await fetch(WORKER_URL+'/xero?path=/Reports/BalanceSheet?date='+toDate+'%26reportBasis=ACCRUAL&tenantId='+tenantId,{headers:{'Authorization':'Bearer '+token}});
+    const bsData=await bsRes.json();
+    bsReports=bsData.Reports||[];
+
+    const priorDate=dayBefore(fromDate);
+    setProgress('Loading prior period Balance Sheet ('+priorDate+')...');
+    try{
+      const priorRes=await fetch(WORKER_URL+'/xero?path=/Reports/BalanceSheet?date='+priorDate+'%26reportBasis=ACCRUAL&tenantId='+tenantId,{headers:{'Authorization':'Bearer '+token}});
+      const priorData=await priorRes.json();
+      if(priorData.Reports&&priorData.Reports.length){
+        priorBsReports=priorData.Reports;
+        dataSources.priorBs='Xero API · '+tenantName+' · as at '+priorDate+' (auto)';
+      }
+    }catch(e){console.warn('Prior BS fetch failed:',e.message);}
+
+    try{
+      const cfRes=await fetch(WORKER_URL+'/xero?path=/Reports/CashSummary?fromDate='+fromDate+'%26toDate='+toDate+'%26reportBasis=ACCRUAL&tenantId='+tenantId,{headers:{'Authorization':'Bearer '+token}});
+      const cfJson=await cfRes.json();
+      if(cfJson.Reports&&cfJson.Reports.length) directCFData=cfJson.Reports[0];
+    }catch(e){directCFData=null;}
+
+    sessionStorage.setItem('xero_access_token', token);
+    sessionStorage.setItem('xero_tenant_id', tenantId);
+    sessionStorage.removeItem('xero_access_token_temp');
+
+    dataSources.pl='Xero API · '+tenantName+' · '+fromDate+' to '+toDate;
+    dataSources.bs='Xero API · '+tenantName+' · as at '+toDate;
+    dataSources.coa='Xero API · '+tenantName;
+    dataSources.timestamp=new Date().toLocaleString();
+
+    setProgress('All data loaded!');
+    setTimeout(function(){launchDashboard(tenantName,'Live data from Xero — read only');},600);
+  }catch(e){
+    document.getElementById('xeroConnectCard').innerHTML=
+      '<div style="padding:24px;">'
+      +'<div class="error-box">❌ <strong>Failed to load '+tenantName+':</strong> '+e.message+'</div>'
+      +'<button class="btn btn-secondary btn-sm" onclick="backToCompanyPicker()">← Back to company list</button>'
+      +'</div>';
+  }
+}
 
 // Return the date one day before a given YYYY-MM-DD string
 function dayBefore(dateStr){
@@ -1137,6 +1252,10 @@ function launchDashboard(title,sub){
   document.getElementById('dateTo').value=today.toISOString().split('T')[0];
   document.getElementById('dateBS').value=today.toISOString().split('T')[0];
   // Update source audit bar
+  // Show switch company button if multiple orgs available
+  const storedConns=JSON.parse(sessionStorage.getItem('xero_connections')||'[]');
+  const switchBtn=document.getElementById('switchCompanyBtn');
+  if(switchBtn) switchBtn.style.display=storedConns.length>1?'inline-flex':'none';
   document.getElementById('sourcePL').textContent='P&L: '+dataSources.pl;
   document.getElementById('sourceBS').textContent='BS: '+dataSources.bs;
   document.getElementById('sourcePriorBS').textContent='Prior BS: '+(dataSources.priorBs||'not loaded');
@@ -2541,7 +2660,11 @@ async function refetchReports(token,tid,from,to,basis){
       }
     }catch(e){console.warn('Prior BS fetch failed:',e.message);}
 
-    document.getElementById('sourcePL').textContent='P&L: '+dataSources.pl;
+    // Show switch company button if multiple orgs available
+  const storedConns=JSON.parse(sessionStorage.getItem('xero_connections')||'[]');
+  const switchBtn=document.getElementById('switchCompanyBtn');
+  if(switchBtn) switchBtn.style.display=storedConns.length>1?'inline-flex':'none';
+  document.getElementById('sourcePL').textContent='P&L: '+dataSources.pl;
     document.getElementById('sourceBS').textContent='BS: '+dataSources.bs;
     renderPL();renderBS();renderCashFlow();
   }catch(e){alert('Could not refresh: '+e.message);}
@@ -2689,6 +2812,29 @@ function resetTool(){
   document.getElementById('setupSection').style.display='block';
   document.getElementById('statusDot').classList.remove('on');
   document.getElementById('statusText').textContent='Not loaded';
+}
+
+function backToCompanyPicker(){
+  var conns=JSON.parse(sessionStorage.getItem('xero_connections')||'[]');
+  var token=sessionStorage.getItem('xero_access_token_temp')||sessionStorage.getItem('xero_access_token');
+  if(conns.length&&token) showCompanyPicker(conns,token);
+}
+
+function switchCompany(){
+  // Show company picker using stored connections and token
+  const token=sessionStorage.getItem('xero_access_token');
+  const conns=JSON.parse(sessionStorage.getItem('xero_connections')||'[]');
+  if(!token||!conns.length){showMsg('No active Xero session. Please reconnect.','error');return;}
+  // Go back to setup and show picker
+  document.getElementById('dashboard').style.display='none';
+  document.getElementById('setupSection').style.display='block';
+  document.getElementById('statusDot').classList.remove('on');
+  document.getElementById('statusText').textContent='Not loaded';
+  // Show the company picker in the connect card
+  document.getElementById('xeroConnectCard').style.display='block';
+  document.getElementById('xeroDataCard').style.display='none';
+  sessionStorage.setItem('xero_access_token_temp', token);
+  showCompanyPicker(conns, token);
 }
 
 // ── Check Xero OAuth callback on load ─────────────────────────────────────────
