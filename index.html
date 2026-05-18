@@ -527,6 +527,7 @@
           <label style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.4px;display:block;margin-bottom:5px;">Section</label>
           <select id="bulkSection" onchange="refreshBulkCatOpts()" style="width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;background:var(--surface);">
             <option value="">— Keep existing —</option>
+            <!-- Options populated dynamically by refreshBulkSectionOpts() -->
           </select>
         </div>
         <div style="flex:2;min-width:200px;">
@@ -572,6 +573,19 @@
           <span id="plMapToggle" style="font-size:20px;color:var(--muted);line-height:1;">▾</span>
         </div>
       </div>
+      <!-- Inline bulk bar for P&L -->
+      <div id="plInlineBulk" style="display:none;padding:10px 16px;background:#eff6ff;border-bottom:1px solid #bfdbfe;display:none;align-items:center;gap:10px;flex-wrap:wrap;">
+        <span id="plBulkCount" style="font-size:12px;font-weight:600;color:var(--accent);white-space:nowrap;">0 selected</span>
+        <select id="plBulkSection" onchange="onPlBulkSectionChange()" style="padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;min-width:180px;">
+          <option value="">— Set Section —</option>
+        </select>
+        <select id="plBulkCategory" style="padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;min-width:200px;">
+          <option value="">— Set Category —</option>
+        </select>
+        <input type="text" id="plBulkDept" placeholder="Department (optional)" style="padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;width:160px;">
+        <button onclick="applyInlineBulk('pl')" style="padding:6px 14px;background:var(--accent);color:white;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;">Apply to selected</button>
+        <button onclick="clearTableSelection('pl')" style="padding:6px 10px;background:var(--bg);border:1px solid var(--border);border-radius:6px;font-size:12px;cursor:pointer;">✕</button>
+      </div>
       <div id="plMapping">
         <div id="mapContentPL"></div>
       </div>
@@ -588,6 +602,24 @@
           <span id="bsMapBadge" class="badge badge-unmapped">Incomplete</span>
           <span id="bsMapToggle" style="font-size:20px;color:var(--muted);line-height:1;">▾</span>
         </div>
+      </div>
+      <!-- Inline bulk bar for BS -->
+      <div id="bsInlineBulk" style="display:none;padding:10px 16px;background:#f0f9ff;border-bottom:1px solid #bae6fd;display:none;align-items:center;gap:10px;flex-wrap:wrap;">
+        <span id="bsBulkCount" style="font-size:12px;font-weight:600;color:var(--accent2);white-space:nowrap;">0 selected</span>
+        <select id="bsBulkSection" onchange="onBsBulkSectionChange()" style="padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;min-width:180px;">
+          <option value="">— Set Section —</option>
+          <option value="Current Assets">🏦 Current Assets</option>
+          <option value="Non-Current Assets">🏗️ Non-Current Assets</option>
+          <option value="Current Liabilities">📋 Current Liabilities</option>
+          <option value="Non-Current Liabilities">📋 Non-Current Liabilities</option>
+          <option value="Equity">💎 Equity</option>
+        </select>
+        <select id="bsBulkCategory" style="padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;min-width:200px;">
+          <option value="">— Set Category —</option>
+        </select>
+        <input type="text" id="bsBulkDept" placeholder="Department (optional)" style="padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;width:160px;">
+        <button onclick="applyInlineBulk('bs')" style="padding:6px 14px;background:var(--accent2);color:white;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;">Apply to selected</button>
+        <button onclick="clearTableSelection('bs')" style="padding:6px 10px;background:var(--bg);border:1px solid var(--border);border-radius:6px;font-size:12px;cursor:pointer;">✕</button>
       </div>
       <div id="bsMapping">
         <div id="mapContentBS"></div>
@@ -2096,7 +2128,9 @@ function renderMapping(){
       +'<span style="margin-left:8px;">of '+accs.length+' accounts</span>'
       +(selectedSector?'':' &nbsp;<span style="color:var(--amber);">← Select a sector above to enable structured dropdowns</span>')
       +'</div>';
+    var secId=section==='pl'?'plInlineBulk':'bsInlineBulk';
     html+='<table><thead><tr>'
+      +'<th style="width:36px;padding:9px 8px 9px 16px;"><input type="checkbox" class="tbl-hdr-chk" data-section="'+section+'" style="width:14px;height:14px;cursor:pointer;"></th>'
       +'<th>Code</th><th>Account Name</th><th>Xero Type</th>'
       +'<th style="min-width:160px;">'+(section==='pl'?'P&L Section':'BS Section')+'</th>'
       +'<th style="min-width:200px;">Standard COA Category</th>'
@@ -2135,7 +2169,8 @@ function renderMapping(){
         +' onchange="updateDept(this)"'
         +' style="width:110px;padding:5px 7px;border:1px solid var(--border);border-radius:6px;font-size:12px;">';
 
-      html+='<tr>'
+      html+='<tr data-acc-id="'+key+'" data-section="'+section+'">'
+        +'<td style="padding:8px 8px 8px 16px;"><input type="checkbox" class="tbl-row-chk" data-id="'+key+'" data-section="'+section+'" style="width:14px;height:14px;cursor:pointer;"></td>'
         +'<td><span style="font-family:var(--mono);font-size:11px;color:var(--muted)">'+(a.code||'—')+'</span></td>'
         +'<td><strong>'+a.name+'</strong></td>'
         +'<td>'+getTypeBadge(a.type||'')+'</td>'
@@ -2416,7 +2451,19 @@ function toggleBulkPanel(){
   if(!panel)return;
   var isOpen=panel.style.display!=='none';
   panel.style.display=isOpen?'none':'block';
-  if(!isOpen) refreshBulkAccountList();
+  if(!isOpen){
+    // Wire the target dropdown change every time the panel opens
+    var tgt=document.getElementById('bulkTarget');
+    if(tgt) tgt.onchange=function(){
+      refreshBulkSectionOpts(tgt.value);
+      refreshBulkCatOpts();
+      refreshBulkAccountList();
+    };
+    // Populate section opts for default target (pl), then load account list
+    refreshBulkSectionOpts('pl');
+    refreshBulkCatOpts();
+    refreshBulkAccountList();
+  }
 }
 
 function refreshBulkCatOpts(){
@@ -2628,11 +2675,122 @@ function applyBulkMap(){
   updateMappingProgressBar();
 }
 
-// Also refresh bulk list when target changes
-document.addEventListener('DOMContentLoaded',function(){
-  var tgt=document.getElementById('bulkTarget');
-  if(tgt) tgt.onchange=function(){refreshBulkAccountList();refreshBulkCatOpts();};
-});
+// Bulk target change is wired inside toggleBulkPanel each time it opens
+
+// ── Inline bulk map (checkboxes in mapping table) ─────────────────────────────
+function toggleAllTableRows(chk, section){
+  document.querySelectorAll('.tbl-row-chk[data-section="'+section+'"]').forEach(function(c){c.checked=chk.checked;});
+  updateInlineBulkBar(section);
+}
+
+function onTableRowCheck(chk, section){
+  updateInlineBulkBar(section);
+}
+
+function updateInlineBulkBar(section){
+  var checked=document.querySelectorAll('.tbl-row-chk[data-section="'+section+'"]:checked');
+  var barId=section==='pl'?'plInlineBulk':'bsInlineBulk';
+  var countId=section==='pl'?'plBulkCount':'bsBulkCount';
+  var bar=document.getElementById(barId);
+  var countEl=document.getElementById(countId);
+  if(!bar)return;
+  if(checked.length>0){
+    bar.style.display='flex';
+    if(countEl) countEl.textContent=checked.length+' selected';
+    // Populate PL section options if needed
+    if(section==='pl') populatePlBulkSection();
+  } else {
+    bar.style.display='none';
+  }
+}
+
+function populatePlBulkSection(){
+  var sel=document.getElementById('plBulkSection');
+  if(!sel||sel.options.length>1)return; // already populated
+  var sectorData=selectedSector&&SECTORS[selectedSector]?SECTORS[selectedSector]:null;
+  var opts='<option value="">— Set Section —</option>'
+    +'<option value="Revenue">💰 Revenue</option>'
+    +'<option value="COGS">🏭 COGS</option>';
+  if(sectorData&&sectorData.pl&&sectorData.pl.opex){
+    Object.keys(sectorData.pl.opex).forEach(function(g){opts+='<option value="OpEx — '+g+'">📊 OpEx — '+g+'</option>';});
+  } else {
+    opts+='<option value="OpEx — Sales & Marketing">📊 OpEx — Sales & Marketing</option>';
+    opts+='<option value="OpEx — Research & Development">📊 OpEx — Research & Development</option>';
+    opts+='<option value="OpEx — General & Administrative">📊 OpEx — General & Administrative</option>';
+  }
+  opts+='<option value="Other">📎 Other / Non-Operating</option>';
+  sel.innerHTML=opts;
+}
+
+function onPlBulkSectionChange(){
+  var secVal=document.getElementById('plBulkSection').value;
+  var catSel=document.getElementById('plBulkCategory');
+  var opts='<option value="">— Set Category —</option>';
+  var sectorData=selectedSector&&SECTORS[selectedSector]?SECTORS[selectedSector].pl:null;
+  if(sectorData&&secVal){
+    var items=null;
+    if(secVal==='Revenue') items=sectorData.revenue;
+    else if(secVal==='COGS') items=sectorData.cogs;
+    else if(secVal==='Other') items=sectorData.other;
+    else if(secVal.startsWith('OpEx — ')){var g=secVal.replace('OpEx — ','');items=sectorData.opex&&sectorData.opex[g]?sectorData.opex[g]:null;}
+    if(items) items.forEach(function(item){opts+='<option value="'+item+'">'+item+'</option>';});
+  }
+  opts+='<option value="__custom__">✏️ Custom…</option>';
+  catSel.innerHTML=opts;
+}
+
+function onBsBulkSectionChange(){
+  var secVal=document.getElementById('bsBulkSection').value;
+  var catSel=document.getElementById('bsBulkCategory');
+  var opts='<option value="">— Set Category —</option>';
+  var sectorData=selectedSector&&SECTORS[selectedSector]?SECTORS[selectedSector].bs:null;
+  var bsMap={'Current Assets':'current_assets','Non-Current Assets':'noncurrent_assets',
+    'Current Liabilities':'current_liabilities','Non-Current Liabilities':'noncurrent_liabilities','Equity':'equity'};
+  if(sectorData&&secVal&&bsMap[secVal]){
+    var items=sectorData[bsMap[secVal]];
+    if(items) items.forEach(function(item){opts+='<option value="'+item+'">'+item+'</option>';});
+  }
+  opts+='<option value="__custom__">✏️ Custom…</option>';
+  catSel.innerHTML=opts;
+}
+
+function applyInlineBulk(section){
+  var secVal=document.getElementById(section==='pl'?'plBulkSection':'bsBulkSection').value;
+  var catVal=document.getElementById(section==='pl'?'plBulkCategory':'bsBulkCategory').value;
+  var deptVal=(document.getElementById(section==='pl'?'plBulkDept':'bsBulkDept').value||'').trim();
+  var checked=document.querySelectorAll('.tbl-row-chk[data-section="'+section+'"]:checked');
+
+  if(!checked.length){showMsg('No accounts selected.','error');return;}
+  if(!secVal&&!catVal&&!deptVal){showMsg('Set at least a Section, Category, or Department before applying.','error');return;}
+
+  // Handle custom category
+  if(catVal==='__custom__'){
+    catVal=prompt('Enter custom category name:');
+    if(!catVal)return;
+  }
+
+  var applied=0;
+  checked.forEach(function(chk){
+    var key=chk.getAttribute('data-id');
+    if(secVal){if(section==='pl')plSections[key]=secVal;else bsSections[key]=secVal;}
+    if(catVal) mappings[key]=catVal;
+    if(deptVal) departments[key]=deptVal;
+    applied++;
+  });
+
+  showMsg('✓ Applied to '+applied+' accounts.','success');
+  clearTableSelection(section);
+  renderMapping();
+  updateMappingProgressBar();
+}
+
+function clearTableSelection(section){
+  document.querySelectorAll('.tbl-row-chk[data-section="'+section+'"]').forEach(function(c){c.checked=false;});
+  document.querySelectorAll('input[type=checkbox][data-section="'+section+'"]').forEach(function(c){c.checked=false;});
+  var barId=section==='pl'?'plInlineBulk':'bsInlineBulk';
+  var bar=document.getElementById(barId);
+  if(bar) bar.style.display='none';
+}
 
 // ══ END BULK MAP FUNCTIONS ════════════════════════════════════════════════════
 
