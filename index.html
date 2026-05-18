@@ -527,17 +527,6 @@
           <label style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.4px;display:block;margin-bottom:5px;">Section</label>
           <select id="bulkSection" onchange="refreshBulkCatOpts()" style="width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;background:var(--surface);">
             <option value="">— Keep existing —</option>
-            <option value="Revenue">💰 Revenue</option>
-            <option value="COGS">🏭 COGS</option>
-            <option value="OpEx — Sales & Marketing">📊 OpEx — Sales & Marketing</option>
-            <option value="OpEx — Research & Development">📊 OpEx — Research & Development</option>
-            <option value="OpEx — General & Administrative">📊 OpEx — General & Administrative</option>
-            <option value="Other">📎 Other / Non-Operating</option>
-            <option value="Current Assets">🏦 Current Assets</option>
-            <option value="Non-Current Assets">🏗 Non-Current Assets</option>
-            <option value="Current Liabilities">📋 Current Liabilities</option>
-            <option value="Non-Current Liabilities">📋 Non-Current Liabilities</option>
-            <option value="Equity">💎 Equity</option>
           </select>
         </div>
         <div style="flex:2;min-width:200px;">
@@ -1889,16 +1878,25 @@ function renderMapping(){
   const alwaysBsTypes=new Set(['BANK','CREDITCARD','EQUITY','CURRLIAB','LIABILITY','TERMLIAB',
     'CURRENT','FIXED','NONCURRENT','PREPAYMENT','PAYABLE','RECEIVABLE']);
 
-  // Filter accounts to ONLY those visible in the loaded reports
+  // Filter accounts to ONLY those visible in the loaded reports AND exist in COA
+  // This excludes summary/total rows like "Net Income", "Total Assets" etc.
+  const coaNames=new Set(coaData.filter(function(a){return a.Status==='ACTIVE';}).map(function(a){return a.Name;}));
+  const hasCOA=coaNames.size>0;
+
   // P&L: account name appears in P&L report AND is not a BS type
+  // If COA is loaded, also require the account to be a real COA account
   const plAccounts=accounts.filter(function(a){
     if(alwaysBsTypes.has((a.type||'').toUpperCase())) return false;
-    return plAccountNames.has(a.name)||plAccountNames.has(a.id);
+    if(!plAccountNames.has(a.name)&&!plAccountNames.has(a.id)) return false;
+    if(hasCOA&&!coaNames.has(a.name)) return false; // exclude summary rows
+    return true;
   });
 
   // BS: account name appears in BS report
   const bsAccounts=accounts.filter(function(a){
-    return bsAccountNames.has(a.name)||bsAccountNames.has(a.id);
+    if(!bsAccountNames.has(a.name)&&!bsAccountNames.has(a.id)) return false;
+    if(hasCOA&&!coaNames.has(a.name)) return false; // exclude summary rows
+    return true;
   });
 
   // ── Build category dropdown options ──
@@ -2484,14 +2482,24 @@ function refreshBulkAccountList(){
   if(bsReports.length&&bsReports[0].Rows)
     bsReports[0].Rows.forEach(function(s){if(s.Rows)s.Rows.forEach(function(r){if(r.RowType==='Row'&&r.Cells&&r.Cells[0]?.Value)bsNames.add(r.Cells[0].Value);});});
 
+  // Cross-check against COA to exclude summary/total rows
+  var coaNamesB=new Set(coaData.filter(function(a){return a.Status==='ACTIVE';}).map(function(a){return a.Name;}));
+  var hasCOAB=coaNamesB.size>0;
+
   var filtered;
   if(targetType==='pl'){
     filtered=accounts.filter(function(a){
       if(alwaysBsTypes.has((a.type||'').toUpperCase()))return false;
-      return plNames.has(a.name)||plNames.has(a.id);
+      if(!plNames.has(a.name)&&!plNames.has(a.id))return false;
+      if(hasCOAB&&!coaNamesB.has(a.name))return false;
+      return true;
     });
   } else {
-    filtered=accounts.filter(function(a){return bsNames.has(a.name)||bsNames.has(a.id);});
+    filtered=accounts.filter(function(a){
+      if(!bsNames.has(a.name)&&!bsNames.has(a.id))return false;
+      if(hasCOAB&&!coaNamesB.has(a.name))return false;
+      return true;
+    });
   }
 
   if(!filtered.length){container.innerHTML='<div style="padding:14px;color:var(--muted);font-size:12px;">No accounts found. Load '+(targetType==='pl'?'P&L':'Balance Sheet')+' data first.</div>';return;}
@@ -2527,8 +2535,38 @@ function refreshBulkAccountList(){
   html+='</tbody></table>';
   container.innerHTML=html;
   document.getElementById('bulkStatus').textContent=filtered.length+' accounts shown.';
-  // Refresh cat opts for current section
+  // Rebuild section options based on target type
+  refreshBulkSectionOpts(targetType);
   refreshBulkCatOpts();
+}
+
+function refreshBulkSectionOpts(targetType){
+  var secSel=document.getElementById('bulkSection');
+  if(!secSel)return;
+  var opts='<option value="">— Keep existing —</option>';
+  var sectorData=selectedSector&&SECTORS[selectedSector]?SECTORS[selectedSector]:null;
+
+  if(targetType==='pl'){
+    opts+='<option value="Revenue">💰 Revenue</option>';
+    opts+='<option value="COGS">🏭 COGS</option>';
+    if(sectorData&&sectorData.pl&&sectorData.pl.opex){
+      Object.keys(sectorData.pl.opex).forEach(function(g){
+        opts+='<option value="OpEx — '+g+'">📊 OpEx — '+g+'</option>';
+      });
+    } else {
+      opts+='<option value="OpEx — Sales & Marketing">📊 OpEx — Sales & Marketing</option>';
+      opts+='<option value="OpEx — Research & Development">📊 OpEx — Research & Development</option>';
+      opts+='<option value="OpEx — General & Administrative">📊 OpEx — General & Administrative</option>';
+    }
+    opts+='<option value="Other">📎 Other / Non-Operating</option>';
+  } else {
+    opts+='<option value="Current Assets">🏦 Current Assets</option>';
+    opts+='<option value="Non-Current Assets">🏗️ Non-Current Assets</option>';
+    opts+='<option value="Current Liabilities">📋 Current Liabilities</option>';
+    opts+='<option value="Non-Current Liabilities">📋 Non-Current Liabilities</option>';
+    opts+='<option value="Equity">💎 Equity</option>';
+  }
+  secSel.innerHTML=opts;
 }
 
 function bulkToggleAll(chk){
@@ -2742,15 +2780,21 @@ function updateMappingProgressBar(){
   if(bsReports.length&&bsReports[0].Rows)
     bsReports[0].Rows.forEach(function(s){if(s.Rows)s.Rows.forEach(function(r){if(r.RowType==='Row'&&r.Cells){var nm=r.Cells[0]?.Value||'';if(nm)bsNames.add(nm);}});});
 
-  // P&L: only accounts whose name appears in P&L report AND are not a BS type
+  // Cross-check against COA to exclude summary/total rows (e.g. Net Income, Total Assets)
+  const coaNamesBar=new Set(coaData.filter(function(a){return a.Status==='ACTIVE';}).map(function(a){return a.Name;}));
+  const hasCOABar=coaNamesBar.size>0;
+
   const plAccounts=accounts.filter(function(a){
     if(alwaysBsTypes.has((a.type||'').toUpperCase())) return false;
-    return plNames.has(a.name)||plNames.has(a.id);
+    if(!plNames.has(a.name)&&!plNames.has(a.id)) return false;
+    if(hasCOABar&&!coaNamesBar.has(a.name)) return false;
+    return true;
   });
 
-  // BS: only accounts whose name appears in BS report
   const bsAccounts=accounts.filter(function(a){
-    return bsNames.has(a.name)||bsNames.has(a.id);
+    if(!bsNames.has(a.name)&&!bsNames.has(a.id)) return false;
+    if(hasCOABar&&!coaNamesBar.has(a.name)) return false;
+    return true;
   });
 
   const plMapped=plAccounts.filter(function(a){return mappings[a.id]&&mappings[a.id]!=='[ Not mapped ]';}).length;
