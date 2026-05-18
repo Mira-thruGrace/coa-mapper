@@ -40,14 +40,18 @@
   .error-box{background:var(--danger-light);border:1px solid #f5c6c2;border-radius:8px;padding:12px 16px;font-size:12px;color:var(--danger);margin-bottom:14px;}
   code{font-family:var(--mono);font-size:11px;background:var(--bg);padding:2px 6px;border-radius:4px;border:1px solid var(--border);}
 
-  /* Sector selector */
-  .sector-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:20px;}
-  .sector-card{border:2px solid var(--border);border-radius:12px;padding:16px;cursor:pointer;transition:all 0.15s;background:var(--surface);text-align:center;}
-  .sector-card:hover{border-color:var(--accent);}
+  /* Sector selector — matches image card design */
+  .sector-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-bottom:0;}
+  .sector-card{border:1.5px solid var(--border);border-radius:12px;padding:18px 20px;cursor:pointer;transition:all 0.15s;background:var(--surface);text-align:left;}
+  .sector-card:hover{border-color:var(--accent);box-shadow:0 2px 12px rgba(26,107,74,0.08);}
   .sector-card.active{border-color:var(--accent);background:var(--accent-light);}
-  .sector-card .icon{font-size:28px;margin-bottom:8px;}
-  .sector-card h4{font-size:13px;font-weight:600;margin-bottom:4px;}
-  .sector-card p{font-size:11px;color:var(--muted);}
+  .sector-card .sector-icon-wrap{width:36px;height:36px;border-radius:8px;background:var(--accent-light);color:var(--accent);display:flex;align-items:center;justify-content:center;font-size:16px;margin-bottom:10px;border:1px solid rgba(26,107,74,0.15);}
+  .sector-card.active .sector-icon-wrap{background:var(--accent);color:white;}
+  .sector-card h4{font-size:15px;font-weight:700;margin-bottom:4px;font-style:italic;}
+  .sector-card .sector-meta{font-size:10px;font-weight:600;letter-spacing:0.8px;text-transform:uppercase;color:var(--muted);margin-bottom:8px;}
+  .sector-card p{font-size:12px;color:var(--muted);line-height:1.5;margin-bottom:10px;}
+  .sector-card .sector-badge{display:inline-block;padding:3px 8px;border-radius:20px;font-size:10px;font-weight:600;background:var(--bg);color:var(--muted);border:1px solid var(--border);}
+  .sector-card.active .sector-badge{background:var(--accent);color:white;border-color:var(--accent);}
 
   /* Mode toggle */
   .mode-toggle{display:flex;gap:12px;margin-bottom:24px;}
@@ -415,7 +419,7 @@
         Step 1 — Select your business sector
         <span style="font-weight:400;color:var(--muted);margin-left:8px;font-size:12px;">This loads the standard COA categories into the dropdowns below</span>
       </div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:10px;" id="sectorGrid"></div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;" id="sectorGrid" class="sector-grid-container"></div>
       <div id="sectorConfirmed" style="display:none;margin-top:12px;padding:8px 14px;background:var(--accent-light);border-radius:8px;font-size:12px;color:var(--accent);font-weight:600;">
         ✓ Sector: <span id="sectorName"></span> — Category dropdowns are now active below.
       </div>
@@ -574,68 +578,44 @@
 </div><!-- /main -->
 
 <script>
-// ══ SECTOR COA DEFINITIONS (from Chart_of_Accounts.xlsx) ════════════════════
-// New structure: pl has revenue[], cogs[], opex{group:[items]}, other[]
-// BS has current_assets[], noncurrent_assets[], current_liabilities[], noncurrent_liabilities[], equity[]
+// ══ SECTOR COA DEFINITIONS ════════════════════════════════════════════════════
+// Sectors: SaaS, Marketplace, Fintech, E-Commerce, Deep Tech, General
+// All G&A sections include: Bank Fees & Charges, Subscriptions, Other Office Expenses
 const SECTORS={
-  enterprise_saas:{
-    name:'Enterprise SaaS',icon:'🏢',desc:'Large enterprise SaaS — ASC 606/840/842',
+  saas:{
+    name:'SaaS',icon:'🔵',desc:'ARR composition, retention, unit economics, and headcount. 35 metrics covering the full SaaS scorecard.',
+    metaCount:35,
     pl:{
-      revenue:['Subscription Revenue – Enterprise','Subscription Revenue – SMB Tier','Professional Services Revenue','Overage / Usage Revenue','Partner / Reseller Revenue','Revenue Contra – Discounts & Rebates'],
-      cogs:['Cloud Hosting & Infrastructure','Third-Party Software & APIs','Customer Support – Salaries & Benefits','Professional Services Delivery','Amortization – Capitalized Software','Amortization – Acquired Technology'],
-      opex:{'Sales & Marketing':['Salaries – Sales','Commissions & Variable Sales Comp','Marketing Programs & Demand Gen','Sales Tools & CRM'],'Research & Development':['Salaries – R&D / Engineering','Salaries – Product Management','R&D Tools & Software','Recruiting – Technical Roles'],'General & Administrative':['Salaries – G&A','Audit, Tax & Legal Fees','Office & Facilities','D&O / E&O Insurance','Stock-Based Compensation','Depreciation – PP&E']},
+      revenue:['Subscription Revenue – Monthly','Subscription Revenue – Annual','Add-On / Seat Expansion Revenue','Professional Services Revenue','Setup / Onboarding Fees','Usage / Overage Revenue','Partner / Reseller Revenue','Revenue Contra – Refunds & Credits'],
+      cogs:['Cloud Hosting & Infrastructure','Third-Party APIs & Integrations','Customer Success – Salaries','Support Tools & Software','Amortization – Capitalized Software','Professional Services Delivery'],
+      opex:{
+        'Sales & Marketing':['Salaries – Sales','Sales Commissions','Digital Marketing & Advertising','SEO / Content / PR','Events & Conferences','Sales Tools & CRM'],
+        'Research & Development':['Salaries – Engineering','Salaries – Product Management','Product & Design','Dev Tools & Subscriptions','R&D Contractors'],
+        'General & Administrative':['Salaries – G&A','Legal & Accounting','Audit & Tax Fees','Office & Facilities','Insurance','Stock-Based Compensation','Depreciation – PP&E','Bank Fees & Charges','Subscriptions','Other Office Expenses']
+      },
       other:['Interest Income','Interest Expense','Gain / (Loss) on FX','Income Tax Expense']
     },
     bs:{
       current_assets:['Cash & Cash Equivalents','Accounts Receivable','Unbilled Revenue (Accrued AR)','Allowance for Doubtful Accounts','Prepaid Expenses','Short-Term Investments','Deferred Contract Costs'],
-      noncurrent_assets:['Capitalized Software – Internal Use','Accumulated Amortization – Capitalized SW','Property & Equipment, Net','Right-of-Use Asset – Operating Leases','Goodwill','Intangible Assets – Acquired Technology','Long-Term Deferred Contract Costs','Security Deposits'],
+      noncurrent_assets:['Capitalized Software – Internal Use','Accumulated Amortization – Capitalized SW','Property & Equipment, Net','Right-of-Use Asset – Operating Leases','Goodwill','Intangible Assets – Acquired Technology','Security Deposits'],
       current_liabilities:['Accounts Payable','Accrued Compensation','Accrued Expenses','Deferred Revenue – Current','Income Taxes Payable','Operating Lease Liability – Current'],
       noncurrent_liabilities:['Deferred Revenue – Non-Current','Long-Term Debt','Operating Lease Liability – LT','Deferred Tax Liability'],
       equity:['Common Stock','Additional Paid-In Capital','Retained Earnings / (Accumulated Deficit)','Accumulated Other Comprehensive Income']
     },
-    metrics:[{name:'MRR',unit:'SGD'},{name:'ARR',unit:'SGD'},{name:'NRR',unit:'%'},{name:'GRR',unit:'%'},{name:'Churn Rate',unit:'%'},{name:'CAC',unit:'SGD'},{name:'LTV',unit:'SGD'},{name:'LTV:CAC',unit:'x'},{name:'Payback Period',unit:'months'},{name:'Headcount',unit:'people'}]
-  },
-  sme_saas:{
-    name:'SME SaaS',icon:'💻',desc:'Small and mid-size SaaS companies',
-    pl:{
-      revenue:['Subscription Revenue – Monthly','Subscription Revenue – Annual','Add-On / Seat Expansion Revenue','Setup / Onboarding Fees','Marketplace / App Revenue Share','Revenue Contra – Refunds & Credits'],
-      cogs:['Cloud Hosting (AWS/GCP/Azure)','Third-Party APIs & Integrations','Customer Success – Salaries','Support Tools','Amortization – Capitalized Software'],
-      opex:{'Sales & Marketing':['Salaries – Sales','Sales Commissions','Digital Marketing & Advertising','SEO / Content / PR'],'Research & Development':['Salaries – Engineering','Product & Design','Dev Tools & Subscriptions'],'General & Administrative':['Salaries – G&A','Legal & Accounting','SaaS Tool Stack (non-COGS)','Office & Facilities','Stock-Based Compensation']},
-      other:['Interest Income','Interest Expense','Income Tax Expense']
-    },
-    bs:{
-      current_assets:['Cash & Cash Equivalents','Accounts Receivable','Allowance for Doubtful Accounts','Prepaid Expenses','Deferred Contract Acquisition Costs'],
-      noncurrent_assets:['Capitalized Software – Internal Use','Accumulated Amortization – Software','Property & Equipment, Net'],
-      current_liabilities:['Accounts Payable','Accrued Payroll & Benefits','Deferred Revenue – Current','Accrued Expenses'],
-      noncurrent_liabilities:['Deferred Revenue – Non-Current'],
-      equity:['Common Stock / Member Units','Additional Paid-In Capital','Retained Earnings / (Accumulated Deficit)']
-    },
-    metrics:[{name:'MRR',unit:'SGD'},{name:'ARR',unit:'SGD'},{name:'NRR',unit:'%'},{name:'Churn Rate',unit:'%'},{name:'CAC',unit:'SGD'},{name:'LTV',unit:'SGD'},{name:'Headcount',unit:'people'}]
-  },
-  sme_business:{
-    name:'SME Business',icon:'🏪',desc:'Traditional SME and product businesses',
-    pl:{
-      revenue:['Product Sales Revenue','Service Revenue','Project / Contract Revenue','Recurring Maintenance Revenue','Other Revenue','Sales Returns & Allowances'],
-      cogs:['Cost of Goods Sold','Direct Labor','Subcontractor Costs','Shipping & Freight – Outbound'],
-      opex:{'Sales & Marketing':['Salaries – Sales & Marketing','Advertising & Promotions','Sales Commissions'],'Operations':['Salaries – Operations','Rent & Occupancy','Utilities','Vehicle & Fleet Expenses'],'General & Administrative':['Salaries – G&A','Professional Fees','Insurance','Office Supplies & Subscriptions','Depreciation Expense']},
-      other:['Interest Income','Interest Expense','Gain / (Loss) on Asset Disposal','Income Tax Expense']
-    },
-    bs:{
-      current_assets:['Cash & Cash Equivalents','Accounts Receivable','Allowance for Doubtful Accounts','Inventory','Prepaid Expenses'],
-      noncurrent_assets:['Property & Equipment','Accumulated Depreciation','Intangible Assets'],
-      current_liabilities:['Accounts Payable','Accrued Wages & Benefits','Short-Term Loans','Sales Tax Payable','Customer Deposits'],
-      noncurrent_liabilities:['Long-Term Debt'],
-      equity:["Owner's Capital / Common Stock",'Retained Earnings',"Owner's Draw"]
-    },
-    metrics:[{name:'Revenue',unit:'SGD'},{name:'Gross Margin',unit:'%'},{name:'EBITDA',unit:'SGD'},{name:'Headcount',unit:'people'}]
+    metrics:[{name:'MRR',unit:'SGD'},{name:'ARR',unit:'SGD'},{name:'NRR',unit:'%'},{name:'GRR',unit:'%'},{name:'Logo Churn Rate',unit:'%'},{name:'Revenue Churn Rate',unit:'%'},{name:'CAC',unit:'SGD'},{name:'LTV',unit:'SGD'},{name:'LTV:CAC Ratio',unit:'x'},{name:'Payback Period',unit:'months'},{name:'Paying Customers',unit:''},{name:'New Customers',unit:''},{name:'Churned Customers',unit:''},{name:'Expansion Revenue',unit:'SGD'},{name:'Contraction Revenue',unit:'SGD'},{name:'Headcount',unit:'people'},{name:'R&D Headcount',unit:'people'},{name:'Sales Headcount',unit:'people'},{name:'Revenue per Employee',unit:'SGD'},{name:'Gross Margin',unit:'%'},{name:'EBITDA Margin',unit:'%'}]
   },
   marketplace:{
-    name:'Marketplace',icon:'🛍️',desc:'Two-sided marketplace platforms',
+    name:'Marketplace',icon:'◇',desc:'GMV, take rate, liquidity, two-sided metrics. CM1 and CM2 contribution margins included.',
+    metaCount:34,
     pl:{
       revenue:['Take-Rate / Commission Revenue','Buyer Service Fees','Listing & Subscription Fees','Advertising Revenue','Payment Processing Spread','Data & Analytics Revenue','Revenue Contra – Promo Credits'],
       cogs:['Payment Processing Costs','Fraud & Chargeback Losses','Trust & Safety Operations','Customer Support – Salaries','Cloud Infrastructure','Amortization – Platform Software'],
-      opex:{'Sales & Marketing':['Salaries – Growth & Marketing','Performance Marketing','Seller Acquisition & Onboarding'],'Research & Development':['Salaries – Engineering & Product','Data Science & ML'],'General & Administrative':['Salaries – G&A','Legal & Compliance','Insurance']},
-      other:['Interest Income','Interest Expense','Income Tax Expense']
+      opex:{
+        'Sales & Marketing':['Salaries – Growth & Marketing','Performance Marketing','Buyer Acquisition Costs','Seller Acquisition & Onboarding'],
+        'Research & Development':['Salaries – Engineering & Product','Data Science & ML','Platform R&D Tools'],
+        'General & Administrative':['Salaries – G&A','Legal & Compliance','Insurance','Office & Facilities','Bank Fees & Charges','Subscriptions','Other Office Expenses']
+      },
+      other:['Interest Income','Interest Expense','FX Gain / (Loss)','Income Tax Expense']
     },
     bs:{
       current_assets:['Cash & Cash Equivalents','Accounts Receivable – Marketplace Fees','Allowance for Doubtful Accounts','Merchant Receivables','Escrow / Trust Accounts','Prepaid Expenses'],
@@ -644,41 +624,95 @@ const SECTORS={
       noncurrent_liabilities:['Long-Term Debt'],
       equity:['Common Stock','Additional Paid-In Capital','Retained Earnings / (Deficit)']
     },
-    metrics:[{name:'GMV',unit:'SGD'},{name:'Take Rate',unit:'%'},{name:'Active Sellers',unit:''},{name:'Active Buyers',unit:''},{name:'CAC',unit:'SGD'},{name:'Headcount',unit:'people'}]
-  },
-  ecommerce:{
-    name:'E-Commerce',icon:'🛒',desc:'Online retail and DTC brands',
-    pl:{
-      revenue:['Product Sales – DTC','Product Sales – Wholesale / B2B','Amazon / Marketplace Channel','Subscription Box Revenue','Shipping Revenue','Sales Returns & Allowances'],
-      cogs:['Cost of Goods Sold','Inbound Freight & Duties','Fulfillment & 3PL Costs','Outbound Shipping & Postage','Payment Processing Fees','Inventory Write-Downs'],
-      opex:{'Sales & Marketing':['Performance Marketing – Paid','Influencer & Affiliate Marketing','Email / SMS / Loyalty','Salaries – Sales & Marketing'],'Technology':['Technology & Platform','Salaries – Tech & Product'],'General & Administrative':['Salaries – G&A','Professional Fees','Insurance','Depreciation & Amortization']},
-      other:['Interest Income','Interest Expense','FX Gain / (Loss)','Income Tax Expense']
-    },
-    bs:{
-      current_assets:['Cash & Cash Equivalents','Accounts Receivable','Allowance for Doubtful Accounts','Inventory – Finished Goods','Inventory – In-Transit','Prepaid Expenses','Merchant Cash Advances Receivable'],
-      noncurrent_assets:['Property & Equipment, Net','Capitalized Website & Tech','Right-of-Use Asset'],
-      current_liabilities:['Accounts Payable','Accrued Returns & Refunds','Deferred Revenue','Sales Tax Payable','Payment Gateway Payables','Accrued Shipping & Fulfillment'],
-      noncurrent_liabilities:['Long-Term Debt','Operating Lease Liability – LT'],
-      equity:['Common Stock','Additional Paid-In Capital','Retained Earnings / (Deficit)']
-    },
-    metrics:[{name:'GMV',unit:'SGD'},{name:'AOV',unit:'SGD'},{name:'CAC',unit:'SGD'},{name:'Repeat Purchase Rate',unit:'%'},{name:'Return Rate',unit:'%'},{name:'Inventory Turnover',unit:'x'},{name:'Headcount',unit:'people'}]
+    metrics:[{name:'GMV',unit:'SGD'},{name:'Take Rate',unit:'%'},{name:'Net Revenue',unit:'SGD'},{name:'CM1',unit:'SGD'},{name:'CM2',unit:'SGD'},{name:'Active Buyers',unit:''},{name:'Active Sellers',unit:''},{name:'Buyer CAC',unit:'SGD'},{name:'Seller CAC',unit:'SGD'},{name:'Repeat Purchase Rate',unit:'%'},{name:'Liquidity Rate',unit:'%'},{name:'Headcount',unit:'people'}]
   },
   fintech:{
-    name:'FinTech',icon:'🏦',desc:'Financial technology and payments companies',
+    name:'Fintech',icon:'◈',desc:'TPV, default rates, NPL, compliance, AUM. Suited for payments, lending, and asset management.',
+    metaCount:30,
     pl:{
       revenue:['Net Interest Income','Interest Income – Loans','Interchange & Network Fees','Payment Processing Revenue','Subscription / SaaS Revenue','Origination / Lending Fees','FX Conversion Revenue','Referral & Affiliate Revenue','Revenue Contra – Cashback / Rewards'],
       cogs:['Cost of Funds – Interest Expense','Provision for Loan Losses','Payment Network Fees','Fraud & Chargeback Losses','Compliance & KYC / AML Costs','Core Banking / Infrastructure Costs'],
-      opex:{'Sales & Marketing':['Salaries – Sales & Growth','Performance Marketing'],'Research & Development':['Salaries – Engineering & Product','Security & Penetration Testing'],'General & Administrative':['Salaries – G&A','Regulatory & Licensing Fees','Legal & External Compliance','D&O / Cyber / Fidelity Insurance','Stock-Based Compensation']},
+      opex:{
+        'Sales & Marketing':['Salaries – Sales & Growth','Performance Marketing','Partnership & Channel Costs'],
+        'Research & Development':['Salaries – Engineering & Product','Security & Penetration Testing','Compliance Technology'],
+        'General & Administrative':['Salaries – G&A','Regulatory & Licensing Fees','Legal & External Compliance','D&O / Cyber / Fidelity Insurance','Stock-Based Compensation','Bank Fees & Charges','Subscriptions','Other Office Expenses']
+      },
       other:['Investment & Securities Income','Gain / (Loss) on Loan Sales','FX Translation Gain / (Loss)','Income Tax Expense']
     },
     bs:{
-      current_assets:['Cash & Cash Equivalents – Operating','Cash – Restricted (Customer Funds)','Settlement Receivables','Loan Receivables – Gross','Allowance for Loan Losses (ALLL)','Accrued Interest Receivable','Merchant Advances Receivable','Prepaid Expenses & Deposits','Short-Term Investments'],
+      current_assets:['Cash & Cash Equivalents – Operating','Cash – Restricted (Customer Funds)','Settlement Receivables','Loan Receivables – Gross','Allowance for Loan Losses (ALLL)','Accrued Interest Receivable','Prepaid Expenses & Deposits'],
       noncurrent_assets:['Loan Receivables – Long-Term','Capitalized Software – Core Platform','Accumulated Amortization – SW','Property & Equipment, Net','Regulatory Capital Investments'],
       current_liabilities:['Accounts Payable','Customer Deposits / E-Wallet Balances','Settlement Payables','Interchange Payables','Accrued Interest Payable','Accrued Expenses','Deferred Revenue'],
       noncurrent_liabilities:['Debt Funding Facilities','Senior Notes / Securitization','Deferred Tax Liability'],
       equity:['Common Stock','Additional Paid-In Capital','Retained Earnings / (Deficit)','Regulatory Capital Buffer']
     },
-    metrics:[{name:'TPV',unit:'SGD'},{name:'Take Rate',unit:'%'},{name:'NIM',unit:'%'},{name:'MRR',unit:'SGD'},{name:'CAC',unit:'SGD'},{name:'Churn Rate',unit:'%'},{name:'Headcount',unit:'people'}]
+    metrics:[{name:'Total Payment Volume (TPV)',unit:'SGD'},{name:'Take Rate',unit:'%'},{name:'Net Interest Margin (NIM)',unit:'%'},{name:'Assets Under Management (AUM)',unit:'SGD'},{name:'Loan Book',unit:'SGD'},{name:'Non-Performing Loans (NPL)',unit:'%'},{name:'Default Rate',unit:'%'},{name:'Provision Coverage Ratio',unit:'%'},{name:'MRR',unit:'SGD'},{name:'CAC',unit:'SGD'},{name:'Churn Rate',unit:'%'},{name:'Headcount',unit:'people'}]
+  },
+  ecommerce:{
+    name:'E-commerce',icon:'✦',desc:'AOV, repeat purchase rate, inventory turns, fulfillment costs. Direct-to-consumer focused.',
+    metaCount:31,
+    pl:{
+      revenue:['Product Sales – DTC','Product Sales – Wholesale / B2B','Amazon / Marketplace Channel','Subscription Box Revenue','Shipping Revenue Charged','Sales Returns & Allowances'],
+      cogs:['Cost of Goods Sold','Inbound Freight & Duties','Fulfillment & 3PL Costs','Outbound Shipping & Postage','Payment Processing Fees','Inventory Write-Downs'],
+      opex:{
+        'Sales & Marketing':['Performance Marketing – Paid','Influencer & Affiliate Marketing','Email / SMS / Loyalty Programs','Salaries – Sales & Marketing'],
+        'Technology':['Technology & Platform Fees','Salaries – Tech & Product','Website Development'],
+        'General & Administrative':['Salaries – G&A','Professional Fees','Insurance','Depreciation & Amortization','Bank Fees & Charges','Subscriptions','Other Office Expenses']
+      },
+      other:['Interest Income','Interest Expense','FX Gain / (Loss)','Income Tax Expense']
+    },
+    bs:{
+      current_assets:['Cash & Cash Equivalents','Accounts Receivable','Inventory – Finished Goods','Inventory – In-Transit','Prepaid Expenses','Merchant Cash Advances Receivable'],
+      noncurrent_assets:['Property & Equipment, Net','Capitalized Website & Tech','Right-of-Use Asset'],
+      current_liabilities:['Accounts Payable','Accrued Returns & Refunds','Deferred Revenue','Sales Tax Payable','Payment Gateway Payables','Accrued Shipping & Fulfillment'],
+      noncurrent_liabilities:['Long-Term Debt','Operating Lease Liability – LT'],
+      equity:['Common Stock','Additional Paid-In Capital','Retained Earnings / (Deficit)']
+    },
+    metrics:[{name:'GMV',unit:'SGD'},{name:'Average Order Value (AOV)',unit:'SGD'},{name:'Orders per Month',unit:''},{name:'Repeat Purchase Rate',unit:'%'},{name:'Customer Acquisition Cost (CAC)',unit:'SGD'},{name:'Return Rate',unit:'%'},{name:'Inventory Turnover',unit:'x'},{name:'Fulfillment Cost per Order',unit:'SGD'},{name:'Gross Margin',unit:'%'},{name:'Headcount',unit:'people'}]
+  },
+  deep_tech:{
+    name:'Deep Tech',icon:'◈',desc:'R&D intensity, patents, TRL, pilot conversion, grant funding. For science and hardware-led companies.',
+    metaCount:29,
+    pl:{
+      revenue:['Grant Revenue','Pilot / PoC Revenue','License Revenue','Product Sales – Hardware','Service Revenue','Milestone-Based Revenue','Revenue Contra – Returns'],
+      cogs:['Bill of Materials (BOM)','Manufacturing & Assembly','Hardware Testing & QA','Third-Party Components','Amortization – Developed Technology'],
+      opex:{
+        'Research & Development':['Salaries – Scientists & Engineers','Lab & Equipment Costs','IP Filing & Patent Costs','R&D Contractors & Consultants','Clinical / Field Trials','R&D Tools & Software'],
+        'Sales & Marketing':['Salaries – Business Development','Pilot Program Costs','Conference & Demo Events','Marketing & Communications'],
+        'General & Administrative':['Salaries – G&A','Legal & IP Counsel','Regulatory & Compliance','Office & Lab Facilities','Bank Fees & Charges','Subscriptions','Other Office Expenses']
+      },
+      other:['Grant Income (Non-Revenue)','Interest Income','Interest Expense','Income Tax Expense']
+    },
+    bs:{
+      current_assets:['Cash & Cash Equivalents','Accounts Receivable','Grant Receivables','Inventory – Components','Prepaid Expenses'],
+      noncurrent_assets:['Property & Equipment, Net','Lab & Research Equipment','Capitalized R&D Costs','Intangible Assets – Patents & IP','Right-of-Use Asset'],
+      current_liabilities:['Accounts Payable','Accrued Expenses','Deferred Revenue – Pilots','Short-Term Grants Payable'],
+      noncurrent_liabilities:['Long-Term Debt','Government Loans'],
+      equity:['Common Stock','Additional Paid-In Capital','Retained Earnings / (Deficit)']
+    },
+    metrics:[{name:'R&D Spend',unit:'SGD'},{name:'R&D as % of Revenue',unit:'%'},{name:'Technology Readiness Level (TRL)',unit:''},{name:'Patents Filed',unit:''},{name:'Patents Granted',unit:''},{name:'Active Pilots',unit:''},{name:'Pilot-to-Commercial Conversion Rate',unit:'%'},{name:'Grant Funding Secured',unit:'SGD'},{name:'Burn Rate',unit:'SGD'},{name:'Runway',unit:'months'},{name:'Headcount',unit:'people'},{name:'R&D Headcount',unit:'people'}]
+  },
+  general:{
+    name:'General',icon:'○',desc:'Sector-agnostic baseline. Revenue, customers, headcount, runway. Use when other templates do not fit.',
+    metaCount:26,
+    pl:{
+      revenue:['Product Revenue','Service Revenue','Subscription Revenue','Project Revenue','Other Revenue','Revenue Contra – Refunds'],
+      cogs:['Cost of Goods Sold','Cost of Services','Direct Materials','Direct Labour','Third-Party Costs'],
+      opex:{
+        'Sales & Marketing':['Salaries – Sales & Marketing','Advertising & Promotions','Sales Commissions','Marketing Tools'],
+        'Operations':['Salaries – Operations','Rent & Occupancy','Utilities'],
+        'General & Administrative':['Salaries – G&A','Professional Fees','Insurance','Depreciation Expense','Bank Fees & Charges','Subscriptions','Other Office Expenses']
+      },
+      other:['Interest Income','Interest Expense','Gain / (Loss) on Asset Disposal','Income Tax Expense']
+    },
+    bs:{
+      current_assets:['Cash & Cash Equivalents','Accounts Receivable','Inventory','Prepaid Expenses'],
+      noncurrent_assets:['Property & Equipment','Accumulated Depreciation','Intangible Assets'],
+      current_liabilities:['Accounts Payable','Accrued Expenses','Short-Term Loans','Tax Payable'],
+      noncurrent_liabilities:['Long-Term Debt'],
+      equity:["Owner's Capital / Common Stock",'Retained Earnings',"Owner's Draw"]
+    },
+    metrics:[{name:'Total Revenue',unit:'SGD'},{name:'Gross Profit',unit:'SGD'},{name:'Gross Margin',unit:'%'},{name:'EBITDA',unit:'SGD'},{name:'Net Profit',unit:'SGD'},{name:'Net Margin',unit:'%'},{name:'Cash & Bank',unit:'SGD'},{name:'Burn Rate',unit:'SGD'},{name:'Runway',unit:'months'},{name:'Customers',unit:''},{name:'Headcount',unit:'people'}]
   }
 };
 // ══ SUGGESTED CATEGORIES — multi-sector revenue & COGS suggestions ═══════════
@@ -726,10 +760,17 @@ function initSectors(){
   grid.innerHTML='';
   Object.keys(SECTORS).forEach(function(key){
     var s=SECTORS[key];
+    var metaCount=s.metaCount||(s.metrics?s.metrics.length:0);
     var div=document.createElement('div');
     div.className='sector-card';
     div.id='sector-'+key;
-    div.innerHTML='<div class="icon">'+s.icon+'</div><h4>'+s.name+'</h4><p>'+s.desc+'</p>';
+    var isActive=selectedSector===key;
+    div.innerHTML=
+      '<div class="sector-icon-wrap">'+s.icon+'</div>'
+      +'<h4>'+s.name+'</h4>'
+      +'<div class="sector-meta">'+metaCount+' METRICS · MONTHLY</div>'
+      +'<p>'+s.desc+'</p>'
+      +'<span class="sector-badge">'+(isActive?'Your industry':'Available')+'</span>';
     div.addEventListener('click',function(){selectSector(key);});
     grid.appendChild(div);
   });
@@ -737,9 +778,18 @@ function initSectors(){
 
 function selectSector(key){
   selectedSector=key;
-  // Update all sector cards (there may be multiple grids on the page)
-  document.querySelectorAll('.sector-card').forEach(function(card){card.classList.remove('active');});
-  document.querySelectorAll('#sector-'+key).forEach(function(card){card.classList.add('active');});
+  // Update all sector cards
+  document.querySelectorAll('.sector-card').forEach(function(card){
+    card.classList.remove('active');
+    // Update badge text
+    var badge=card.querySelector('.sector-badge');
+    if(badge) badge.textContent='Available';
+  });
+  document.querySelectorAll('#sector-'+key).forEach(function(card){
+    card.classList.add('active');
+    var badge=card.querySelector('.sector-badge');
+    if(badge) badge.textContent='Your industry';
+  });
   // Show confirmed message
   document.querySelectorAll('#sectorConfirmed').forEach(function(el){el.style.display='block';});
   document.querySelectorAll('#sectorName').forEach(function(el){el.textContent=SECTORS[key].name;});
