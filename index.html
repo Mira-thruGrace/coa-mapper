@@ -673,7 +673,7 @@ const SECTORS={
     },
     bs:{
       current_assets:['Cash & Cash Equivalents','Accounts Receivable','Unbilled Revenue (Accrued AR)','Allowance for Doubtful Accounts','Prepaid Expenses','Short-Term Investments','Deferred Contract Costs'],
-      noncurrent_assets:['Capitalized Software – Internal Use','Accumulated Amortization – Capitalized SW','Property & Equipment, Net','Right-of-Use Asset – Operating Leases','Goodwill','Intangible Assets – Acquired Technology','Security Deposits'],
+      noncurrent_assets:['Capitalized Software – Internal Use','Accumulated Amortization – Capitalized SW','Accumulated Depreciation','Property & Equipment, Net','Right-of-Use Asset – Operating Leases','Goodwill','Intangible Assets – Acquired Technology','Security Deposits'],
       current_liabilities:['Accounts Payable','Accrued Compensation','Accrued Expenses','Deferred Revenue – Current','Income Taxes Payable','Operating Lease Liability – Current'],
       noncurrent_liabilities:['Deferred Revenue – Non-Current','Long-Term Debt','Operating Lease Liability – LT','Deferred Tax Liability'],
       equity:['Common Stock','Additional Paid-In Capital','Retained Earnings / (Accumulated Deficit)','Accumulated Other Comprehensive Income']
@@ -695,7 +695,7 @@ const SECTORS={
     },
     bs:{
       current_assets:['Cash & Cash Equivalents','Accounts Receivable – Marketplace Fees','Allowance for Doubtful Accounts','Merchant Receivables','Escrow / Trust Accounts','Prepaid Expenses'],
-      noncurrent_assets:['Capitalized Software – Platform','Accumulated Amortization – Platform SW','Property & Equipment, Net','Intangibles – Brand & Domain'],
+      noncurrent_assets:['Capitalized Software – Platform','Accumulated Amortization – Platform SW','Accumulated Depreciation','Property & Equipment, Net','Intangibles – Brand & Domain'],
       current_liabilities:['Accounts Payable','Merchant Payables – Pending Payout','Deferred Revenue – Subscriptions','Sales Tax Payable','Customer Refunds Liability'],
       noncurrent_liabilities:['Long-Term Debt'],
       equity:['Common Stock','Additional Paid-In Capital','Retained Earnings / (Deficit)']
@@ -717,7 +717,7 @@ const SECTORS={
     },
     bs:{
       current_assets:['Cash & Cash Equivalents – Operating','Cash – Restricted (Customer Funds)','Settlement Receivables','Loan Receivables – Gross','Allowance for Loan Losses (ALLL)','Accrued Interest Receivable','Prepaid Expenses & Deposits'],
-      noncurrent_assets:['Loan Receivables – Long-Term','Capitalized Software – Core Platform','Accumulated Amortization – SW','Property & Equipment, Net','Regulatory Capital Investments'],
+      noncurrent_assets:['Loan Receivables – Long-Term','Capitalized Software – Core Platform','Accumulated Amortization – SW','Accumulated Depreciation','Property & Equipment, Net','Regulatory Capital Investments'],
       current_liabilities:['Accounts Payable','Customer Deposits / E-Wallet Balances','Settlement Payables','Interchange Payables','Accrued Interest Payable','Accrued Expenses','Deferred Revenue'],
       noncurrent_liabilities:['Debt Funding Facilities','Senior Notes / Securitization','Deferred Tax Liability'],
       equity:['Common Stock','Additional Paid-In Capital','Retained Earnings / (Deficit)','Regulatory Capital Buffer']
@@ -739,7 +739,7 @@ const SECTORS={
     },
     bs:{
       current_assets:['Cash & Cash Equivalents','Accounts Receivable','Inventory – Finished Goods','Inventory – In-Transit','Prepaid Expenses','Merchant Cash Advances Receivable'],
-      noncurrent_assets:['Property & Equipment, Net','Capitalized Website & Tech','Right-of-Use Asset'],
+      noncurrent_assets:['Property & Equipment, Net','Accumulated Depreciation','Capitalized Website & Tech','Right-of-Use Asset'],
       current_liabilities:['Accounts Payable','Accrued Returns & Refunds','Deferred Revenue','Sales Tax Payable','Payment Gateway Payables','Accrued Shipping & Fulfillment'],
       noncurrent_liabilities:['Long-Term Debt','Operating Lease Liability – LT'],
       equity:['Common Stock','Additional Paid-In Capital','Retained Earnings / (Deficit)']
@@ -761,7 +761,7 @@ const SECTORS={
     },
     bs:{
       current_assets:['Cash & Cash Equivalents','Accounts Receivable','Grant Receivables','Inventory – Components','Prepaid Expenses'],
-      noncurrent_assets:['Property & Equipment, Net','Lab & Research Equipment','Capitalized R&D Costs','Intangible Assets – Patents & IP','Right-of-Use Asset'],
+      noncurrent_assets:['Property & Equipment, Net','Accumulated Depreciation','Lab & Research Equipment','Capitalized R&D Costs','Intangible Assets – Patents & IP','Right-of-Use Asset'],
       current_liabilities:['Accounts Payable','Accrued Expenses','Deferred Revenue – Pilots','Short-Term Grants Payable'],
       noncurrent_liabilities:['Long-Term Debt','Government Loans'],
       equity:['Common Stock','Additional Paid-In Capital','Retained Earnings / (Deficit)']
@@ -2610,13 +2610,53 @@ function renderRestatedPL(){
     }
   });
 
-  // Split into revenue vs expense by keyword then by sign
-  const revCats={}, expCats={};
+  // Classify each category into Revenue / COGS / OpEx sub-group / Other
+  // Priority: 1) plSections override set by user in mapping tab
+  //           2) sector COA structure lookup
+  //           3) keyword fallback
+  const revCats={}, cogsCats={}, opexCats={}, otherCats={};
+
+  const sectorPL=selectedSector&&SECTORS[selectedSector]?SECTORS[selectedSector].pl:null;
+
+  // Build reverse lookup: category name → section from sector definition
+  const sectorCatSection={};
+  if(sectorPL){
+    (sectorPL.revenue||[]).forEach(function(i){sectorCatSection[i]='Revenue';});
+    (sectorPL.cogs||[]).forEach(function(i){sectorCatSection[i]='COGS';});
+    (sectorPL.other||[]).forEach(function(i){sectorCatSection[i]='Other';});
+    if(sectorPL.opex){
+      Object.keys(sectorPL.opex).forEach(function(g){
+        (sectorPL.opex[g]||[]).forEach(function(i){sectorCatSection[i]='OpEx — '+g;});
+      });
+    }
+  }
+
+  // Also build: accountId → plSection from user overrides in plSections
+  // and bucket by category: if any account in a category has a section override, use it
+  const catOverride={}; // cat → section string from user plSections
+  Object.keys(plSections).forEach(function(accId){
+    var sec=plSections[accId];
+    var cat=mappings[accId];
+    if(sec&&cat&&!catOverride[cat]) catOverride[cat]=sec;
+  });
+
   Object.keys(catTotals).forEach(function(cat){
-    const total=catTotals[cat];
-    const isRev=/revenue|income|sales|service.*fee|subscription/i.test(cat);
-    const isExp=/expense|cost|overhead|salary|payroll|rent|deprec|interest|tax|admin|marketing|r&d/i.test(cat);
-    if(isRev||(total>0&&!isExp)) revCats[cat]=total; else expCats[cat]=total;
+    var total=catTotals[cat];
+    // 1. User override from plSections
+    var sec=catOverride[cat];
+    // 2. Sector COA structure
+    if(!sec) sec=sectorCatSection[cat];
+    // 3. Keyword fallback
+    if(!sec){
+      if(/revenue|income|sales|subscription|service.*fee/i.test(cat)) sec='Revenue';
+      else if(/cost of goods|cogs|cost of service|hosting|infrastructure|payment.*network|provision|fulfillment|freight|direct.*cost/i.test(cat)) sec='COGS';
+      else if(/interest|tax|fx|gain|loss|non.operat/i.test(cat)) sec='Other';
+      else sec='OpEx';
+    }
+    if(sec==='Revenue') revCats[cat]=total;
+    else if(sec==='COGS') cogsCats[cat]=total;
+    else if(sec==='Other') otherCats[cat]=total;
+    else opexCats[cat]=total; // covers 'OpEx', 'OpEx — X', any other string
   });
 
   var totalRev=0, totalCOGS=0, totalOpex=0, totalOther=0;
@@ -2729,18 +2769,52 @@ function renderRestatedBS(){
     }
   });
 
-  const assetCats={}, liabCats={}, equityCats={};
-  Object.keys(catTotals).forEach(function(cat){
-    const total=catTotals[cat];
-    if(/equity|capital|retained|reserve/i.test(cat)) equityCats[cat]=total;
-    else if(/liabilit|payable|accrued|loan|debt|borrowing|deferred.*rev/i.test(cat)) liabCats[cat]=total;
-    else assetCats[cat]=total;
+  // Classify into BS sections using:
+  // 1. bsSections user overrides (set in mapping tab BS Section column)
+  // 2. Sector BS structure lookup
+  // 3. Keyword fallback
+  const currentAssetCats={}, noncurrentAssetCats={}, currentLiabCats={}, noncurrentLiabCats={}, equityCats={};
+
+  const sectorBS=selectedSector&&SECTORS[selectedSector]?SECTORS[selectedSector].bs:null;
+  const sectorBSCatSection={};
+  if(sectorBS){
+    (sectorBS.current_assets||[]).forEach(function(i){sectorBSCatSection[i]='Current Assets';});
+    (sectorBS.noncurrent_assets||[]).forEach(function(i){sectorBSCatSection[i]='Non-Current Assets';});
+    (sectorBS.current_liabilities||[]).forEach(function(i){sectorBSCatSection[i]='Current Liabilities';});
+    (sectorBS.noncurrent_liabilities||[]).forEach(function(i){sectorBSCatSection[i]='Non-Current Liabilities';});
+    (sectorBS.equity||[]).forEach(function(i){sectorBSCatSection[i]='Equity';});
+  }
+
+  // Build: category → BS section from user bsSections overrides
+  const catBSOverride={};
+  Object.keys(bsSections).forEach(function(accId){
+    var sec=bsSections[accId];
+    var cat=mappings[accId];
+    if(sec&&cat&&!catBSOverride[cat]) catBSOverride[cat]=sec;
   });
 
-  var totalAssets=0, totalLiab=0, totalEquity=0;
+  Object.keys(catTotals).forEach(function(cat){
+    var total=catTotals[cat];
+    var sec=catBSOverride[cat]||sectorBSCatSection[cat];
+    if(!sec){
+      // keyword fallback
+      if(/equity|capital|retained|reserve|paid.in/i.test(cat)) sec='Equity';
+      else if(/long.term.*liab|non.current.*liab|term.*loan|non.current.*debt/i.test(cat)) sec='Non-Current Liabilities';
+      else if(/liabilit|payable|accrued|deferred.*rev|short.term.*loan|line.*credit/i.test(cat)) sec='Current Liabilities';
+      else if(/property|equipment|intangible|goodwill|depreciation|amortization|right.of.use|non.current.*asset|long.term.*asset/i.test(cat)) sec='Non-Current Assets';
+      else sec='Current Assets'; // default assets
+    }
+    if(sec==='Equity') equityCats[cat]=total;
+    else if(sec==='Non-Current Liabilities') noncurrentLiabCats[cat]=total;
+    else if(sec==='Current Liabilities') currentLiabCats[cat]=total;
+    else if(sec==='Non-Current Assets') noncurrentAssetCats[cat]=total;
+    else currentAssetCats[cat]=total;
+  });
+
+  var totalCurrAssets=0, totalNonCurrAssets=0, totalCurrLiab=0, totalNonCurrLiab=0, totalEquityAmt=0;
   var html='<table><thead><tr><th>Standard COA Category</th><th>Xero Accounts</th><th style="text-align:right">Amount</th></tr></thead><tbody>';
 
-  function renderSec(title,cats){
+  function renderBSSec(title,cats){
     if(!Object.keys(cats).length) return 0;
     var secTotal=0;
     html+='<tr class="section-row"><td colspan="3" style="padding:8px 14px">'+title+'</td></tr>';
@@ -2751,25 +2825,47 @@ function renderRestatedBS(){
         +'<td style="font-size:11px;color:var(--muted)">'+names+'</td>'
         +'<td class="amount '+(total>=0?'pos':'neg')+'">'+fmtMoney(total)+'</td></tr>';
     });
-    html+='<tr class="subtotal-row"><td style="padding-left:14px" colspan="2"><strong>Total '+title+'</strong></td><td class="amount"><strong>'+fmtMoney(secTotal)+'</strong></td></tr>';
+    html+='<tr class="subtotal-row"><td style="padding-left:14px" colspan="2"><strong>Total '+title+'</strong></td>'
+      +'<td class="amount"><strong>'+fmtMoney(secTotal)+'</strong></td></tr>';
     return secTotal;
   }
 
-  totalAssets=renderSec('ASSETS',assetCats);
-  totalLiab=renderSec('LIABILITIES',liabCats);
-  totalEquity=renderSec('EQUITY',equityCats);
+  totalCurrAssets=renderBSSec('CURRENT ASSETS',currentAssetCats);
+  totalNonCurrAssets=renderBSSec('NON-CURRENT ASSETS',noncurrentAssetCats);
+  var totalAssets=totalCurrAssets+totalNonCurrAssets;
+  if(Object.keys(currentAssetCats).length||Object.keys(noncurrentAssetCats).length){
+    html+='<tr class="total-row"><td colspan="2" style="padding:8px 14px;"><strong>TOTAL ASSETS</strong></td>'
+      +'<td class="amount pos"><strong>'+fmtMoney(totalAssets)+'</strong></td></tr>';
+  }
+
+  totalCurrLiab=renderBSSec('CURRENT LIABILITIES',currentLiabCats);
+  totalNonCurrLiab=renderBSSec('NON-CURRENT LIABILITIES',noncurrentLiabCats);
+  var totalLiab=totalCurrLiab+totalNonCurrLiab;
+  if(Object.keys(currentLiabCats).length||Object.keys(noncurrentLiabCats).length){
+    html+='<tr class="subtotal-row"><td colspan="2" style="padding:6px 14px 6px 20px;"><strong>Total Liabilities</strong></td>'
+      +'<td class="amount"><strong>'+fmtMoney(totalLiab)+'</strong></td></tr>';
+  }
+
+  totalEquityAmt=renderBSSec('EQUITY',equityCats);
 
   if(unmappedItems.length){
     html+='<tr class="unmapped-section-row"><td colspan="3" style="padding:8px 14px">UNMAPPED ITEMS</td></tr>';
     unmappedItems.forEach(function(item){
-      html+='<tr style="background:var(--amber-light)"><td style="padding-left:20px;color:var(--amber)">'+item.name+'</td><td style="font-size:11px;color:var(--amber)">'+item.section+'</td><td class="amount">'+fmtMoney(item.amt)+'</td></tr>';
+      html+='<tr style="background:var(--amber-light)"><td style="padding-left:20px;color:var(--amber)">'+item.name
+        +'</td><td style="font-size:11px;color:var(--amber)">'+item.section+'</td>'
+        +'<td class="amount">'+fmtMoney(item.amt)+'</td></tr>';
     });
   }
 
-  var diff=totalAssets-(totalLiab+totalEquity);
-  html+='<tr class="total-row"><td colspan="2"><strong>TOTAL ASSETS</strong></td><td class="amount pos"><strong>'+fmtMoney(totalAssets)+'</strong></td></tr>';
-  html+='<tr class="total-row"><td colspan="2"><strong>TOTAL LIABILITIES + EQUITY</strong></td><td class="amount pos"><strong>'+fmtMoney(totalLiab+totalEquity)+'</strong></td></tr>';
-  html+='<tr style="background:'+(Math.abs(diff)<1?'var(--accent-light)':'var(--danger-light)')+'"><td colspan="2" style="font-size:12px;padding:8px 14px;">'+(Math.abs(diff)<1?'✓ Balance sheet balances':'⚠️ Difference — check unmapped accounts')+'</td><td class="amount">'+fmtMoney(diff)+'</td></tr>';
+  var totalLiabEquity=totalLiab+totalEquityAmt;
+  var diff=totalAssets-totalLiabEquity;
+  html+='<tr class="total-row"><td colspan="2"><strong>TOTAL LIABILITIES + EQUITY</strong></td>'
+    +'<td class="amount pos"><strong>'+fmtMoney(totalLiabEquity)+'</strong></td></tr>';
+  html+='<tr style="background:'+(Math.abs(diff)<1?'var(--green-light)':'var(--danger-light)')+';padding:8px 14px;">'
+    +'<td colspan="2" style="font-size:12px;padding:8px 14px;font-weight:600;color:'+(Math.abs(diff)<1?'#065f46':'#991b1b')+'">'
+    +(Math.abs(diff)<1?'✓ Balance sheet balances':'⚠️ Out of balance — check unmapped accounts or BS section assignments')+'</td>'
+    +'<td class="amount" style="font-weight:700;color:'+(Math.abs(diff)<1?'#065f46':'#991b1b')+'">'+fmtMoney(Math.abs(diff))+'</td>'
+    +'</tr>';
   html+='</tbody></table>';
   el.innerHTML=html;
 }
