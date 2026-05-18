@@ -1461,48 +1461,145 @@ function renderMapping(){
       +'</div>';
   }
 
+  // ── Build P&L section options from sector structure ──────────────────────
+  function getPLSectionOptions(key){
+    var sec=selectedSector&&SECTORS[selectedSector]?SECTORS[selectedSector].pl:null;
+    var cur=plSections[key]||'';
+    if(sec){
+      // Build from actual sector groups: Revenue, COGS, each OpEx sub-group, Other
+      var opts='<option value="">— Pick section —</option>';
+      opts+='<option value="Revenue"'+(cur==='Revenue'?' selected':'')+'>💰 Revenue</option>';
+      opts+='<option value="COGS"'+(cur==='COGS'?' selected':'')+'>🏭 COGS</option>';
+      if(sec.opex){
+        Object.keys(sec.opex).forEach(function(g){
+          var val='OpEx — '+g;
+          opts+='<option value="'+val+'"'+(cur===val?' selected':'')+'>📊 OpEx — '+g+'</option>';
+        });
+      } else {
+        opts+='<option value="OpEx"'+(cur==='OpEx'?' selected':'')+'>📊 OpEx</option>';
+      }
+      opts+='<option value="Other"'+(cur==='Other'?' selected':'')+'>📎 Other / Non-Operating</option>';
+      return opts;
+    }
+    // No sector — generic options
+    return '<option value="">— Pick section —</option>'
+      +'<option value="Revenue"'+(cur==='Revenue'?' selected':'')+'>💰 Revenue</option>'
+      +'<option value="COGS"'+(cur==='COGS'?' selected':'')+'>🏭 COGS</option>'
+      +'<option value="OpEx — Sales & Marketing"'+(cur==='OpEx — Sales & Marketing'?' selected':'')+'>📊 OpEx — Sales & Marketing</option>'
+      +'<option value="OpEx — Research & Development"'+(cur==='OpEx — Research & Development'?' selected':'')+'>📊 OpEx — Research & Development</option>'
+      +'<option value="OpEx — General & Administrative"'+(cur==='OpEx — General & Administrative'?' selected':'')+'>📊 OpEx — General & Administrative</option>'
+      +'<option value="OpEx"'+(cur==='OpEx'?' selected':'')+'>📊 OpEx — Other</option>'
+      +'<option value="Other"'+(cur==='Other'?' selected':'')+'>📎 Other / Non-Operating</option>';
+  }
+
+  function getBSSectionOptions(key){
+    var cur=bsSections[key]||'';
+    return '<option value="">— Pick section —</option>'
+      +'<option value="Current Assets"'+(cur==='Current Assets'?' selected':'')+'>🏦 Current Assets</option>'
+      +'<option value="Non-Current Assets"'+(cur==='Non-Current Assets'?' selected':'')+'>🏗️ Non-Current Assets</option>'
+      +'<option value="Current Liabilities"'+(cur==='Current Liabilities'?' selected':'')+'>📋 Current Liabilities</option>'
+      +'<option value="Non-Current Liabilities"'+(cur==='Non-Current Liabilities'?' selected':'')+'>📋 Non-Current Liabilities</option>'
+      +'<option value="Equity"'+(cur==='Equity'?' selected':'')+'>💎 Equity</option>';
+  }
+
+  // ── Get category options filtered by section ──────────────────────────────
+  function getCatOptsForSection(key, cur, sectionVal, reportSection){
+    if(reportSection==='bs'){
+      // BS: filter by BS section
+      var sec=selectedSector&&SECTORS[selectedSector]?SECTORS[selectedSector].bs:null;
+      var bsSectionMap={'Current Assets':'current_assets','Non-Current Assets':'noncurrent_assets',
+        'Current Liabilities':'current_liabilities','Non-Current Liabilities':'noncurrent_liabilities','Equity':'equity'};
+      var bsKey=bsSectionMap[sectionVal];
+      var items=sec&&bsKey?sec[bsKey]:null;
+      if(items){
+        var opts='<option value="">— Select category —</option>';
+        items.forEach(function(item){opts+='<option value="'+item+'"'+(cur===item?' selected':'')+'>'+item+'</option>';});
+        opts+='<option value="__custom__">✏️ Custom…</option>';
+        return opts;
+      }
+    } else {
+      // P&L: filter by P&L section
+      var plSec=selectedSector&&SECTORS[selectedSector]?SECTORS[selectedSector].pl:null;
+      if(plSec){
+        var items=null;
+        if(sectionVal==='Revenue') items=plSec.revenue;
+        else if(sectionVal==='COGS') items=plSec.cogs;
+        else if(sectionVal==='Other') items=plSec.other;
+        else if(sectionVal&&sectionVal.startsWith('OpEx — ')){
+          var grp=sectionVal.replace('OpEx — ','');
+          items=plSec.opex&&plSec.opex[grp]?plSec.opex[grp]:null;
+        } else if(sectionVal==='OpEx'&&plSec.opex){
+          // flat all opex
+          items=[];
+          Object.keys(plSec.opex).forEach(function(g){plSec.opex[g].forEach(function(i){items.push(i);});});
+        }
+        if(items){
+          var opts='<option value="">— Select category —</option>';
+          items.forEach(function(item){opts+='<option value="'+item+'"'+(cur===item?' selected':'')+'>'+item+'</option>';});
+          opts+='<option value="__custom__">✏️ Custom…</option>';
+          return opts;
+        }
+      }
+    }
+    // Fallback — show all sector cats
+    return null;
+  }
+
   function buildMappingTable(accs, section){
     if(!accs.length) return '<p style="padding:16px;color:var(--muted);font-size:13px;">No accounts found for this section.</p>';
-    const mapped=accs.filter(a=>mappings[a.id]&&mappings[a.id]!=='[ Not mapped ]').length;
+    const mapped=accs.filter(function(a){return mappings[a.id]&&mappings[a.id]!=='[ Not mapped ]';}).length;
     let html='<div style="padding:10px 18px;border-bottom:1px solid var(--border);font-size:12px;color:var(--muted);">'
       +'<span class="badge badge-mapped">'+mapped+' Mapped</span> &nbsp;'
       +'<span class="badge badge-unmapped">'+(accs.length-mapped)+' Unmapped</span>'
       +'<span style="margin-left:8px;">of '+accs.length+' accounts</span>'
+      +(selectedSector?'':' &nbsp;<span style="color:var(--amber);">← Select a sector above to enable structured dropdowns</span>')
       +'</div>';
     html+='<table><thead><tr>'
       +'<th>Code</th><th>Account Name</th><th>Xero Type</th>'
-      +'<th>Standard COA Category</th>'
-      +(section==='pl'?'<th>P&L Section</th>':'')
-      +'<th>Department / Cost Centre</th>'
+      +'<th style="min-width:160px;">'+(section==='pl'?'P&L Section':'BS Section')+'</th>'
+      +'<th style="min-width:200px;">Standard COA Category</th>'
+      +'<th>Department</th>'
       +'<th>Status</th>'
       +'</tr></thead><tbody>';
-    accs.forEach(a=>{
+
+    accs.forEach(function(a){
       const key=a.id;
       const cur=mappings[key]||'';
       const dept=departments[key]||'';
       const isMapped=cur&&cur!=='[ Not mapped ]';
-      const catInput=buildCatInput(key, cur, a.type, section);
+      const secVal=section==='pl'?(plSections[key]||''):(bsSections[key]||'');
+
+      // Section dropdown
+      const secOpts=section==='pl'?getPLSectionOptions(key):getBSSectionOptions(key);
+      const secAttr=section==='pl'?'data-plsec-id':'data-bssec-id';
+      const secChange=section==='pl'?'updatePLSection(this)':'updateBSSection(this)';
+      const secInput='<select '+secAttr+'="'+key+'" onchange="'+secChange+'" '
+        +'style="width:100%;padding:5px 7px;border:1px solid var(--border);border-radius:6px;font-size:12px;">'+secOpts+'</select>';
+
+      // Category dropdown — filtered by chosen section
+      const filteredOpts=getCatOptsForSection(key, cur, secVal, section);
+      let catInput;
+      if(filteredOpts){
+        catInput='<div style="display:flex;gap:4px;align-items:center;">'
+          +'<select class="mapping-select" data-account-id="'+key+'" onchange="handleCatChange(this)" style="min-width:180px;">'+filteredOpts+'</select>'
+          +(isMapped?'<span style="font-size:10px;color:var(--accent);">✓</span>':'')
+          +'</div>';
+      } else {
+        catInput=buildCatInput(key, cur, a.type, section);
+      }
+
       const deptInput='<input type="text" data-dept-id="'+key+'"'
         +' value="'+dept.replace(/"/g,'&quot;')+'"'
-        +' placeholder="e.g. Sales, Ops..."'
+        +' placeholder="e.g. Sales, R&D..."'
         +' onchange="updateDept(this)"'
-        +' style="width:120px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;">';
-      const plSec=plSections[key]||'';
-      const plSecInput=section==='pl'
-        ?('<select data-plsec-id="'+key+'" onchange="updatePLSection(this)" style="padding:5px 6px;border:1px solid var(--border);border-radius:6px;font-size:12px;min-width:90px;">'
-          +'<option value="">Auto</option>'
-          +'<option value="Revenue"'+(plSec==='Revenue'?' selected':'')+'>Revenue</option>'
-          +'<option value="COGS"'+(plSec==='COGS'?' selected':'')+'>COGS</option>'
-          +'<option value="OpEx"'+(plSec==='OpEx'?' selected':'')+'>OpEx</option>'
-          +'<option value="Other"'+(plSec==='Other'?' selected':'')+'>Other</option>'
-          +'</select>')
-        :'';
+        +' style="width:110px;padding:5px 7px;border:1px solid var(--border);border-radius:6px;font-size:12px;">';
+
       html+='<tr>'
         +'<td><span style="font-family:var(--mono);font-size:11px;color:var(--muted)">'+(a.code||'—')+'</span></td>'
         +'<td><strong>'+a.name+'</strong></td>'
         +'<td>'+getTypeBadge(a.type||'')+'</td>'
+        +'<td>'+secInput+'</td>'
         +'<td>'+catInput+'</td>'
-        +(section==='pl'?'<td>'+plSecInput+'</td>':'')
         +'<td>'+deptInput+'</td>'
         +'<td>'+(isMapped?'<span class="badge badge-mapped">Mapped</span>':'<span class="badge badge-unmapped">Unmapped</span>')+'</td>'
         +'</tr>';
@@ -1534,11 +1631,60 @@ function updateDept(input){
   departments[key]=input.value;
 }
 
-// P&L section override (Revenue / COGS / OpEx / Other)
-let plSections={}; // accountId -> 'Revenue'|'COGS'|'OpEx'|'Other'
+// P&L section override (Revenue / COGS / OpEx sub-groups / Other)
+let plSections={}; // accountId -> section string
+// BS section override (Current Assets / Non-Current Assets / etc.)
+let bsSections={}; // accountId -> BS section string
+
 function updatePLSection(sel){
   const key=sel.getAttribute('data-plsec-id');
   plSections[key]=sel.value;
+  // Refresh the category dropdown for this row to show section-filtered options
+  refreshCatDropdown(key, 'pl');
+}
+
+function updateBSSection(sel){
+  const key=sel.getAttribute('data-bssec-id');
+  bsSections[key]=sel.value;
+  refreshCatDropdown(key, 'bs');
+}
+
+function refreshCatDropdown(key, section){
+  // Find the category select for this account and update its options
+  var catSel=document.querySelector('.mapping-select[data-account-id="'+key+'"]');
+  if(!catSel||catSel.tagName!=='SELECT')return;
+  var cur=mappings[key]||'';
+  var secVal=section==='pl'?(plSections[key]||''):(bsSections[key]||'');
+  var filteredOpts=null;
+
+  var plSec=selectedSector&&SECTORS[selectedSector]?SECTORS[selectedSector].pl:null;
+  var bsSec=selectedSector&&SECTORS[selectedSector]?SECTORS[selectedSector].bs:null;
+
+  if(section==='pl'&&plSec&&secVal){
+    var items=null;
+    if(secVal==='Revenue') items=plSec.revenue;
+    else if(secVal==='COGS') items=plSec.cogs;
+    else if(secVal==='Other') items=plSec.other;
+    else if(secVal.startsWith('OpEx — ')){var g=secVal.replace('OpEx — ','');items=plSec.opex&&plSec.opex[g]?plSec.opex[g]:null;}
+    else if(secVal==='OpEx'&&plSec.opex){items=[];Object.keys(plSec.opex).forEach(function(g){plSec.opex[g].forEach(function(i){items.push(i);});});}
+    if(items){
+      filteredOpts='<option value="">— Select category —</option>';
+      items.forEach(function(item){filteredOpts+='<option value="'+item+'"'+(cur===item?' selected':'')+'>'+item+'</option>';});
+      filteredOpts+='<option value="__custom__">✏️ Custom…</option>';
+    }
+  } else if(section==='bs'&&bsSec&&secVal){
+    var bsSectionMap={'Current Assets':'current_assets','Non-Current Assets':'noncurrent_assets',
+      'Current Liabilities':'current_liabilities','Non-Current Liabilities':'noncurrent_liabilities','Equity':'equity'};
+    var bsKey=bsSectionMap[secVal];
+    var items=bsKey?bsSec[bsKey]:null;
+    if(items){
+      filteredOpts='<option value="">— Select category —</option>';
+      items.forEach(function(item){filteredOpts+='<option value="'+item+'"'+(cur===item?' selected':'')+'>'+item+'</option>';});
+      filteredOpts+='<option value="__custom__">✏️ Custom…</option>';
+    }
+  }
+
+  if(filteredOpts) catSel.innerHTML=filteredOpts;
 }
 
 // Handle category dropdown change — if "Enter custom" selected, swap to text input
@@ -2769,13 +2915,13 @@ function exportSingleCSV(type){
     filename='chart_of_accounts_'+date+'.csv';
   }else if(type==='map'){
     const accounts=getAccountsList();
-    csv='Code,Account Name,Xero Type,Standard COA Category,P&L Section,Department / Cost Centre,Status\n';
-    accounts.forEach(a=>{
+    csv='Code,Account Name,Xero Type,P&L Section / BS Section,Standard COA Category,Department / Cost Centre,Status\n';
+    accounts.forEach(function(a){
       const mapped=mappings[a.id]||'';
       const dept=departments[a.id]||'';
-      const sec=plSections[a.id]||'';
+      const sec=plSections[a.id]||bsSections[a.id]||'';
       const status=mapped&&mapped!=='[ Not mapped ]'?'Mapped':'Unmapped';
-      csv+='"'+(a.code||'')+'","'+(a.name||'')+'","'+(a.type||'')+'","'+mapped+'","'+sec+'","'+dept+'","'+status+'"\n';
+      csv+='"'+(a.code||'')+'","'+(a.name||'')+'","'+(a.type||'')+'","'+sec+'","'+mapped+'","'+dept+'","'+status+'"\n';
     });
     filename='coa_mapping_'+date+'.csv';
   }else if(type==='rpl'){
