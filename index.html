@@ -393,12 +393,15 @@
         <div style="font-size:12px;color:var(--muted);">Map your Xero accounts to your standard Chart of Accounts. P&amp;L and Balance Sheet are mapped separately.</div>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="btn btn-primary btn-sm" onclick="autoMapAccounts()" style="gap:6px;">
+          ✨ Auto-Map Accounts
+        </button>
         <button class="btn btn-secondary btn-sm" onclick="downloadCOATemplate()">⬇ Download Template</button>
         <label class="btn btn-secondary btn-sm" style="cursor:pointer;margin:0;">
           📂 Import CSV
           <input type="file" accept=".csv" id="coaUploadInput" onchange="uploadCOAMapping(this)" style="display:none;">
         </label>
-        <label class="btn btn-primary btn-sm" style="cursor:pointer;margin:0;">
+        <label class="btn btn-secondary btn-sm" style="cursor:pointer;margin:0;">
           📋 Import Master COA
           <input type="file" accept=".csv" id="masterCOAInput" onchange="uploadMasterCOA(this)" style="display:none;">
         </label>
@@ -1222,6 +1225,274 @@ function renderSetupMapping(){
   html+='</tbody></table>';
   el.innerHTML=html;
 }
+
+// ══ AUTO-MAP ACCOUNTS ════════════════════════════════════════════════════════
+// Matches Xero account names to sector COA categories using:
+// 1. Xero account TYPE code → maps to P&L section
+// 2. Account name keyword matching against sector COA items
+// 3. Account code prefix (4xxx = revenue, 5xxx = COGS, 6xxx = OpEx, 7xxx = Other)
+// 4. Xero report section title as a hint
+
+function autoMapAccounts(){
+  if(!selectedSector){
+    showMsg('Please select a business sector first (Step 1 above) before auto-mapping.','error');
+    return;
+  }
+  const sector=SECTORS[selectedSector];
+  if(!sector){showMsg('Sector data not found.','error');return;}
+
+  const accounts=getAccountsList();
+  const alwaysBsTypes=new Set(['BANK','CREDITCARD','EQUITY','CURRLIAB','LIABILITY','TERMLIAB',
+    'CURRENT','FIXED','NONCURRENT','PREPAYMENT','PAYABLE','RECEIVABLE']);
+
+  // Build name-to-section lookup from P&L report
+  const plSectionByName={};
+  if(plReports.length&&plReports[0].Rows){
+    plReports[0].Rows.forEach(function(sec){
+      if(!sec.Rows||!sec.Title)return;
+      sec.Rows.forEach(function(row){
+        if(row.RowType==='Row'&&row.Cells){
+          var nm=row.Cells[0]?.Value||'';
+          if(nm) plSectionByName[nm]=sec.Title;
+        }
+      });
+    });
+  }
+  const bsSectionByName={};
+  if(bsReports.length&&bsReports[0].Rows){
+    bsReports[0].Rows.forEach(function(sec){
+      if(!sec.Rows||!sec.Title)return;
+      sec.Rows.forEach(function(row){
+        if(row.RowType==='Row'&&row.Cells){
+          var nm=row.Cells[0]?.Value||'';
+          if(nm) bsSectionByName[nm]=sec.Title;
+        }
+      });
+    });
+  }
+
+  // Build flat lookup: category string → {plSection, bsSection} for fast matching
+  // Also build reverse: category item → normalised tokens for fuzzy match
+  var plItems=[]; // [{item, group, tokens}]
+  var bsItems=[]; // [{item, group, tokens}]
+
+  function tokenise(str){
+    return str.toLowerCase().replace(/[^a-z0-9\s]/g,' ').split(/\s+/).filter(function(t){return t.length>2;});
+  }
+
+  if(sector.pl){
+    if(sector.pl.revenue) sector.pl.revenue.forEach(function(item){plItems.push({item:item,group:'Revenue',tokens:tokenise(item)});});
+    if(sector.pl.cogs) sector.pl.cogs.forEach(function(item){plItems.push({item:item,group:'COGS',tokens:tokenise(item)});});
+    if(sector.pl.opex) Object.keys(sector.pl.opex).forEach(function(g){
+      sector.pl.opex[g].forEach(function(item){plItems.push({item:item,group:'OpEx — '+g,tokens:tokenise(item)});});
+    });
+    if(sector.pl.other) sector.pl.other.forEach(function(item){plItems.push({item:item,group:'Other',tokens:tokenise(item)});});
+  }
+  if(sector.bs){
+    var bsMap={'current_assets':'Current Assets','noncurrent_assets':'Non-Current Assets',
+      'current_liabilities':'Current Liabilities','noncurrent_liabilities':'Non-Current Liabilities','equity':'Equity'};
+    Object.keys(bsMap).forEach(function(k){
+      if(sector.bs[k]) sector.bs[k].forEach(function(item){bsItems.push({item:item,group:bsMap[k],tokens:tokenise(item)});});
+    });
+  }
+
+  // Score an account name against a list of COA items
+  function bestMatch(accountName, accountCode, itemList){
+    var nameToks=tokenise(accountName);
+    var codePrefix=accountCode?accountCode.replace(/\D/g,'').substring(0,1):'';
+    var best=null, bestScore=-1;
+
+    itemList.forEach(function(entry){
+      var score=0;
+      // Exact name match (highest confidence)
+      if(accountName.toLowerCase()===entry.item.toLowerCase()){score=100;}
+      else {
+        // Token overlap score
+        var overlap=0;
+        nameToks.forEach(function(t){
+          if(entry.tokens.indexOf(t)>=0) overlap++;
+        });
+        if(nameToks.length>0) score+=(overlap/Math.max(nameToks.length,entry.tokens.length))*60;
+
+        // Substring bonus: account name contains item token or vice versa
+        entry.tokens.forEach(function(t){
+          if(accountName.toLowerCase().indexOf(t)>=0) score+=5;
+        });
+        nameToks.forEach(function(t){
+          if(entry.item.toLowerCase().indexOf(t)>=0) score+=5;
+        });
+      }
+
+      if(score>bestScore&&score>15){bestScore=score;best=entry;}
+    });
+    return best?{item:best.item,group:best.group,score:bestScore}:null;
+  }
+
+  // Xero type → P&L section hint
+  var typeToSection={
+    'REVENUE':'Revenue','SALES':'Revenue','OTHERINCOME':'Revenue',
+    'DIRECTCOSTS':'COGS','DIRECTCOST':'COGS',
+    'OVERHEADS':'OpEx','EXPENSE':'OpEx','WAGES':'OpEx','DEPRECIATN':'OpEx',
+    'BANK':'Current Assets','CURRENT':'Current Assets','RECEIVABLE':'Current Assets',
+    'PREPAYMENT':'Current Assets','FIXED':'Non-Current Assets','NONCURRENT':'Non-Current Assets',
+    'CURRLIAB':'Current Liabilities','LIABILITY':'Current Liabilities','PAYABLE':'Current Liabilities',
+    'TERMLIAB':'Non-Current Liabilities','EQUITY':'Equity','CREDITCARD':'Current Liabilities'
+  };
+
+  // Account code prefix → P&L section hint (4xxx=rev, 5xxx=cogs, 6xxx=opex, 7xxx=other)
+  function codeHint(code){
+    if(!code)return null;
+    var n=parseInt(code);
+    if(n>=4000&&n<5000)return 'Revenue';
+    if(n>=5000&&n<6000)return 'COGS';
+    if(n>=6000&&n<7000)return 'OpEx';
+    if(n>=7000&&n<8000)return 'Other';
+    if(n>=1000&&n<2000)return 'Current Assets';
+    if(n>=2000&&n<3000)return 'Current Liabilities';
+    if(n>=3000&&n<4000)return 'Equity';
+    return null;
+  }
+
+  var mapped=0, skipped=0, suggestions=[];
+
+  accounts.forEach(function(a){
+    // Skip already mapped
+    if(mappings[a.id]&&mappings[a.id]!=='[ Not mapped ]'){skipped++;return;}
+
+    var isBs=alwaysBsTypes.has((a.type||'').toUpperCase());
+    var itemList=isBs?bsItems:plItems;
+    var typeHint=typeToSection[(a.type||'').toUpperCase()]||null;
+    var codeH=codeHint(a.code);
+    var reportSectionHint=isBs?bsSectionByName[a.name]:plSectionByName[a.name];
+
+    // Narrow item list by type/code/report section hint for better accuracy
+    var filteredList=itemList;
+    var hint=typeHint||codeH;
+    if(hint&&itemList.length>0){
+      var narrowed=itemList.filter(function(e){
+        if(hint==='Revenue')return e.group==='Revenue';
+        if(hint==='COGS')return e.group==='COGS';
+        if(hint==='Other')return e.group==='Other';
+        if(hint==='Current Assets')return e.group==='Current Assets';
+        if(hint==='Non-Current Assets')return e.group==='Non-Current Assets';
+        if(hint==='Current Liabilities')return e.group==='Current Liabilities';
+        if(hint==='Non-Current Liabilities')return e.group==='Non-Current Liabilities';
+        if(hint==='Equity')return e.group==='Equity';
+        // OpEx: match all OpEx sub-groups
+        if(hint==='OpEx')return e.group.startsWith('OpEx');
+        return true;
+      });
+      if(narrowed.length>0) filteredList=narrowed;
+    }
+
+    var match=bestMatch(a.name, a.code, filteredList);
+    if(match&&match.score>=20){
+      suggestions.push({id:a.id, name:a.name, category:match.item, section:match.group, score:match.score, isBs:isBs});
+    }
+  });
+
+  if(!suggestions.length){
+    showMsg('No automatic matches found. Try selecting a different sector or map manually.','error');
+    return;
+  }
+
+  // Show confirmation modal with all suggestions before applying
+  showAutoMapPreview(suggestions);
+}
+
+function closeAutoMap(){
+  var el=document.getElementById('autoMapOverlay');
+  if(el) el.remove();
+}
+
+function showAutoMapPreview(suggestions){
+  // Create overlay modal
+  var overlay=document.createElement('div');
+  overlay.id='autoMapOverlay';
+  overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:flex-start;justify-content:center;padding:40px 20px;overflow-y:auto;';
+
+  var plSugg=suggestions.filter(function(s){return !s.isBs;});
+  var bsSugg=suggestions.filter(function(s){return s.isBs;});
+
+  function buildRows(sugg){
+    return sugg.map(function(s){
+      var confidenceColor=s.score>=60?'var(--accent)':s.score>=35?'var(--amber)':'var(--muted)';
+      var confidenceLabel=s.score>=60?'High':s.score>=35?'Medium':'Low';
+      return '<tr data-suggestion-id="'+s.id+'">'
+        +'<td style="padding:8px 12px;font-size:13px;"><strong>'+s.name+'</strong></td>'
+        +'<td style="padding:8px 12px;font-size:12px;color:var(--muted);">'+s.section+'</td>'
+        +'<td style="padding:8px 12px;font-size:12px;">'+s.category+'</td>'
+        +'<td style="padding:8px 12px;text-align:center;"><span style="font-size:11px;font-weight:600;color:'+confidenceColor+';">'+confidenceLabel+'</span></td>'
+        +'<td style="padding:8px 12px;text-align:center;"><input type="checkbox" checked style="width:16px;height:16px;cursor:pointer;" data-id="'+s.id+'"></td>'
+        +'</tr>';
+    }).join('');
+  }
+
+  overlay.innerHTML='<div style="background:var(--surface);border-radius:16px;width:100%;max-width:860px;box-shadow:0 20px 60px rgba(0,0,0,0.3);">'
+    +'<div style="padding:20px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">'
+    +'<div><div style="font-size:17px;font-weight:700;">✨ Auto-Map Suggestions</div>'
+    +'<div style="font-size:12px;color:var(--muted);margin-top:2px;">Review the suggestions below. Uncheck any you want to map manually, then click Apply.</div></div>'
+    +'<button onclick="closeAutoMap()" style="padding:6px 12px;border:1px solid var(--border);border-radius:8px;cursor:pointer;background:var(--bg);font-size:13px;">✕ Cancel</button>'
+    +'</div>'
+    +'<div style="padding:16px 24px;max-height:60vh;overflow-y:auto;">'
+    +(plSugg.length?'<div style="font-size:12px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">P&L Accounts ('+plSugg.length+')</div>'
+      +'<table style="width:100%;border-collapse:collapse;margin-bottom:20px;">'
+      +'<thead><tr style="background:var(--bg);">'
+      +'<th style="padding:8px 12px;text-align:left;font-size:11px;color:var(--muted);">Account Name</th>'
+      +'<th style="padding:8px 12px;text-align:left;font-size:11px;color:var(--muted);">Section</th>'
+      +'<th style="padding:8px 12px;text-align:left;font-size:11px;color:var(--muted);">Suggested Category</th>'
+      +'<th style="padding:8px 12px;text-align:center;font-size:11px;color:var(--muted);">Confidence</th>'
+      +'<th style="padding:8px 12px;text-align:center;font-size:11px;color:var(--muted);">Apply</th>'
+      +'</tr></thead><tbody style="border:1px solid var(--border);border-radius:8px;">'+buildRows(plSugg)+'</tbody></table>':'')
+    +(bsSugg.length?'<div style="font-size:12px;font-weight:700;color:var(--accent2);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Balance Sheet Accounts ('+bsSugg.length+')</div>'
+      +'<table style="width:100%;border-collapse:collapse;">'
+      +'<thead><tr style="background:var(--bg);">'
+      +'<th style="padding:8px 12px;text-align:left;font-size:11px;color:var(--muted);">Account Name</th>'
+      +'<th style="padding:8px 12px;text-align:left;font-size:11px;color:var(--muted);">Section</th>'
+      +'<th style="padding:8px 12px;text-align:left;font-size:11px;color:var(--muted);">Suggested Category</th>'
+      +'<th style="padding:8px 12px;text-align:center;font-size:11px;color:var(--muted);">Confidence</th>'
+      +'<th style="padding:8px 12px;text-align:center;font-size:11px;color:var(--muted);">Apply</th>'
+      +'</tr></thead><tbody style="border:1px solid var(--border);border-radius:8px;">'+buildRows(bsSugg)+'</tbody></table>':'')
+    +'</div>'
+    +'<div style="padding:16px 24px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">'
+    +'<div style="font-size:12px;color:var(--muted);">'
+    +'<label style="cursor:pointer;display:flex;align-items:center;gap:6px;"><input type="checkbox" id="autoMapSelectAll" checked onchange="toggleAllAutoMap(this)" style="width:14px;height:14px;"> Select / deselect all</label>'
+    +'</div>'
+    +'<div style="display:flex;gap:8px;">'
+    +'<button onclick="closeAutoMap()" style="padding:9px 18px;border:1px solid var(--border);border-radius:8px;cursor:pointer;background:var(--bg);font-size:13px;">Cancel</button>'
+    +'<button onclick="applyAutoMap()" style="padding:9px 20px;border:none;border-radius:8px;cursor:pointer;background:var(--accent);color:white;font-size:13px;font-weight:600;">✓ Apply Selected Mappings</button>'
+    +'</div></div></div>';
+
+  // Store suggestions for applyAutoMap to use
+  window._autoMapSuggestions=suggestions;
+  document.body.appendChild(overlay);
+}
+
+function toggleAllAutoMap(chk){
+  document.querySelectorAll('#autoMapOverlay input[type=checkbox][data-id]').forEach(function(cb){cb.checked=chk.checked;});
+}
+
+function applyAutoMap(){
+  var overlay=document.getElementById('autoMapOverlay');
+  var applied=0;
+  document.querySelectorAll('#autoMapOverlay input[type=checkbox][data-id]').forEach(function(cb){
+    if(!cb.checked)return;
+    var id=cb.getAttribute('data-id');
+    var sugg=window._autoMapSuggestions.find(function(s){return s.id===id;});
+    if(sugg){
+      mappings[id]=sugg.category;
+      // Also set the section
+      if(sugg.isBs) bsSections[id]=sugg.section;
+      else plSections[id]=sugg.section;
+      applied++;
+    }
+  });
+  if(overlay)overlay.remove();
+  showMsg('✓ Applied '+applied+' auto-mappings. Review and adjust any low-confidence matches.','success');
+  renderMapping();
+  updateMappingProgressBar();
+}
+// ══ END AUTO-MAP ═════════════════════════════════════════════════════════════
 
 function getAccountsList(){
   const accounts=[];
