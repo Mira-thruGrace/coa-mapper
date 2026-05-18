@@ -2084,44 +2084,30 @@ function updateMappingProgressBar(){
   if(!barEl)return;
 
   const accounts=getAccountsList();
-  const plTypes=new Set(['REVENUE','SALES','OTHERINCOME','EXPENSE','OVERHEADS','DIRECTCOSTS',
-    'DEPRECIATN','WAGES','DIRECTCOST','OVERHEAD','INCOME','OTHER_INCOME']);
-  const bsTypes=new Set(['CURRENT','FIXED','NONCURRENT','PREPAYMENT','CURRLIAB','LIABILITY',
-    'TERMLIAB','EQUITY','BANK','CREDITCARD','PAYABLE','RECEIVABLE']);
-  // BANK and CREDITCARD are always BS — never P&L regardless of report presence
   const alwaysBsTypes=new Set(['BANK','CREDITCARD','EQUITY','CURRLIAB','LIABILITY','TERMLIAB',
     'CURRENT','FIXED','NONCURRENT','PREPAYMENT','PAYABLE','RECEIVABLE']);
 
-  // Fallback: report name presence (same as renderMapping)
+  // ── Use exact same logic as renderMapping: only accounts in the loaded reports ──
   const plNames=new Set();
   const bsNames=new Set();
   if(plReports.length&&plReports[0].Rows)
-    plReports[0].Rows.forEach(s=>{if(s.Rows)s.Rows.forEach(r=>{if(r.RowType==='Row'&&r.Cells)plNames.add(r.Cells[0]?.Value||'');});});
+    plReports[0].Rows.forEach(function(s){if(s.Rows)s.Rows.forEach(function(r){if(r.RowType==='Row'&&r.Cells){var nm=r.Cells[0]?.Value||'';if(nm)plNames.add(nm);}});});
   if(bsReports.length&&bsReports[0].Rows)
-    bsReports[0].Rows.forEach(s=>{if(s.Rows)s.Rows.forEach(r=>{if(r.RowType==='Row'&&r.Cells)bsNames.add(r.Cells[0]?.Value||'');});});
+    bsReports[0].Rows.forEach(function(s){if(s.Rows)s.Rows.forEach(function(r){if(r.RowType==='Row'&&r.Cells){var nm=r.Cells[0]?.Value||'';if(nm)bsNames.add(nm);}});});
 
-  function isPlAccount(a){
-    const t=(a.type||'').toUpperCase();
-    if(plTypes.has(t)) return true;
-    if(bsTypes.has(t)) return false;
-    if(plNames.has(a.name)||plNames.has(a.id)) return true;
-    if(bsNames.has(a.name)||bsNames.has(a.id)) return false;
-    return false;
-  }
-  function isBsAccount(a){
-    const t=(a.type||'').toUpperCase();
-    if(bsTypes.has(t)) return true;
-    if(plTypes.has(t)) return false;
-    if(bsNames.has(a.name)||bsNames.has(a.id)) return true;
-    if(plNames.has(a.name)||plNames.has(a.id)) return false;
-    return false;
-  }
+  // P&L: only accounts whose name appears in P&L report AND are not a BS type
+  const plAccounts=accounts.filter(function(a){
+    if(alwaysBsTypes.has((a.type||'').toUpperCase())) return false;
+    return plNames.has(a.name)||plNames.has(a.id);
+  });
 
-  const plAccounts=accounts.filter(a=>isPlAccount(a));
-  const bsAccounts=accounts.filter(a=>isBsAccount(a));
+  // BS: only accounts whose name appears in BS report
+  const bsAccounts=accounts.filter(function(a){
+    return bsNames.has(a.name)||bsNames.has(a.id);
+  });
 
-  const plMapped=plAccounts.filter(a=>mappings[a.id]&&mappings[a.id]!=='[ Not mapped ]').length;
-  const bsMapped=bsAccounts.filter(a=>mappings[a.id]&&mappings[a.id]!=='[ Not mapped ]').length;
+  const plMapped=plAccounts.filter(function(a){return mappings[a.id]&&mappings[a.id]!=='[ Not mapped ]';}).length;
+  const bsMapped=bsAccounts.filter(function(a){return mappings[a.id]&&mappings[a.id]!=='[ Not mapped ]';}).length;
   const plPct=plAccounts.length>0?Math.round((plMapped/plAccounts.length)*100):0;
   const bsPct=bsAccounts.length>0?Math.round((bsMapped/bsAccounts.length)*100):0;
   const plComplete=plPct===100&&plAccounts.length>0;
@@ -2131,12 +2117,12 @@ function updateMappingProgressBar(){
     '<div class="progress-item">'
     +'<label><span>P&L COA Mapping</span><span class="progress-badge '+(plComplete?'complete':'incomplete')+'">'+(plComplete?'Complete':'Incomplete')+'</span></label>'
     +'<div class="progress-bar-outer"><div class="progress-bar-inner '+(plComplete?'complete':'incomplete')+'" style="width:'+plPct+'%"></div></div>'
-    +'<div style="font-size:11px;color:var(--muted);margin-top:4px;">'+plMapped+' of '+plAccounts.length+' accounts mapped ('+plPct+'%)</div>'
+    +'<div style="font-size:11px;color:var(--muted);margin-top:4px;">'+plMapped+' of '+plAccounts.length+' P&L accounts mapped ('+plPct+'%)</div>'
     +'</div>'
     +'<div class="progress-item">'
     +'<label><span>Balance Sheet COA Mapping</span><span class="progress-badge '+(bsComplete?'complete':'incomplete')+'">'+(bsComplete?'Complete':'Incomplete')+'</span></label>'
     +'<div class="progress-bar-outer"><div class="progress-bar-inner '+(bsComplete?'complete':'incomplete')+'" style="width:'+bsPct+'%"></div></div>'
-    +'<div style="font-size:11px;color:var(--muted);margin-top:4px;">'+bsMapped+' of '+bsAccounts.length+' accounts mapped ('+bsPct+'%)</div>'
+    +'<div style="font-size:11px;color:var(--muted);margin-top:4px;">'+bsMapped+' of '+bsAccounts.length+' BS accounts mapped ('+bsPct+'%)</div>'
     +'</div>';
 }
 
