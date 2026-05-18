@@ -1895,13 +1895,24 @@ function renderMapping(){
     });
 
   // Collect account names from BS report rows
+  // Skip Xero computed summary rows and auto-handled rows (Net Assets, CYE etc.)
+  const BS_SKIP=new Set([
+    'Net Assets','Total Net Assets','Net assets',
+    'Total Assets','Total Liabilities','Total Equity',
+    'Total Current Assets','Total Non-Current Assets','Total Fixed Assets',
+    'Total Current Liabilities','Total Non-Current Liabilities','Total Long Term Liabilities',
+    'Total Liabilities and Equity','Total Shareholders Equity',
+    'Current Year Earnings','Current year earnings',
+    'Profit for the year','Net Profit for the year',
+    'Retained Profit / (Loss)','Current Year Profit / (Loss)'
+  ]);
   const bsAccountNames=new Set();
   if(bsReports.length&&bsReports[0].Rows)
     bsReports[0].Rows.forEach(function(sec){
       if(sec.Rows)sec.Rows.forEach(function(row){
         if(row.RowType==='Row'&&row.Cells){
           var nm=row.Cells[0]?.Value||'';
-          if(nm) bsAccountNames.add(nm);
+          if(nm&&!BS_SKIP.has(nm)) bsAccountNames.add(nm);
         }
       });
     });
@@ -2527,7 +2538,12 @@ function refreshBulkAccountList(){
   if(plReports.length&&plReports[0].Rows)
     plReports[0].Rows.forEach(function(s){if(s.Rows)s.Rows.forEach(function(r){if(r.RowType==='Row'&&r.Cells&&r.Cells[0]?.Value)plNames.add(r.Cells[0].Value);});});
   if(bsReports.length&&bsReports[0].Rows)
-    bsReports[0].Rows.forEach(function(s){if(s.Rows)s.Rows.forEach(function(r){if(r.RowType==='Row'&&r.Cells&&r.Cells[0]?.Value)bsNames.add(r.Cells[0].Value);});});
+    bsReports[0].Rows.forEach(function(s){if(s.Rows)s.Rows.forEach(function(r){
+      if(r.RowType==='Row'&&r.Cells&&r.Cells[0]?.Value){
+        var _n=r.Cells[0].Value;
+        if(!BS_SKIP.has(_n)&&!new Set(['Net Assets','Current Year Earnings','Profit for the year','Net Profit for the year']).has(_n)) bsNames.add(_n);
+      }
+    });});
 
   // Cross-check against COA to exclude summary/total rows
   var coaNamesB=new Set(coaData.filter(function(a){return a.Status==='ACTIVE';}).map(function(a){return a.Name;}));
@@ -3217,6 +3233,22 @@ function renderRestatedBS(){
   const el=document.getElementById('rbsContent');
   if(!bsReports.length){el.innerHTML='<div class="warn-box" style="margin:16px;">⚠️ No Balance Sheet data loaded.</div>';return;}
 
+  // Xero computed/summary row names to skip entirely
+  const SKIP_BS_ROWS=new Set([
+    'Net Assets','Total Net Assets','Net assets',
+    'Total Assets','Total Liabilities','Total Equity',
+    'Total Current Assets','Total Non-Current Assets','Total Fixed Assets',
+    'Total Current Liabilities','Total Non-Current Liabilities','Total Long Term Liabilities',
+    'Total Liabilities and Equity','Total Shareholders Equity',
+  ]);
+
+  // "Current Year Earnings" and variants are auto-routed to Equity
+  const CYE_NAMES=new Set([
+    'Current Year Earnings','Current year earnings',
+    'Profit for the year','Net Profit for the year',
+    'Retained Profit / (Loss)','Current Year Profit / (Loss)'
+  ]);
+
   const lineItems=[];
   bsReports[0].Rows.forEach(function(section){
     if(!section.Rows)return;
@@ -3224,13 +3256,24 @@ function renderRestatedBS(){
       if(row.RowType==='Row'&&row.Cells){
         const name=row.Cells[0]?.Value||'';
         const amt=parseFloat(row.Cells[1]?.Value)||0;
-        if(name) lineItems.push({name,amt,section:section.Title||''});
+        // Skip Xero computed totals/summary rows
+        if(SKIP_BS_ROWS.has(name)) return;
+        if(name) lineItems.push({name,amt,section:section.Title||'',isCYE:CYE_NAMES.has(name)});
       }
     });
   });
 
   const catTotals={}, catItems={}, unmappedItems=[];
   lineItems.forEach(function(item){
+    // Current Year Earnings — auto-map to Equity regardless of user mapping
+    if(item.isCYE){
+      var cyeCat='Current Year Earnings';
+      catTotals[cyeCat]=(catTotals[cyeCat]||0)+item.amt;
+      if(!catItems[cyeCat]) catItems[cyeCat]=[];
+      catItems[cyeCat].push(item);
+      return;
+    }
+
     const account=coaData.find(function(a){return a.Name===item.name;})||{AccountID:item.name};
     const key=account.AccountID||item.name;
     const cat=mappings[key];
@@ -3241,6 +3284,12 @@ function renderRestatedBS(){
       catItems[cat].push(item);
     }
   });
+
+  // Ensure Current Year Earnings is always in Equity bucket
+  if(catTotals['Current Year Earnings']!==undefined){
+    // Force it into equityCats after classification
+    // We'll handle this by adding to sectorBSCatSection below
+  }
 
   // Classify into BS sections using:
   // 1. bsSections user overrides (set in mapping tab BS Section column)
@@ -3265,6 +3314,8 @@ function renderRestatedBS(){
     var cat=mappings[accId];
     if(sec&&cat&&!catBSOverride[cat]) catBSOverride[cat]=sec;
   });
+  // Current Year Earnings always goes to Equity
+  catBSOverride['Current Year Earnings']='Equity';
 
   Object.keys(catTotals).forEach(function(cat){
     var total=catTotals[cat];
