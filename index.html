@@ -1216,6 +1216,9 @@ function renderMapping(){
     'DEPRECIATN','WAGES','DIRECTCOST','OVERHEAD','INCOME','OTHER_INCOME']);
   const bsTypes=new Set(['CURRENT','FIXED','NONCURRENT','PREPAYMENT','CURRLIAB','LIABILITY',
     'TERMLIAB','EQUITY','BANK','CREDITCARD','PAYABLE','RECEIVABLE']);
+  // BANK and CREDITCARD are always BS — never P&L regardless of report presence
+  const alwaysBsTypes=new Set(['BANK','CREDITCARD','EQUITY','CURRLIAB','LIABILITY','TERMLIAB',
+    'CURRENT','FIXED','NONCURRENT','PREPAYMENT','PAYABLE','RECEIVABLE']);
 
   const plAccountNames=new Set();
   const bsAccountNames=new Set();
@@ -1226,6 +1229,7 @@ function renderMapping(){
 
   function isPlAccount(a){
     const t=(a.type||'').toUpperCase();
+    if(alwaysBsTypes.has(t)) return false; // hard exclude BS types from P&L
     if(plTypes.has(t)) return true;
     if(bsTypes.has(t)) return false;
     if(plAccountNames.has(a.name)||plAccountNames.has(a.id)) return true;
@@ -1234,8 +1238,9 @@ function renderMapping(){
   }
   function isBsAccount(a){
     const t=(a.type||'').toUpperCase();
-    if(bsTypes.has(t)) return true;
+    if(alwaysBsTypes.has(t)) return true; // hard include BS types
     if(plTypes.has(t)) return false;
+    if(bsTypes.has(t)) return true;
     if(bsAccountNames.has(a.name)||bsAccountNames.has(a.id)) return true;
     if(plAccountNames.has(a.name)||plAccountNames.has(a.id)) return false;
     return false;
@@ -1547,22 +1552,36 @@ function uploadMasterCOA(input){
 }
 
 function downloadCOATemplate(){
-  // Option 1: Full mapping template — Xero accounts + category column to fill
-  const accounts=getAccountsList();
-  let csv='"Xero Account Name","Xero Account Code","Xero Type","Standard COA Category","Department / Cost Centre"\n';
-  if(accounts.length){
-    accounts.forEach(a=>{
-      const cat=mappings[a.id]||'';
-      const dept=departments[a.id]||'';
-      csv+='"'+a.name.replace(/"/g,'""')+'","'+(a.code||'')+'","'+(a.type||'')+'","'+cat+'","'+dept+'"\n';
-    });
-  } else {
-    csv+='"Revenue Account Example","4001","REVENUE","","Sales"\n';
-    csv+='"Salary Expense Example","6001","OVERHEADS","","HR"\n';
-    csv+='"Bank Account Example","1001","BANK","","Operations"\n';
-  }
-  dlCSV(csv,'mapping_template_option1.csv');
-  showMsg('✓ Option 1 template downloaded — fill in Standard COA Category and Department, then Import.','success');
+  // Standard COA template only — no Xero accounts included
+  // User defines their own categories; import enables dropdown mapping
+  let csv='"Standard COA Category","Statement (P&L / BS)","Group / Section","Notes"\n';
+  csv+='"Revenue - Sales","P&L","Revenue","Main product or service revenue"\n';
+  csv+='"Revenue - Services","P&L","Revenue","Professional services or consulting"\n';
+  csv+='"Revenue - Other","P&L","Revenue","Other income streams"\n';
+  csv+='"Cost of Goods Sold","P&L","Cost of Revenue","Direct product or service costs"\n';
+  csv+='"Cost of Services","P&L","Cost of Revenue","Direct delivery costs"\n';
+  csv+='"Payroll & Salaries","P&L","Operating Expenses","All staff compensation"\n';
+  csv+='"Sales & Marketing","P&L","Operating Expenses","Advertising and promotion"\n';
+  csv+='"Research & Development","P&L","Operating Expenses","Product and engineering"\n';
+  csv+='"General & Administrative","P&L","Operating Expenses","Office, legal, finance"\n';
+  csv+='"Depreciation & Amortisation","P&L","Non-cash","Fixed asset depreciation"\n';
+  csv+='"Interest Expense","P&L","Finance","Loan interest charges"\n';
+  csv+='"Tax Expense","P&L","Tax","Corporate income tax"\n';
+  csv+='"Cash & Bank","BS","Current Assets","All bank and cash accounts"\n';
+  csv+='"Accounts Receivable","BS","Current Assets","Trade receivables"\n';
+  csv+='"Inventory","BS","Current Assets","Stock on hand"\n';
+  csv+='"Prepayments","BS","Current Assets","Prepaid expenses and deposits"\n';
+  csv+='"Other Current Assets","BS","Current Assets","GST receivable, other"\n';
+  csv+='"Property Plant & Equipment","BS","Non-Current Assets","Computers, furniture, renovation"\n';
+  csv+='"Intangible Assets","BS","Non-Current Assets","Software, licences, goodwill"\n';
+  csv+='"Accounts Payable","BS","Current Liabilities","Trade payables"\n';
+  csv+='"Accrued Liabilities","BS","Current Liabilities","Accrued expenses and provisions"\n';
+  csv+='"Deferred Revenue","BS","Current Liabilities","Unearned income"\n';
+  csv+='"Short-term Debt","BS","Current Liabilities","Current portion of loans"\n';
+  csv+='"Long-term Debt","BS","Non-Current Liabilities","Term loans, hire purchase"\n';
+  csv+='"Share Capital","BS","Equity","Issued share capital"\n';
+  dlCSV(csv,'standard_coa_template.csv');
+  showMsg('Standard COA template downloaded. Add or edit your categories, then Import CSV to enable dropdowns.','success');
 }
 
 function downloadStandardCOATemplate(){
@@ -1669,6 +1688,9 @@ function updateMappingProgressBar(){
     'DEPRECIATN','WAGES','DIRECTCOST','OVERHEAD','INCOME','OTHER_INCOME']);
   const bsTypes=new Set(['CURRENT','FIXED','NONCURRENT','PREPAYMENT','CURRLIAB','LIABILITY',
     'TERMLIAB','EQUITY','BANK','CREDITCARD','PAYABLE','RECEIVABLE']);
+  // BANK and CREDITCARD are always BS — never P&L regardless of report presence
+  const alwaysBsTypes=new Set(['BANK','CREDITCARD','EQUITY','CURRLIAB','LIABILITY','TERMLIAB',
+    'CURRENT','FIXED','NONCURRENT','PREPAYMENT','PAYABLE','RECEIVABLE']);
 
   // Fallback: report name presence (same as renderMapping)
   const plNames=new Set();
@@ -2112,25 +2134,29 @@ function renderCashFlow(){
     }
   });
 
-  // If no prior BS, fall back to using end-period balances as rough proxy
-  // (assets = outflows, liabilities = inflows) — clearly labelled
+  // No prior BS — use end-period balances as reference proxy
+  // Show ALL non-zero BS accounts so the statement is fully populated
   if(!hasPrior){
     Object.keys(currentBS).forEach(function(name){
       const curr=currentBS[name];
+      if(curr===0) return; // skip zero-balance accounts
       const xType=(getXeroType(name)||'').toUpperCase();
       const mapping=TYPE_MAP[xType];
       if(!mapping||mapping.tag==='CASH'||mapping.dir==='INCOME'||mapping.dir==='NONCASH') return;
-      const cashImpact=mapping.dir==='ASSET'?-curr:curr;
-      if(curr!==0){
-        if(mapping.tag==='O') opItems.push({name,curr,prior:0,change:curr,cashImpact,dir:mapping.dir,type:xType});
-        if(mapping.tag==='I') invItems.push({name,curr,prior:0,change:curr,cashImpact:(-curr),dir:mapping.dir,type:xType});
-        if(mapping.tag==='F'){
-          if(/retained earning|accumulated profit|accumulated loss|retained profit|current year earning/i.test(name)) return;
-          finItems.push({name,curr,prior:0,change:curr,cashImpact,dir:mapping.dir,type:xType});
-        }
+
+      // For HR Easily: CURRLIAB accounts are stored as POSITIVE in Xero
+      // Asset accounts: positive balance = cash tied up (outflow proxy)
+      // Liability accounts: positive balance = cash received (inflow proxy)
+      const cashImpact=mapping.dir==='ASSET'?-Math.abs(curr):Math.abs(curr);
+
+      if(mapping.tag==='O') opItems.push({name,curr,prior:0,change:curr,cashImpact,dir:mapping.dir,type:xType});
+      if(mapping.tag==='I') invItems.push({name,curr,prior:0,change:curr,cashImpact:-Math.abs(curr),dir:mapping.dir,type:xType});
+      if(mapping.tag==='F'){
+        if(/retained earning|accumulated profit|accumulated loss|retained profit|current year earning/i.test(name)) return;
+        finItems.push({name,curr,prior:0,change:curr,cashImpact,dir:mapping.dir,type:xType});
       }
     });
-    // Cash balance for reconciliation
+    // Cash from BANK section
     Object.keys(currentBS).forEach(function(name){
       const xType=(getXeroType(name)||'').toUpperCase();
       if(xType==='BANK') closingCash+=currentBS[name];
