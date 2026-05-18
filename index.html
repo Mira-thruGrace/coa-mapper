@@ -1244,43 +1244,46 @@ function renderMapping(){
     return;
   }
 
-  // ── Classify accounts by Xero TYPE (no sector needed) ──
-  const plTypes=new Set(['REVENUE','SALES','OTHERINCOME','EXPENSE','OVERHEADS','DIRECTCOSTS',
-    'DEPRECIATN','WAGES','DIRECTCOST','OVERHEAD','INCOME','OTHER_INCOME']);
-  const bsTypes=new Set(['CURRENT','FIXED','NONCURRENT','PREPAYMENT','CURRLIAB','LIABILITY',
-    'TERMLIAB','EQUITY','BANK','CREDITCARD','PAYABLE','RECEIVABLE']);
-  // BANK and CREDITCARD are always BS — never P&L regardless of report presence
+  // ── Only include accounts that appear in the actual loaded reports ──
+  // Collect account names from P&L report rows
+  const plAccountNames=new Set();
+  if(plReports.length&&plReports[0].Rows)
+    plReports[0].Rows.forEach(function(sec){
+      if(sec.Rows)sec.Rows.forEach(function(row){
+        if(row.RowType==='Row'&&row.Cells){
+          var nm=row.Cells[0]?.Value||'';
+          if(nm) plAccountNames.add(nm);
+        }
+      });
+    });
+
+  // Collect account names from BS report rows
+  const bsAccountNames=new Set();
+  if(bsReports.length&&bsReports[0].Rows)
+    bsReports[0].Rows.forEach(function(sec){
+      if(sec.Rows)sec.Rows.forEach(function(row){
+        if(row.RowType==='Row'&&row.Cells){
+          var nm=row.Cells[0]?.Value||'';
+          if(nm) bsAccountNames.add(nm);
+        }
+      });
+    });
+
+  // BS type guard — these Xero types must never appear in P&L
   const alwaysBsTypes=new Set(['BANK','CREDITCARD','EQUITY','CURRLIAB','LIABILITY','TERMLIAB',
     'CURRENT','FIXED','NONCURRENT','PREPAYMENT','PAYABLE','RECEIVABLE']);
 
-  const plAccountNames=new Set();
-  const bsAccountNames=new Set();
-  if(plReports.length&&plReports[0].Rows)
-    plReports[0].Rows.forEach(sec=>{if(sec.Rows)sec.Rows.forEach(row=>{if(row.RowType==='Row'&&row.Cells)plAccountNames.add(row.Cells[0]?.Value||'');});});
-  if(bsReports.length&&bsReports[0].Rows)
-    bsReports[0].Rows.forEach(sec=>{if(sec.Rows)sec.Rows.forEach(row=>{if(row.RowType==='Row'&&row.Cells)bsAccountNames.add(row.Cells[0]?.Value||'');});});
+  // Filter accounts to ONLY those visible in the loaded reports
+  // P&L: account name appears in P&L report AND is not a BS type
+  const plAccounts=accounts.filter(function(a){
+    if(alwaysBsTypes.has((a.type||'').toUpperCase())) return false;
+    return plAccountNames.has(a.name)||plAccountNames.has(a.id);
+  });
 
-  function isPlAccount(a){
-    const t=(a.type||'').toUpperCase();
-    if(alwaysBsTypes.has(t)) return false; // hard exclude BS types from P&L
-    if(plTypes.has(t)) return true;
-    if(bsTypes.has(t)) return false;
-    if(plAccountNames.has(a.name)||plAccountNames.has(a.id)) return true;
-    if(bsAccountNames.has(a.name)||bsAccountNames.has(a.id)) return false;
-    return false;
-  }
-  function isBsAccount(a){
-    const t=(a.type||'').toUpperCase();
-    if(alwaysBsTypes.has(t)) return true; // hard include BS types
-    if(plTypes.has(t)) return false;
-    if(bsTypes.has(t)) return true;
-    if(bsAccountNames.has(a.name)||bsAccountNames.has(a.id)) return true;
-    if(plAccountNames.has(a.name)||plAccountNames.has(a.id)) return false;
-    return false;
-  }
-
-  const plAccounts=accounts.filter(a=>isPlAccount(a));
-  const bsAccounts=accounts.filter(a=>isBsAccount(a));
+  // BS: account name appears in BS report
+  const bsAccounts=accounts.filter(function(a){
+    return bsAccountNames.has(a.name)||bsAccountNames.has(a.id);
+  });
 
   // ── Build category dropdown options ──
   // Use imported standard COA categories if available, otherwise free-text input
