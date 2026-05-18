@@ -540,129 +540,113 @@
 </div><!-- /main -->
 
 <script>
-// ══ SECTOR COA DEFINITIONS ═══════════════════════════════════════════════════
+// ══ SECTOR COA DEFINITIONS (from Chart_of_Accounts.xlsx) ════════════════════
+// New structure: pl has revenue[], cogs[], opex{group:[items]}, other[]
+// BS has current_assets[], noncurrent_assets[], current_liabilities[], noncurrent_liabilities[], equity[]
 const SECTORS={
-  saas:{
-    name:'SaaS / Software',icon:'💻',
-    desc:'Subscription-based software businesses',
-    pl:[
-      {cat:'Revenue',items:['Recurring Revenue','Professional Services Revenue','Implementation Revenue','Other Revenue']},
-      {cat:'Cost of Revenue',items:['Hosting & Infrastructure','Customer Success','Support Costs','Third-party Software']},
-      {cat:'Sales & Marketing',items:['Salaries — Sales','Salaries — Marketing','Advertising & Promotions','Events & Conferences','Sales Tools & Software']},
-      {cat:'Research & Development',items:['Salaries — Engineering','Salaries — Product','Contractors — R&D','Software & Tools — R&D']},
-      {cat:'General & Administrative',items:['Salaries — G&A','Rent & Utilities','Legal & Compliance','Finance & Accounting','Office & Admin','Depreciation & Amortisation','Interest Expense','Tax Expense']},
-    ],
-    bs:[
-      {cat:'Current Assets',items:['Cash & Bank','Accounts Receivable','Deferred Revenue (Asset)','Prepayments','Other Current Assets']},
-      {cat:'Non-Current Assets',items:['Property Plant & Equipment','Intangible Assets — Software','Intangible Assets — Other','Other Non-Current Assets']},
-      {cat:'Current Liabilities',items:['Accounts Payable','Accrued Liabilities','Deferred Revenue (Liability)','Short-term Debt','Other Current Liabilities']},
-      {cat:'Non-Current Liabilities',items:['Long-term Debt','Other Non-Current Liabilities']},
-      {cat:'Equity',items:['Share Capital','Additional Paid-in Capital','Retained Earnings','Other Equity']},
-    ],
-    metrics:[
-      {name:'Monthly Recurring Revenue (MRR)',unit:'SGD'},
-      {name:'Annual Recurring Revenue (ARR)',unit:'SGD'},
-      {name:'Net Revenue Retention (NRR)',unit:'%'},
-      {name:'Gross Revenue Retention (GRR)',unit:'%'},
-      {name:'Customer Churn Rate',unit:'%'},
-      {name:'Logo Churn Rate',unit:'%'},
-      {name:'Customer Acquisition Cost (CAC)',unit:'SGD'},
-      {name:'Lifetime Value (LTV)',unit:'SGD'},
-      {name:'LTV:CAC Ratio',unit:'x'},
-      {name:'Payback Period',unit:'months'},
-      {name:'Paying Customers',unit:''},
-      {name:'Headcount',unit:'people'},
-      {name:'Revenue per Employee',unit:'SGD'},
-    ]
+  enterprise_saas:{
+    name:'Enterprise SaaS',icon:'🏢',desc:'Large enterprise SaaS — ASC 606/840/842',
+    pl:{
+      revenue:['Subscription Revenue – Enterprise','Subscription Revenue – SMB Tier','Professional Services Revenue','Overage / Usage Revenue','Partner / Reseller Revenue','Revenue Contra – Discounts & Rebates'],
+      cogs:['Cloud Hosting & Infrastructure','Third-Party Software & APIs','Customer Support – Salaries & Benefits','Professional Services Delivery','Amortization – Capitalized Software','Amortization – Acquired Technology'],
+      opex:{'Sales & Marketing':['Salaries – Sales','Commissions & Variable Sales Comp','Marketing Programs & Demand Gen','Sales Tools & CRM'],'Research & Development':['Salaries – R&D / Engineering','Salaries – Product Management','R&D Tools & Software','Recruiting – Technical Roles'],'General & Administrative':['Salaries – G&A','Audit, Tax & Legal Fees','Office & Facilities','D&O / E&O Insurance','Stock-Based Compensation','Depreciation – PP&E']},
+      other:['Interest Income','Interest Expense','Gain / (Loss) on FX','Income Tax Expense']
+    },
+    bs:{
+      current_assets:['Cash & Cash Equivalents','Accounts Receivable','Unbilled Revenue (Accrued AR)','Allowance for Doubtful Accounts','Prepaid Expenses','Short-Term Investments','Deferred Contract Costs'],
+      noncurrent_assets:['Capitalized Software – Internal Use','Accumulated Amortization – Capitalized SW','Property & Equipment, Net','Right-of-Use Asset – Operating Leases','Goodwill','Intangible Assets – Acquired Technology','Long-Term Deferred Contract Costs','Security Deposits'],
+      current_liabilities:['Accounts Payable','Accrued Compensation','Accrued Expenses','Deferred Revenue – Current','Income Taxes Payable','Operating Lease Liability – Current'],
+      noncurrent_liabilities:['Deferred Revenue – Non-Current','Long-Term Debt','Operating Lease Liability – LT','Deferred Tax Liability'],
+      equity:['Common Stock','Additional Paid-In Capital','Retained Earnings / (Accumulated Deficit)','Accumulated Other Comprehensive Income']
+    },
+    metrics:[{name:'MRR',unit:'SGD'},{name:'ARR',unit:'SGD'},{name:'NRR',unit:'%'},{name:'GRR',unit:'%'},{name:'Churn Rate',unit:'%'},{name:'CAC',unit:'SGD'},{name:'LTV',unit:'SGD'},{name:'LTV:CAC',unit:'x'},{name:'Payback Period',unit:'months'},{name:'Headcount',unit:'people'}]
+  },
+  sme_saas:{
+    name:'SME SaaS',icon:'💻',desc:'Small and mid-size SaaS companies',
+    pl:{
+      revenue:['Subscription Revenue – Monthly','Subscription Revenue – Annual','Add-On / Seat Expansion Revenue','Setup / Onboarding Fees','Marketplace / App Revenue Share','Revenue Contra – Refunds & Credits'],
+      cogs:['Cloud Hosting (AWS/GCP/Azure)','Third-Party APIs & Integrations','Customer Success – Salaries','Support Tools','Amortization – Capitalized Software'],
+      opex:{'Sales & Marketing':['Salaries – Sales','Sales Commissions','Digital Marketing & Advertising','SEO / Content / PR'],'Research & Development':['Salaries – Engineering','Product & Design','Dev Tools & Subscriptions'],'General & Administrative':['Salaries – G&A','Legal & Accounting','SaaS Tool Stack (non-COGS)','Office & Facilities','Stock-Based Compensation']},
+      other:['Interest Income','Interest Expense','Income Tax Expense']
+    },
+    bs:{
+      current_assets:['Cash & Cash Equivalents','Accounts Receivable','Allowance for Doubtful Accounts','Prepaid Expenses','Deferred Contract Acquisition Costs'],
+      noncurrent_assets:['Capitalized Software – Internal Use','Accumulated Amortization – Software','Property & Equipment, Net'],
+      current_liabilities:['Accounts Payable','Accrued Payroll & Benefits','Deferred Revenue – Current','Accrued Expenses'],
+      noncurrent_liabilities:['Deferred Revenue – Non-Current'],
+      equity:['Common Stock / Member Units','Additional Paid-In Capital','Retained Earnings / (Accumulated Deficit)']
+    },
+    metrics:[{name:'MRR',unit:'SGD'},{name:'ARR',unit:'SGD'},{name:'NRR',unit:'%'},{name:'Churn Rate',unit:'%'},{name:'CAC',unit:'SGD'},{name:'LTV',unit:'SGD'},{name:'Headcount',unit:'people'}]
+  },
+  sme_business:{
+    name:'SME Business',icon:'🏪',desc:'Traditional SME and product businesses',
+    pl:{
+      revenue:['Product Sales Revenue','Service Revenue','Project / Contract Revenue','Recurring Maintenance Revenue','Other Revenue','Sales Returns & Allowances'],
+      cogs:['Cost of Goods Sold','Direct Labor','Subcontractor Costs','Shipping & Freight – Outbound'],
+      opex:{'Sales & Marketing':['Salaries – Sales & Marketing','Advertising & Promotions','Sales Commissions'],'Operations':['Salaries – Operations','Rent & Occupancy','Utilities','Vehicle & Fleet Expenses'],'General & Administrative':['Salaries – G&A','Professional Fees','Insurance','Office Supplies & Subscriptions','Depreciation Expense']},
+      other:['Interest Income','Interest Expense','Gain / (Loss) on Asset Disposal','Income Tax Expense']
+    },
+    bs:{
+      current_assets:['Cash & Cash Equivalents','Accounts Receivable','Allowance for Doubtful Accounts','Inventory','Prepaid Expenses'],
+      noncurrent_assets:['Property & Equipment','Accumulated Depreciation','Intangible Assets'],
+      current_liabilities:['Accounts Payable','Accrued Wages & Benefits','Short-Term Loans','Sales Tax Payable','Customer Deposits'],
+      noncurrent_liabilities:['Long-Term Debt'],
+      equity:["Owner's Capital / Common Stock",'Retained Earnings',"Owner's Draw"]
+    },
+    metrics:[{name:'Revenue',unit:'SGD'},{name:'Gross Margin',unit:'%'},{name:'EBITDA',unit:'SGD'},{name:'Headcount',unit:'people'}]
+  },
+  marketplace:{
+    name:'Marketplace',icon:'🛍️',desc:'Two-sided marketplace platforms',
+    pl:{
+      revenue:['Take-Rate / Commission Revenue','Buyer Service Fees','Listing & Subscription Fees','Advertising Revenue','Payment Processing Spread','Data & Analytics Revenue','Revenue Contra – Promo Credits'],
+      cogs:['Payment Processing Costs','Fraud & Chargeback Losses','Trust & Safety Operations','Customer Support – Salaries','Cloud Infrastructure','Amortization – Platform Software'],
+      opex:{'Sales & Marketing':['Salaries – Growth & Marketing','Performance Marketing','Seller Acquisition & Onboarding'],'Research & Development':['Salaries – Engineering & Product','Data Science & ML'],'General & Administrative':['Salaries – G&A','Legal & Compliance','Insurance']},
+      other:['Interest Income','Interest Expense','Income Tax Expense']
+    },
+    bs:{
+      current_assets:['Cash & Cash Equivalents','Accounts Receivable – Marketplace Fees','Allowance for Doubtful Accounts','Merchant Receivables','Escrow / Trust Accounts','Prepaid Expenses'],
+      noncurrent_assets:['Capitalized Software – Platform','Accumulated Amortization – Platform SW','Property & Equipment, Net','Intangibles – Brand & Domain'],
+      current_liabilities:['Accounts Payable','Merchant Payables – Pending Payout','Deferred Revenue – Subscriptions','Sales Tax Payable','Customer Refunds Liability'],
+      noncurrent_liabilities:['Long-Term Debt'],
+      equity:['Common Stock','Additional Paid-In Capital','Retained Earnings / (Deficit)']
+    },
+    metrics:[{name:'GMV',unit:'SGD'},{name:'Take Rate',unit:'%'},{name:'Active Sellers',unit:''},{name:'Active Buyers',unit:''},{name:'CAC',unit:'SGD'},{name:'Headcount',unit:'people'}]
   },
   ecommerce:{
-    name:'E-Commerce',icon:'🛒',
-    desc:'Online retail and marketplace businesses',
-    pl:[
-      {cat:'Revenue',items:['Product Sales','Marketplace Fees','Shipping Revenue','Other Revenue']},
-      {cat:'Cost of Goods Sold',items:['Product Cost','Fulfilment Costs','Shipping Costs','Payment Processing Fees']},
-      {cat:'Sales & Marketing',items:['Salaries — Sales & Marketing','Advertising — Digital','Advertising — Other','Promotions & Discounts','Affiliate Costs']},
-      {cat:'Operations',items:['Salaries — Operations','Warehouse Costs','Technology & Platform','Logistics']},
-      {cat:'General & Administrative',items:['Salaries — G&A','Rent & Utilities','Legal & Compliance','Finance & Accounting','Depreciation','Interest Expense','Tax Expense']},
-    ],
-    bs:[
-      {cat:'Current Assets',items:['Cash & Bank','Accounts Receivable','Inventory','Prepayments','Other Current Assets']},
-      {cat:'Non-Current Assets',items:['Property Plant & Equipment','Intangible Assets','Other Non-Current Assets']},
-      {cat:'Current Liabilities',items:['Accounts Payable','Accrued Liabilities','Short-term Debt','Other Current Liabilities']},
-      {cat:'Non-Current Liabilities',items:['Long-term Debt','Other Non-Current Liabilities']},
-      {cat:'Equity',items:['Share Capital','Retained Earnings','Other Equity']},
-    ],
-    metrics:[
-      {name:'Gross Merchandise Value (GMV)',unit:'SGD'},
-      {name:'Average Order Value (AOV)',unit:'SGD'},
-      {name:'Orders per Month',unit:''},
-      {name:'Customer Acquisition Cost (CAC)',unit:'SGD'},
-      {name:'Repeat Purchase Rate',unit:'%'},
-      {name:'Return Rate',unit:'%'},
-      {name:'Inventory Turnover',unit:'x'},
-      {name:'Headcount',unit:'people'},
-    ]
-  },
-  professional:{
-    name:'Professional Services',icon:'💼',
-    desc:'Consulting, agencies and service businesses',
-    pl:[
-      {cat:'Revenue',items:['Consulting Fees','Project Revenue','Retainer Revenue','Reimbursable Expenses','Other Revenue']},
-      {cat:'Direct Costs',items:['Salaries — Billable Staff','Contractor Costs','Project Expenses','Travel — Billable']},
-      {cat:'Sales & Marketing',items:['Salaries — Business Development','Marketing & Advertising','Proposals & Pitching']},
-      {cat:'General & Administrative',items:['Salaries — G&A','Rent & Utilities','Legal & Compliance','Finance & Accounting','Technology & Software','Travel — Non-billable','Depreciation','Interest Expense','Tax Expense']},
-    ],
-    bs:[
-      {cat:'Current Assets',items:['Cash & Bank','Accounts Receivable','Work in Progress','Prepayments','Other Current Assets']},
-      {cat:'Non-Current Assets',items:['Property Plant & Equipment','Intangible Assets','Other Non-Current Assets']},
-      {cat:'Current Liabilities',items:['Accounts Payable','Deferred Revenue','Accrued Liabilities','Short-term Debt','Other Current Liabilities']},
-      {cat:'Non-Current Liabilities',items:['Long-term Debt','Other Non-Current Liabilities']},
-      {cat:'Equity',items:['Share Capital','Retained Earnings','Other Equity']},
-    ],
-    metrics:[
-      {name:'Utilisation Rate',unit:'%'},
-      {name:'Billable Hours',unit:'hrs'},
-      {name:'Revenue per Consultant',unit:'SGD'},
-      {name:'Average Project Value',unit:'SGD'},
-      {name:'Client Retention Rate',unit:'%'},
-      {name:'Pipeline Value',unit:'SGD'},
-      {name:'Headcount',unit:'people'},
-      {name:'Billable Headcount',unit:'people'},
-    ]
+    name:'E-Commerce',icon:'🛒',desc:'Online retail and DTC brands',
+    pl:{
+      revenue:['Product Sales – DTC','Product Sales – Wholesale / B2B','Amazon / Marketplace Channel','Subscription Box Revenue','Shipping Revenue','Sales Returns & Allowances'],
+      cogs:['Cost of Goods Sold','Inbound Freight & Duties','Fulfillment & 3PL Costs','Outbound Shipping & Postage','Payment Processing Fees','Inventory Write-Downs'],
+      opex:{'Sales & Marketing':['Performance Marketing – Paid','Influencer & Affiliate Marketing','Email / SMS / Loyalty','Salaries – Sales & Marketing'],'Technology':['Technology & Platform','Salaries – Tech & Product'],'General & Administrative':['Salaries – G&A','Professional Fees','Insurance','Depreciation & Amortization']},
+      other:['Interest Income','Interest Expense','FX Gain / (Loss)','Income Tax Expense']
+    },
+    bs:{
+      current_assets:['Cash & Cash Equivalents','Accounts Receivable','Allowance for Doubtful Accounts','Inventory – Finished Goods','Inventory – In-Transit','Prepaid Expenses','Merchant Cash Advances Receivable'],
+      noncurrent_assets:['Property & Equipment, Net','Capitalized Website & Tech','Right-of-Use Asset'],
+      current_liabilities:['Accounts Payable','Accrued Returns & Refunds','Deferred Revenue','Sales Tax Payable','Payment Gateway Payables','Accrued Shipping & Fulfillment'],
+      noncurrent_liabilities:['Long-Term Debt','Operating Lease Liability – LT'],
+      equity:['Common Stock','Additional Paid-In Capital','Retained Earnings / (Deficit)']
+    },
+    metrics:[{name:'GMV',unit:'SGD'},{name:'AOV',unit:'SGD'},{name:'CAC',unit:'SGD'},{name:'Repeat Purchase Rate',unit:'%'},{name:'Return Rate',unit:'%'},{name:'Inventory Turnover',unit:'x'},{name:'Headcount',unit:'people'}]
   },
   fintech:{
-    name:'Fintech / HR Tech',icon:'🏦',
-    desc:'Financial technology and HR software',
-    pl:[
-      {cat:'Revenue',items:['Subscription Revenue','Transaction Fee Revenue','Platform Fee Revenue','Implementation Revenue','Other Revenue']},
-      {cat:'Cost of Revenue',items:['Payment Processing Costs','Compliance Costs','Customer Success','Infrastructure']},
-      {cat:'Sales & Marketing',items:['Salaries — Sales','Salaries — Marketing','Advertising','Partnerships & Channel']},
-      {cat:'Research & Development',items:['Salaries — Engineering','Salaries — Product','Security & Compliance Tech','R&D Contractors']},
-      {cat:'General & Administrative',items:['Salaries — G&A','Rent & Utilities','Legal & Compliance','Finance & Accounting','Regulatory Costs','Depreciation','Interest Expense','Tax Expense']},
-    ],
-    bs:[
-      {cat:'Current Assets',items:['Cash & Bank','Accounts Receivable','Client Funds Held','Prepayments','Other Current Assets']},
-      {cat:'Non-Current Assets',items:['Property Plant & Equipment','Intangible Assets — Technology','Intangible Assets — Licences','Other Non-Current Assets']},
-      {cat:'Current Liabilities',items:['Accounts Payable','Client Funds Payable','Accrued Liabilities','Deferred Revenue','Short-term Debt','Other Current Liabilities']},
-      {cat:'Non-Current Liabilities',items:['Long-term Debt','Other Non-Current Liabilities']},
-      {cat:'Equity',items:['Share Capital','Additional Paid-in Capital','Retained Earnings','Other Equity']},
-    ],
-    metrics:[
-      {name:'Monthly Recurring Revenue (MRR)',unit:'SGD'},
-      {name:'Annual Recurring Revenue (ARR)',unit:'SGD'},
-      {name:'Net Revenue Retention (NRR)',unit:'%'},
-      {name:'Gross Revenue Retention (GRR)',unit:'%'},
-      {name:'Total Payment Volume (TPV)',unit:'SGD'},
-      {name:'Take Rate',unit:'%'},
-      {name:'Customer Churn Rate',unit:'%'},
-      {name:'CAC',unit:'SGD'},
-      {name:'LTV',unit:'SGD'},
-      {name:'Paying Customers',unit:''},
-      {name:'Headcount',unit:'people'},
-    ]
+    name:'FinTech',icon:'🏦',desc:'Financial technology and payments companies',
+    pl:{
+      revenue:['Net Interest Income','Interest Income – Loans','Interchange & Network Fees','Payment Processing Revenue','Subscription / SaaS Revenue','Origination / Lending Fees','FX Conversion Revenue','Referral & Affiliate Revenue','Revenue Contra – Cashback / Rewards'],
+      cogs:['Cost of Funds – Interest Expense','Provision for Loan Losses','Payment Network Fees','Fraud & Chargeback Losses','Compliance & KYC / AML Costs','Core Banking / Infrastructure Costs'],
+      opex:{'Sales & Marketing':['Salaries – Sales & Growth','Performance Marketing'],'Research & Development':['Salaries – Engineering & Product','Security & Penetration Testing'],'General & Administrative':['Salaries – G&A','Regulatory & Licensing Fees','Legal & External Compliance','D&O / Cyber / Fidelity Insurance','Stock-Based Compensation']},
+      other:['Investment & Securities Income','Gain / (Loss) on Loan Sales','FX Translation Gain / (Loss)','Income Tax Expense']
+    },
+    bs:{
+      current_assets:['Cash & Cash Equivalents – Operating','Cash – Restricted (Customer Funds)','Settlement Receivables','Loan Receivables – Gross','Allowance for Loan Losses (ALLL)','Accrued Interest Receivable','Merchant Advances Receivable','Prepaid Expenses & Deposits','Short-Term Investments'],
+      noncurrent_assets:['Loan Receivables – Long-Term','Capitalized Software – Core Platform','Accumulated Amortization – SW','Property & Equipment, Net','Regulatory Capital Investments'],
+      current_liabilities:['Accounts Payable','Customer Deposits / E-Wallet Balances','Settlement Payables','Interchange Payables','Accrued Interest Payable','Accrued Expenses','Deferred Revenue'],
+      noncurrent_liabilities:['Debt Funding Facilities','Senior Notes / Securitization','Deferred Tax Liability'],
+      equity:['Common Stock','Additional Paid-In Capital','Retained Earnings / (Deficit)','Regulatory Capital Buffer']
+    },
+    metrics:[{name:'TPV',unit:'SGD'},{name:'Take Rate',unit:'%'},{name:'NIM',unit:'%'},{name:'MRR',unit:'SGD'},{name:'CAC',unit:'SGD'},{name:'Churn Rate',unit:'%'},{name:'Headcount',unit:'people'}]
   }
 };
-
 // ══ SUGGESTED CATEGORIES — multi-sector revenue & COGS suggestions ═══════════
 const SUGGESTED_REVENUE=[
   {group:'SaaS / Software',  items:['Recurring Revenue (SaaS)','Professional Services Revenue','Implementation Revenue','Licence Revenue','Usage-Based Revenue']},
@@ -692,13 +676,18 @@ let dataSources={pl:'—',bs:'—',coa:'—',priorBs:'',timestamp:'—'};
 
 // ── Sector setup ────────────────────────────────────────────────────────────
 function initSectors(){
-  const grid=document.getElementById('sectorGrid');
-  grid.innerHTML=Object.entries(SECTORS).map(([key,s])=>`
-    <div class="sector-card" id="sector-${key}" onclick="selectSector('${key}')">
-      <div class="icon">${s.icon}</div>
-      <h4>${s.name}</h4>
-      <p>${s.desc}</p>
-    </div>`).join('');
+  var grid=document.getElementById('sectorGrid');
+  if(!grid)return;
+  grid.innerHTML='';
+  Object.keys(SECTORS).forEach(function(key){
+    var s=SECTORS[key];
+    var div=document.createElement('div');
+    div.className='sector-card';
+    div.id='sector-'+key;
+    div.innerHTML='<div class="icon">'+s.icon+'</div><h4>'+s.name+'</h4><p>'+s.desc+'</p>';
+    div.addEventListener('click',function(){selectSector(key);});
+    grid.appendChild(div);
+  });
 }
 
 function selectSector(key){
@@ -1201,6 +1190,36 @@ function renderCOA(){
 // or from auto-import mapping CSV (option 1)
 let standardCOACategories=[];
 
+// Get flat P&L category list for selected sector
+function getSectorPLCats(){
+  if(!selectedSector||!SECTORS[selectedSector]) return [];
+  const s=SECTORS[selectedSector].pl;
+  if(!s) return [];
+  const cats=[];
+  // Revenue group
+  if(s.revenue) s.revenue.forEach(function(i){cats.push({group:'Revenue',item:i});});
+  // COGS group
+  if(s.cogs) s.cogs.forEach(function(i){cats.push({group:'COGS',item:i});});
+  // OpEx groups
+  if(s.opex) Object.keys(s.opex).forEach(function(g){s.opex[g].forEach(function(i){cats.push({group:'OpEx — '+g,item:i});});});
+  // Other
+  if(s.other) s.other.forEach(function(i){cats.push({group:'Other / Non-Operating',item:i});});
+  return cats;
+}
+
+// Get flat BS category list for selected sector
+function getSectorBSCats(){
+  if(!selectedSector||!SECTORS[selectedSector]) return [];
+  const s=SECTORS[selectedSector].bs;
+  if(!s) return [];
+  const cats=[];
+  const map={'current_assets':'Current Assets','noncurrent_assets':'Non-Current Assets','current_liabilities':'Current Liabilities','noncurrent_liabilities':'Non-Current Liabilities','equity':'Equity'};
+  Object.keys(map).forEach(function(k){
+    if(s[k]) s[k].forEach(function(i){cats.push({group:map[k],item:i});});
+  });
+  return cats;
+}
+
 function renderMapping(){
   const accounts=getAccountsList();
   const noAccMsg='<p style="padding:20px;color:var(--muted);font-size:13px;">No accounts loaded yet. Connect to Xero or upload a CSV first.</p>';
@@ -1254,59 +1273,55 @@ function renderMapping(){
   const hasCats=standardCOACategories.length>0;
 
   // ── Build the category dropdown/input for a given account ──
-  function buildCatInput(key, cur, xeroType){
-    const t=(xeroType||'').toUpperCase();
-    const isRev=['REVENUE','SALES','OTHERINCOME'].includes(t);
-    const isCogs=['DIRECTCOSTS','DIRECTCOST'].includes(t);
-    const isExp=['OVERHEADS','EXPENSE','WAGES','DEPRECIATN'].includes(t);
+  function buildCatInput(key, cur, xeroType, sectionType){
+    // sectionType: 'pl' or 'bs' — determines which category list to show
 
-    // If master COA loaded, use it as primary options
-    // If standard COA categories imported, use those
-    // Otherwise: Revenue/COGS get sector-suggested grouped dropdown; expenses get flat dropdown + custom
+    // Master COA takes highest priority
     if(masterCOA){
       const groups=masterCOA.pl||[];
-      let opts='<option value="">— Select category —</option>';
-      opts+=groups.map(g=>'<optgroup label="'+g.group+'">'+g.items.map(item=>'<option value="'+item+'"'+(cur===item?' selected':'')+'>'+item+'</option>').join('')+'</optgroup>').join('');
-      opts+='<option value="__custom__">✏️ Enter custom category…</option>';
+      let opts='<option value="">— Select —</option>';
+      opts+=groups.map(function(g){return '<optgroup label="'+g.group+'">'+g.items.map(function(item){return '<option value="'+item+'"'+(cur===item?' selected':'')+'>'+item+'</option>';}).join('')+'</optgroup>';}).join('');
+      opts+='<option value="__custom__">✏️ Custom…</option>';
       return buildSelectWithCustom(key, cur, opts);
     }
 
+    // User-imported standard COA categories
     if(hasCats){
-      // User-imported standard COA — flat dropdown + custom option
-      let opts='<option value="">— Select category —</option>'
-        +standardCOACategories.map(cat=>'<option value="'+cat+'"'+(cur===cat?' selected':'')+'>'+cat+'</option>').join('');
-      opts+='<option value="__custom__">✏️ Enter custom category…</option>';
+      let opts='<option value="">— Select —</option>'+standardCOACategories.map(function(cat){return '<option value="'+cat+'"'+(cur===cat?' selected':'')+'>'+cat+'</option>';}).join('');
+      opts+='<option value="__custom__">✏️ Custom…</option>';
       return buildSelectWithCustom(key, cur, opts);
     }
 
-    if(isRev||isCogs){
-      // Tiered grouped dropdown with sector suggestions + custom option
-      const suggestions=isRev?SUGGESTED_REVENUE:SUGGESTED_COGS;
-      let opts='<option value="">— Select or type custom… —</option>';
-      suggestions.forEach(function(g){
-        opts+='<optgroup label="'+g.group+'">';
-        g.items.forEach(function(item){opts+='<option value="'+item+'"'+(cur===item?' selected':'')+'>'+item+'</option>';});
+    // Sector-based grouped dropdowns (P&L vs BS separated)
+    const catList=sectionType==='bs'?getSectorBSCats():getSectorPLCats();
+
+    if(catList.length>0){
+      // Build optgroup structure
+      const groups={};
+      catList.forEach(function(c){if(!groups[c.group])groups[c.group]=[];groups[c.group].push(c.item);});
+      let opts='<option value="">— Select category —</option>';
+      Object.keys(groups).forEach(function(g){
+        opts+='<optgroup label="'+g+'">';
+        groups[g].forEach(function(item){opts+='<option value="'+item+'"'+(cur===item?' selected':'')+'>'+item+'</option>';});
         opts+='</optgroup>';
       });
-      opts+='<optgroup label="─────────────"><option disabled>─────────────</option></optgroup>';
-      opts+='<option value="__custom__">✏️ Enter custom category…</option>';
+      opts+='<option value="__custom__">✏️ Custom category…</option>';
       return buildSelectWithCustom(key, cur, opts);
     }
 
-    // All other accounts: free-text input (fastest for bulk mapping)
+    // No sector selected — free text
     return '<input type="text" class="mapping-select" data-account-id="'+key+'"'
       +' value="'+cur.replace(/"/g,'&quot;')+'"'
-      +' placeholder="Type category name..."'
+      +' placeholder="Select sector or type category..."'
       +' onchange="updateMapping(this)" oninput="updateMapping(this)"'
       +' style="min-width:180px;">';
   }
 
-  // Dropdown with "Enter custom" that switches to text input
+  // Dropdown with "Enter custom" option
   function buildSelectWithCustom(key, cur, opts){
-    // If current value is custom (not in opts), show text input directly
     return '<div style="display:flex;gap:4px;align-items:center;">'
-      +'<select class="mapping-select" data-account-id="'+key+'" onchange="handleCatChange(this)" style="min-width:180px;">'+opts+'</select>'
-      +(cur?'<span style="font-size:10px;color:var(--accent);white-space:nowrap;">✓</span>':'')
+      +'<select class="mapping-select" data-account-id="'+key+'" onchange="handleCatChange(this)" style="min-width:200px;">'+opts+'</select>'
+      +(cur&&cur!=='__custom__'?'<span style="font-size:10px;color:var(--accent);">✓</span>':'')
       +'</div>';
   }
 
@@ -1321,6 +1336,7 @@ function renderMapping(){
     html+='<table><thead><tr>'
       +'<th>Code</th><th>Account Name</th><th>Xero Type</th>'
       +'<th>Standard COA Category</th>'
+      +(section==='pl'?'<th>P&L Section</th>':'')
       +'<th>Department / Cost Centre</th>'
       +'<th>Status</th>'
       +'</tr></thead><tbody>';
@@ -1329,17 +1345,28 @@ function renderMapping(){
       const cur=mappings[key]||'';
       const dept=departments[key]||'';
       const isMapped=cur&&cur!=='[ Not mapped ]';
-      const catInput=buildCatInput(key, cur, a.type);
+      const catInput=buildCatInput(key, cur, a.type, section);
       const deptInput='<input type="text" data-dept-id="'+key+'"'
         +' value="'+dept.replace(/"/g,'&quot;')+'"'
         +' placeholder="e.g. Sales, Ops..."'
         +' onchange="updateDept(this)"'
         +' style="width:120px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;">';
+      const plSec=plSections[key]||'';
+      const plSecInput=section==='pl'
+        ?('<select data-plsec-id="'+key+'" onchange="updatePLSection(this)" style="padding:5px 6px;border:1px solid var(--border);border-radius:6px;font-size:12px;min-width:90px;">'
+          +'<option value="">Auto</option>'
+          +'<option value="Revenue"'+(plSec==='Revenue'?' selected':'')+'>Revenue</option>'
+          +'<option value="COGS"'+(plSec==='COGS'?' selected':'')+'>COGS</option>'
+          +'<option value="OpEx"'+(plSec==='OpEx'?' selected':'')+'>OpEx</option>'
+          +'<option value="Other"'+(plSec==='Other'?' selected':'')+'>Other</option>'
+          +'</select>')
+        :'';
       html+='<tr>'
         +'<td><span style="font-family:var(--mono);font-size:11px;color:var(--muted)">'+(a.code||'—')+'</span></td>'
         +'<td><strong>'+a.name+'</strong></td>'
         +'<td>'+getTypeBadge(a.type||'')+'</td>'
         +'<td>'+catInput+'</td>'
+        +(section==='pl'?'<td>'+plSecInput+'</td>':'')
         +'<td>'+deptInput+'</td>'
         +'<td>'+(isMapped?'<span class="badge badge-mapped">Mapped</span>':'<span class="badge badge-unmapped">Unmapped</span>')+'</td>'
         +'</tr>';
@@ -1369,6 +1396,13 @@ let departments={};
 function updateDept(input){
   const key=input.getAttribute('data-dept-id');
   departments[key]=input.value;
+}
+
+// P&L section override (Revenue / COGS / OpEx / Other)
+let plSections={}; // accountId -> 'Revenue'|'COGS'|'OpEx'|'Other'
+function updatePLSection(sel){
+  const key=sel.getAttribute('data-plsec-id');
+  plSections[key]=sel.value;
 }
 
 // Handle category dropdown change — if "Enter custom" selected, swap to text input
@@ -1813,7 +1847,7 @@ function renderRestatedPL(){
     });
   });
 
-  const catTotals={}, catItems={}, unmappedIncome=[], unmappedExpense=[];
+  const catTotals={}, catItems={}, catSectionOverride={}, unmappedIncome=[], unmappedExpense=[];
   lineItems.forEach(function(item){
     const account=coaData.find(function(a){return a.Name===item.name;})||{AccountID:item.name};
     const key=account.AccountID||item.name;
@@ -1836,33 +1870,66 @@ function renderRestatedPL(){
     if(isRev||(total>0&&!isExp)) revCats[cat]=total; else expCats[cat]=total;
   });
 
-  var totalRev=0, totalExp=0;
+  var totalRev=0, totalCOGS=0, totalOpex=0, totalOther=0;
   var html='<table><thead><tr><th>Standard COA Category</th><th>Xero Accounts</th><th style="text-align:right">Total</th></tr></thead><tbody>';
 
-  if(Object.keys(revCats).length){
-    html+='<tr class="section-row"><td colspan="3" style="padding:8px 14px">REVENUE</td></tr>';
-    Object.keys(revCats).sort(function(a,b){return revCats[b]-revCats[a];}).forEach(function(cat){
-      var total=revCats[cat]; totalRev+=total;
+  function renderRPLSection(title,cats,isRev){
+    if(!Object.keys(cats).length)return 0;
+    var sectionTotal=0;
+    html+='<tr class="section-row"><td colspan="3" style="padding:8px 14px">'+title+'</td></tr>';
+    Object.keys(cats).sort(function(a,b){return Math.abs(cats[b])-Math.abs(cats[a]);}).forEach(function(cat){
+      var total=cats[cat]; sectionTotal+=isRev?total:Math.abs(total);
       var names=(catItems[cat]||[]).map(function(i){return i.name;}).join(', ');
       html+='<tr><td style="padding-left:20px"><strong>'+cat+'</strong></td>'
         +'<td style="font-size:11px;color:var(--muted)">'+names+'</td>'
-        +'<td class="amount '+(total>=0?'pos':'neg')+'">'+fmtMoney(total)+'</td></tr>';
+        +'<td class="amount '+(isRev?'pos':'neg')+'">'+(isRev?fmtMoney(total):fmtMoney(Math.abs(total)))+'</td></tr>';
     });
-    html+='<tr class="subtotal-row"><td style="padding-left:14px" colspan="2"><strong>Total Revenue</strong></td><td class="amount pos"><strong>'+fmtMoney(totalRev)+'</strong></td></tr>';
+    html+='<tr class="subtotal-row"><td style="padding-left:14px" colspan="2"><strong>Total '+title+'</strong></td>'
+      +'<td class="amount '+(isRev?'pos':'neg')+'"><strong>'+fmtMoney(sectionTotal)+'</strong></td></tr>';
+    return sectionTotal;
   }
 
-  if(Object.keys(expCats).length){
-    html+='<tr class="section-row"><td colspan="3" style="padding:8px 14px">EXPENSES</td></tr>';
-    Object.keys(expCats).sort(function(a,b){return expCats[a]-expCats[b];}).forEach(function(cat){
-      var total=expCats[cat]; totalExp+=Math.abs(total);
-      var names=(catItems[cat]||[]).map(function(i){return i.name;}).join(', ');
-      html+='<tr><td style="padding-left:20px"><strong>'+cat+'</strong></td>'
-        +'<td style="font-size:11px;color:var(--muted)">'+names+'</td>'
-        +'<td class="amount neg">'+fmtMoney(Math.abs(total))+'</td></tr>';
-    });
-    html+='<tr class="subtotal-row"><td style="padding-left:14px" colspan="2"><strong>Total Expenses</strong></td><td class="amount neg"><strong>'+fmtMoney(totalExp)+'</strong></td></tr>';
+  totalRev=renderRPLSection('REVENUE',revCats,true);
+
+  // COGS
+  totalCOGS=renderRPLSection('COST OF GOODS SOLD (COGS)',cogsCats,false);
+  if(Object.keys(cogsCats).length){
+    var gp=totalRev-totalCOGS;
+    html+='<tr style="background:var(--accent-light);"><td colspan="2" style="padding:8px 14px 8px 20px;font-weight:700;">Gross Profit</td>'
+      +'<td class="amount '+(gp>=0?'pos':'neg')+'" style="font-weight:700;">'+fmtMoney(gp)+'</td></tr>';
   }
 
+  // OpEx — break into sub-groups
+  var opexByGroup={};
+  Object.keys(opexCats).forEach(function(cat){
+    var g=cat.indexOf(' — ')>0?cat.split(' — ')[1]:'General';
+    var label=cat.indexOf(' — ')>0?cat.split(' — ').slice(2).join(' — ')||g:cat;
+    if(!opexByGroup[g])opexByGroup[g]={};
+    opexByGroup[g][label]=opexCats[cat];
+  });
+  if(Object.keys(opexCats).length){
+    html+='<tr class="section-row"><td colspan="3" style="padding:8px 14px">OPERATING EXPENSES (OPEX)</td></tr>';
+    Object.keys(opexByGroup).forEach(function(grp){
+      if(Object.keys(opexByGroup).length>1)
+        html+='<tr style="background:#f8f8f6;"><td colspan="3" style="padding:5px 14px 5px 20px;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;">'+grp+'</td></tr>';
+      Object.keys(opexByGroup[grp]).forEach(function(cat){
+        var origCat=Object.keys(opexCats).find(function(k){return k===cat||k.endsWith(' — '+cat)||k.endsWith(cat);});
+        var total=opexByGroup[grp][cat]; totalOpex+=Math.abs(total);
+        var names=(catItems[origCat||cat]||[]).map(function(i){return i.name;}).join(', ');
+        html+='<tr><td style="padding-left:28px"><strong>'+cat+'</strong></td>'
+          +'<td style="font-size:11px;color:var(--muted)">'+names+'</td>'
+          +'<td class="amount neg">'+fmtMoney(Math.abs(total))+'</td></tr>';
+      });
+    });
+    html+='<tr class="subtotal-row"><td style="padding-left:14px" colspan="2"><strong>Total OpEx</strong></td>'
+      +'<td class="amount neg"><strong>'+fmtMoney(totalOpex)+'</strong></td></tr>';
+    var ebitda=totalRev-totalCOGS-totalOpex;
+    html+='<tr style="background:var(--accent2-light);"><td colspan="2" style="padding:8px 14px 8px 20px;font-weight:700;">EBITDA</td>'
+      +'<td class="amount '+(ebitda>=0?'pos':'neg')+'" style="font-weight:700;">'+fmtMoney(ebitda)+'</td></tr>';
+  }
+
+  totalOther=renderRPLSection('OTHER / NON-OPERATING',otherCats,false);
+  var totalExp=totalCOGS+totalOpex+totalOther;
   if(unmappedIncome.length){
     html+='<tr class="unmapped-section-row"><td colspan="3" style="padding:8px 14px">Unmapped Income</td></tr>';
     unmappedIncome.forEach(function(item){html+='<tr style="background:var(--amber-light)"><td style="padding-left:20px;color:var(--amber)">'+item.name+'</td><td></td><td class="amount pos">'+fmtMoney(item.amt)+'</td></tr>';});
@@ -2562,12 +2629,13 @@ function exportSingleCSV(type){
     filename='chart_of_accounts_'+date+'.csv';
   }else if(type==='map'){
     const accounts=getAccountsList();
-    csv='Code,Account Name,Xero Type,Standard COA Category,Department / Cost Centre,Status\n';
+    csv='Code,Account Name,Xero Type,Standard COA Category,P&L Section,Department / Cost Centre,Status\n';
     accounts.forEach(a=>{
       const mapped=mappings[a.id]||'';
       const dept=departments[a.id]||'';
+      const sec=plSections[a.id]||'';
       const status=mapped&&mapped!=='[ Not mapped ]'?'Mapped':'Unmapped';
-      csv+='"'+(a.code||'')+'","'+(a.name||'')+'","'+(a.type||'')+'","'+mapped+'","'+dept+'","'+status+'"\n';
+      csv+='"'+(a.code||'')+'","'+(a.name||'')+'","'+(a.type||'')+'","'+mapped+'","'+sec+'","'+dept+'","'+status+'"\n';
     });
     filename='coa_mapping_'+date+'.csv';
   }else if(type==='rpl'){
