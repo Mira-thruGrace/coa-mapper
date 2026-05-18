@@ -911,6 +911,15 @@ const BS_SKIP=new Set([
   'Total Current Liabilities','Total Non-Current Liabilities','Total Long Term Liabilities',
   'Total Liabilities and Equity','Total Shareholders Equity',
 ]);
+// P&L computed rows to skip (Xero summary/subtotal rows, not real accounts)
+const PL_SKIP=new Set([
+  'Gross Profit','Gross profit','Total Gross Profit',
+  'Net Profit','Net profit','Net Profit / (Loss)','Net profit / (loss)',
+  'Net Loss','Net loss','Profit for the year','Net income',
+  'Total Income','Total Revenue','Total Expenses','Total Operating Expenses',
+  'Total Cost of Sales','Operating Profit','EBIT','EBITDA',
+  'Profit Before Tax','Profit After Tax','Total Other Income',
+]);
 const CYE_NAMES=new Set([
   'Current Year Earnings','Current year earnings',
   'Profit for the year','Net Profit for the year',
@@ -1903,7 +1912,7 @@ function renderMapping(){
       if(sec.Rows)sec.Rows.forEach(function(row){
         if(row.RowType==='Row'&&row.Cells){
           var nm=row.Cells[0]?.Value||'';
-          if(nm) plAccountNames.add(nm);
+          if(nm&&!PL_SKIP.has(nm)) plAccountNames.add(nm);
         }
       });
     });
@@ -2541,7 +2550,10 @@ function refreshBulkAccountList(){
   // Get accounts in the loaded reports (same logic as mapping table)
   var plNames=new Set(), bsNames=new Set();
   if(plReports.length&&plReports[0].Rows)
-    plReports[0].Rows.forEach(function(s){if(s.Rows)s.Rows.forEach(function(r){if(r.RowType==='Row'&&r.Cells&&r.Cells[0]?.Value)plNames.add(r.Cells[0].Value);});});
+    plReports[0].Rows.forEach(function(s){if(s.Rows)s.Rows.forEach(function(r){
+      if(r.RowType==='Row'&&r.Cells&&r.Cells[0]?.Value&&!PL_SKIP.has(r.Cells[0].Value))
+        plNames.add(r.Cells[0].Value);
+    });});
   if(bsReports.length&&bsReports[0].Rows)
     bsReports[0].Rows.forEach(function(s){if(s.Rows)s.Rows.forEach(function(r){
       if(r.RowType==='Row'&&r.Cells&&r.Cells[0]?.Value){
@@ -2955,7 +2967,9 @@ function updateMappingProgressBar(){
   const plNames=new Set();
   const bsNames=new Set();
   if(plReports.length&&plReports[0].Rows)
-    plReports[0].Rows.forEach(function(s){if(s.Rows)s.Rows.forEach(function(r){if(r.RowType==='Row'&&r.Cells){var nm=r.Cells[0]?.Value||'';if(nm)plNames.add(nm);}});});
+    plReports[0].Rows.forEach(function(s){if(s.Rows)s.Rows.forEach(function(r){
+      if(r.RowType==='Row'&&r.Cells){var nm=r.Cells[0]?.Value||'';if(nm&&!PL_SKIP.has(nm))plNames.add(nm);}
+    });});
   if(bsReports.length&&bsReports[0].Rows)
     bsReports[0].Rows.forEach(function(s){if(s.Rows)s.Rows.forEach(function(r){
       if(r.RowType==='Row'&&r.Cells){var nm=r.Cells[0]?.Value||'';if(nm&&!BS_SKIP.has(nm)&&!CYE_NAMES.has(nm))bsNames.add(nm);}
@@ -3062,6 +3076,8 @@ function renderRestatedPL(){
       if(row.RowType==='Row'&&row.Cells){
         const name=row.Cells[0]?.Value||'';
         const amt=parseFloat(row.Cells[1]?.Value)||0;
+        // Skip Xero computed summary rows — not real accounts
+        if(PL_SKIP.has(name)) return;
         if(name) lineItems.push({name,amt,section:section.Title||''});
       }
     });
