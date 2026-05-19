@@ -5,46 +5,95 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Financial Mapper — Xero + CSV Tool</title>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap');
   :root{
-    /* Fin Projections colour palette */
-    --bg:#f4f5f7;--surface:#ffffff;--border:#e5e7eb;--text:#111827;--muted:#6b7280;
-    --accent:#2563eb;--accent-light:#eff6ff;--accent-hover:#1d4ed8;
-    --accent2:#0ea5e9;--accent2-light:#f0f9ff;
+    --bg:#f0f2f5;
+    --surface:#ffffff;
+    --border:#e2e6ea;
+    --text:#0f172a;
+    --muted:#64748b;
+    --muted-light:#94a3b8;
+    --accent:#2563eb;
+    --accent-light:#eff6ff;
+    --accent-hover:#1d4ed8;
+    --accent2:#0ea5e9;
+    --accent2-light:#f0f9ff;
     --danger:#ef4444;--danger-light:#fef2f2;
     --amber:#f59e0b;--amber-light:#fffbeb;
     --green:#10b981;--green-light:#ecfdf5;
     --purple:#8b5cf6;--purple-light:#f5f3ff;
-    --sidebar-bg:#ffffff;--sidebar-width:260px;
-    --mono:'JetBrains Mono',monospace;--sans:'Inter',sans-serif;
+    --sidebar-bg:#0f172a;
+    --sidebar-text:#cbd5e1;
+    --sidebar-text-active:#ffffff;
+    --sidebar-accent:#3b82f6;
+    --sidebar-width:220px;
+    --mono:'DM Mono',monospace;
+    --sans:'Plus Jakarta Sans',sans-serif;
     --radius:8px;--radius-lg:12px;
-    --shadow:0 1px 3px rgba(0,0,0,0.06),0 1px 2px rgba(0,0,0,0.04);
-    --shadow-md:0 4px 12px rgba(0,0,0,0.08);
+    --shadow:0 1px 3px rgba(15,23,42,0.06),0 1px 2px rgba(15,23,42,0.04);
+    --shadow-md:0 4px 16px rgba(15,23,42,0.10);
   }
   *{box-sizing:border-box;margin:0;padding:0;}
-  body{font-family:var(--sans);background:var(--bg);color:var(--text);min-height:100vh;font-size:14px;line-height:1.5;}
+  body{font-family:var(--sans);background:var(--bg);color:var(--text);min-height:100vh;font-size:14px;line-height:1.5;display:flex;flex-direction:column;}
 
-  /* ── Header / top bar ── */
+  /* ── Sidebar ── */
+  .sidebar{
+    width:var(--sidebar-width);
+    background:var(--sidebar-bg);
+    min-height:100vh;
+    position:fixed;top:0;left:0;
+    display:flex;flex-direction:column;
+    padding:0;
+    z-index:200;
+    box-shadow:4px 0 24px rgba(0,0,0,0.15);
+  }
+  .sidebar-logo{
+    padding:22px 20px 18px;
+    border-bottom:1px solid rgba(255,255,255,0.07);
+    display:flex;align-items:center;gap:10px;
+  }
+  .sidebar-logo-icon{
+    width:32px;height:32px;
+    background:linear-gradient(135deg,#3b82f6,#60a5fa);
+    border-radius:8px;
+    display:flex;align-items:center;justify-content:center;
+    flex-shrink:0;
+  }
+  .sidebar-logo-icon svg{width:16px;height:16px;fill:white;}
+  .sidebar-logo-text{display:flex;flex-direction:column;}
+  .sidebar-logo-name{font-size:13px;font-weight:700;color:#ffffff;letter-spacing:-0.2px;line-height:1.2;}
+  .sidebar-logo-sub{font-size:10px;color:var(--sidebar-text);letter-spacing:0.3px;text-transform:uppercase;margin-top:1px;}
+
+  .sidebar-section{padding:16px 12px 4px;font-size:10px;font-weight:600;letter-spacing:0.8px;text-transform:uppercase;color:#475569;}
+  .sidebar-nav{list-style:none;padding:0 8px;}
+  .sidebar-nav li{margin-bottom:2px;}
+  .sidebar-nav a{
+    display:flex;align-items:center;gap:10px;
+    padding:8px 12px;border-radius:7px;
+    font-size:13px;font-weight:500;
+    color:var(--sidebar-text);
+    text-decoration:none;cursor:pointer;
+    transition:all 0.15s;
+  }
+  .sidebar-nav a:hover{background:rgba(255,255,255,0.07);color:var(--sidebar-text-active);}
+  .sidebar-nav a.active{background:rgba(59,130,246,0.2);color:#93c5fd;font-weight:600;}
+  .sidebar-nav a svg{width:15px;height:15px;flex-shrink:0;opacity:0.7;}
+  .sidebar-nav a.active svg{opacity:1;}
+
+  /* ── Top bar (right of sidebar) ── */
   .header{
+    margin-left:var(--sidebar-width);
     background:var(--surface);
     border-bottom:1px solid var(--border);
-    padding:0 24px;
+    padding:0 28px;
     height:56px;
     display:flex;align-items:center;justify-content:space-between;
     position:sticky;top:0;z-index:100;
-    box-shadow:var(--shadow);
+    box-shadow:0 1px 0 var(--border);
   }
   .header-brand{display:flex;align-items:center;gap:10px;}
-  .header-logo{
-    display:flex;align-items:center;gap:8px;
-    font-size:15px;font-weight:700;color:var(--text);letter-spacing:-0.3px;
-  }
-  .header-logo-icon{
-    width:32px;height:32px;
-    background:linear-gradient(135deg,#2563eb,#0ea5e9);
-    border-radius:8px;
-    display:flex;align-items:center;justify-content:center;
-  }
+  .header-logo{display:flex;align-items:center;gap:8px;font-size:15px;font-weight:700;color:var(--text);letter-spacing:-0.3px;}
+  .header-logo-icon{width:32px;height:32px;background:linear-gradient(135deg,#2563eb,#0ea5e9);border-radius:8px;display:flex;align-items:center;justify-content:center;}
   .header-logo-icon svg{width:18px;height:18px;fill:white;}
   .header-title{font-size:15px;font-weight:700;color:var(--text);}
   .header-sub{font-size:11px;color:var(--muted);font-family:var(--mono);}
@@ -53,7 +102,7 @@
   .status-dot.on{background:var(--green);}
 
   /* ── Main layout ── */
-  .main{max-width:1100px;margin:0 auto;padding:28px 24px;}
+  .main{margin-left:var(--sidebar-width);padding:28px 32px;min-height:calc(100vh - 56px);}
 
   /* ── Buttons ── */
   .btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:var(--radius);border:none;font-family:var(--sans);font-size:13px;font-weight:500;cursor:pointer;transition:all 0.15s;white-space:nowrap;}
@@ -129,9 +178,9 @@
   .topbar h1{font-size:22px;font-weight:700;letter-spacing:-0.5px;}
   .topbar p{color:var(--muted);font-size:12px;margin-top:2px;}
   .summary-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:20px;}
-  .summary-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px 18px;box-shadow:var(--shadow);}
-  .summary-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.6px;font-weight:600;margin-bottom:6px;}
-  .summary-value{font-size:22px;font-weight:700;font-family:var(--mono);letter-spacing:-0.5px;}
+  .summary-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:18px 20px;box-shadow:0 2px 8px rgba(15,23,42,0.05);}
+  .summary-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.7px;font-weight:700;margin-bottom:8px;}
+  .summary-value{font-size:22px;font-weight:800;font-family:var(--mono);letter-spacing:-0.8px;}
   .summary-value.green{color:var(--green);}
   .summary-value.red{color:var(--danger);}
   .summary-value.blue{color:var(--accent);}
@@ -140,13 +189,14 @@
   .source-badge{display:inline-flex;align-items:center;gap:4px;padding:2px 7px;border-radius:4px;font-size:10px;font-family:var(--mono);background:var(--bg);color:var(--muted);border:1px solid var(--border);}
 
   /* ── Tabs ── */
-  .tabs{display:flex;gap:1px;margin-bottom:20px;background:var(--border);border-radius:var(--radius);padding:3px;width:fit-content;flex-wrap:wrap;}
-  .tab{padding:6px 14px;border-radius:6px;font-size:13px;font-weight:500;cursor:pointer;border:none;background:transparent;color:var(--muted);font-family:var(--sans);transition:all 0.15s;}
-  .tab.active{background:var(--surface);color:var(--text);box-shadow:0 1px 4px rgba(0,0,0,0.08);font-weight:600;}
+  .tabs{display:flex;gap:4px;margin-bottom:20px;flex-wrap:wrap;}
+  .tab{padding:7px 16px;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;border:1.5px solid var(--border);background:var(--surface);color:var(--muted);font-family:var(--sans);transition:all 0.15s;letter-spacing:0.1px;}
+  .tab:hover{border-color:var(--accent);color:var(--accent);}
+  .tab.active{background:var(--accent);border-color:var(--accent);color:white;box-shadow:0 2px 8px rgba(37,99,235,0.25);}
 
   /* ── Tables ── */
-  .table-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden;margin-bottom:0;box-shadow:var(--shadow);}
-  .table-header{padding:14px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;background:var(--surface);}
+  .table-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:0;box-shadow:0 2px 8px rgba(15,23,42,0.06);}
+  .table-header{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;background:var(--surface);}  .table-header h3{font-size:14px;font-weight:700;letter-spacing:-0.2px;}
   .table-header h3{font-size:14px;font-weight:600;}
   .table-meta{font-size:11px;color:var(--muted);font-family:var(--mono);}
   table{width:100%;border-collapse:collapse;}
@@ -202,7 +252,7 @@
 
   /* ── Setup page ── */
   .setup-section-label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.6px;color:var(--muted);margin-bottom:10px;}
-  .setup-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden;box-shadow:var(--shadow);margin-bottom:20px;}
+  .setup-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden;box-shadow:0 2px 8px rgba(15,23,42,0.06);margin-bottom:20px;}
   .setup-card-header{padding:18px 22px;border-bottom:1px solid var(--border);}
   .setup-card-header h2{font-size:16px;font-weight:700;margin-bottom:3px;}
   .setup-card-header p{font-size:12px;color:var(--muted);}
@@ -217,24 +267,69 @@
 </style>
 </head>
 <body>
-<div class="header">
-  <div class="header-brand">
-    <div class="header-logo">
-      <div class="header-logo-icon">
-        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-          <rect x="2" y="14" width="4" height="8" rx="1"/>
-          <rect x="8" y="9" width="4" height="13" rx="1"/>
-          <rect x="14" y="5" width="4" height="17" rx="1"/>
-          <rect x="20" y="2" width="4" height="20" rx="1"/>
-        </svg>
-      </div>
-      <span style="font-size:15px;font-weight:700;letter-spacing:-0.3px;">Financial Mapper</span>
+
+<!-- ══ SIDEBAR ═══════════════════════════════════════════════════════ -->
+<div class="sidebar">
+  <div class="sidebar-logo">
+    <div class="sidebar-logo-icon">
+      <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <rect x="2" y="14" width="4" height="8" rx="1"/>
+        <rect x="8" y="9" width="4" height="13" rx="1"/>
+        <rect x="14" y="5" width="4" height="17" rx="1"/>
+        <rect x="20" y="2" width="4" height="20" rx="1"/>
+      </svg>
     </div>
-    <span style="font-size:11px;color:var(--muted);margin-left:8px;padding-left:12px;border-left:1px solid var(--border);font-family:var(--mono);">Xero · P&L · Balance Sheet · Cash Flow</span>
+    <div class="sidebar-logo-text">
+      <span class="sidebar-logo-name">Financial Mapper</span>
+      <span class="sidebar-logo-sub">Financial Models</span>
+    </div>
+  </div>
+
+  <div class="sidebar-section">Data</div>
+  <ul class="sidebar-nav">
+    <li><a onclick="showSetup()" id="nav-setup">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+      Upload Data
+    </a></li>
+  </ul>
+
+  <div class="sidebar-section" id="nav-section-reports" style="display:none;">Reports</div>
+  <ul class="sidebar-nav" id="nav-reports" style="display:none;">
+    <li><a onclick="switchTabSidebar('pl')" id="nav-pl">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+      Profit &amp; Loss
+    </a></li>
+    <li><a onclick="switchTabSidebar('bs')" id="nav-bs">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+      Balance Sheet
+    </a></li>
+    <li><a onclick="switchTabSidebar('map')" id="nav-map">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-2M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m0 0H8m8 0l3 3-3 3m0-3H8"/></svg>
+      COA Mapping
+    </a></li>
+  </ul>
+
+  <div class="sidebar-section" id="nav-section-restated" style="display:none;">Restated</div>
+  <ul class="sidebar-nav" id="nav-restated" style="display:none;">
+    <li><a onclick="switchTabSidebar('rpl')" id="nav-rpl">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
+      Restated P&amp;L
+    </a></li>
+    <li><a onclick="switchTabSidebar('rbs')" id="nav-rbs">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 10h18M3 14h18M10 3v18M6 3h12a3 3 0 013 3v12a3 3 0 01-3 3H6a3 3 0 01-3-3V6a3 3 0 013-3z"/></svg>
+      Restated BS
+    </a></li>
+  </ul>
+</div>
+
+<!-- ══ TOP BAR ══════════════════════════════════════════════════════ -->
+<div class="header">
+  <div style="display:flex;align-items:center;gap:8px;">
+    <span id="breadcrumb" style="font-size:13px;color:var(--muted);font-weight:500;">Upload Data</span>
   </div>
   <div class="header-status">
     <div class="status-dot" id="statusDot"></div>
-    <span id="statusText" style="font-size:12px;font-weight:500;">Not loaded</span>
+    <span id="statusText" style="font-size:12px;font-weight:500;color:var(--muted);">Not loaded</span>
   </div>
 </div>
 
@@ -242,10 +337,10 @@
 
 <!-- ══ SETUP ══════════════════════════════════════════════════════════ -->
 <div id="setupSection">
-  <div style="margin-bottom:24px;">
-    <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.7px;color:var(--accent);margin-bottom:6px;">GETTING STARTED</div>
-    <h1 style="font-size:26px;font-weight:700;letter-spacing:-0.5px;margin-bottom:6px;">Set up your <span style="color:var(--accent);">company</span></h1>
-    <p style="font-size:14px;color:var(--muted);max-width:600px;">Connect to Xero or upload CSV files. This powers all downstream tools — financial mapping, operating metrics, and investor reports.</p>
+  <div style="margin-bottom:28px;">
+    <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.8px;color:var(--accent);margin-bottom:8px;">GETTING STARTED</div>
+    <h1 style="font-size:28px;font-weight:800;letter-spacing:-0.8px;margin-bottom:8px;color:var(--text);">Set up your <span style="color:var(--accent);">company</span></h1>
+    <p style="font-size:14px;color:var(--muted);max-width:560px;line-height:1.6;">Upload your CSV templates to power financial mapping, restated statements, and investor-ready reports.</p>
   </div>
   <div id="msgBox"></div>
 
@@ -477,23 +572,6 @@
       <div><h3>Profit &amp; Loss <span style="font-size:11px;font-weight:400;color:var(--muted);margin-left:6px;">Raw report — as per Account Name column</span></h3><div class="table-meta" id="plMeta"></div></div>
       <div style="display:flex;gap:8px;align-items:center;">
         <button class="btn btn-secondary btn-sm" onclick="exportSingleCSV('pl')">⬇ Export CSV</button>
-      </div>
-    </div>
-    <!-- P&L Charts -->
-    <div id="plCharts" style="display:none;padding:20px 20px 8px;border-bottom:1px solid var(--border);">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
-        <div style="background:var(--bg);border-radius:10px;padding:16px;">
-          <div style="font-size:12px;font-weight:600;color:var(--text);margin-bottom:12px;">Revenue vs Gross Profit vs Net Income</div>
-          <canvas id="chartRevGpNi" height="180"></canvas>
-        </div>
-        <div style="background:var(--bg);border-radius:10px;padding:16px;">
-          <div style="font-size:12px;font-weight:600;color:var(--text);margin-bottom:12px;">Gross Margin % &amp; Net Margin %</div>
-          <canvas id="chartMargins" height="180"></canvas>
-        </div>
-      </div>
-      <div style="margin-top:16px;background:var(--bg);border-radius:10px;padding:16px;">
-        <div style="font-size:12px;font-weight:600;color:var(--text);margin-bottom:12px;">Expense Breakdown by Category</div>
-        <canvas id="chartExpenses" height="120"></canvas>
       </div>
     </div>
     <div id="plContent"></div>
@@ -1278,6 +1356,7 @@ async function launchFromCSV(){
   dataSources.timestamp=new Date().toLocaleString();
   dataMode='csv';
   launchDashboard('Financial Reports','Data loaded from CSV upload');
+  showSidebarReports();
 }
 
 function uploadMetricsCSV(input){
@@ -2956,118 +3035,6 @@ function renderPL(){
   var metaEl=document.getElementById('plMeta');
   var entries=Object.entries(csvMultiMonthPL);
   if(!entries.length){ renderReport(plReports,'plContent','plMeta','Source: '+dataSources.pl,true); return; }
-
-  // Collect all months sorted oldest → newest
-  var allM=[];
-  entries.forEach(function(p){ Object.keys(p[1].months||{}).forEach(function(m){ if(allM.indexOf(m)<0) allM.push(m); }); });
-  allM.sort();
-  var fmtM=function(m){ return new Date(m+'-02').toLocaleDateString('en-SG',{month:'short',year:'2-digit'}); };
-
-  // Compute per-month P&L metrics
-  function monthMetrics(m){
-    var rev=0,cos=0,exp=0;
-    entries.forEach(function(p){
-      var t=p[1].type||'', v=p[1].months[m]||0;
-      if(/revenue/i.test(t)) rev+=v;
-      else if(/cost of sales/i.test(t)) cos+=Math.abs(v);
-      else if(/expense/i.test(t)) exp+=Math.abs(v);
-    });
-    var gp=rev-cos;
-    var ni=gp-exp;
-    return {rev:rev,cos:cos,exp:exp,gp:gp,ni:ni,
-            gm:rev>0?(gp/rev*100):0, nm:rev>0?(ni/rev*100):0};
-  }
-  var metrics=allM.map(function(m){return {m:m,label:fmtM(m),d:monthMetrics(m)};});
-
-  // Render charts
-  var chartsEl=document.getElementById('plCharts');
-  if(chartsEl) chartsEl.style.display='block';
-
-  loadChartJS(function(){
-    // Chart 1: Revenue / Gross Profit / Net Income bars
-    var ctx1=document.getElementById('chartRevGpNi');
-    if(ctx1){
-      if(ctx1._chartInstance) ctx1._chartInstance.destroy();
-      ctx1._chartInstance=new Chart(ctx1,{
-        type:'bar',
-        data:{
-          labels:metrics.map(function(m){return m.label;}),
-          datasets:[
-            {label:'Revenue',data:metrics.map(function(m){return m.d.rev;}),
-             backgroundColor:'rgba(37,99,235,0.7)',borderRadius:3,borderSkipped:false},
-            {label:'Gross Profit',data:metrics.map(function(m){return m.d.gp;}),
-             backgroundColor:'rgba(16,185,129,0.7)',borderRadius:3,borderSkipped:false},
-            {label:'Net Income',data:metrics.map(function(m){return m.d.ni;}),
-             backgroundColor:metrics.map(function(m){return m.d.ni>=0?'rgba(5,150,105,0.8)':'rgba(239,68,68,0.7)';}),
-             borderRadius:3,borderSkipped:false}
-          ]
-        },
-        options:{
-          responsive:true,plugins:{legend:{labels:{font:{size:11}}}},
-          scales:{y:{ticks:{callback:function(v){return fmtMoney(v);}},grid:{color:'rgba(0,0,0,0.05)'}},
-                  x:{grid:{display:false}}}
-        }
-      });
-    }
-
-    // Chart 2: Gross Margin % and Net Margin % lines
-    var ctx2=document.getElementById('chartMargins');
-    if(ctx2){
-      if(ctx2._chartInstance) ctx2._chartInstance.destroy();
-      ctx2._chartInstance=new Chart(ctx2,{
-        type:'line',
-        data:{
-          labels:metrics.map(function(m){return m.label;}),
-          datasets:[
-            {label:'Gross Margin %',data:metrics.map(function(m){return parseFloat(m.d.gm.toFixed(1));}),
-             borderColor:'#2563eb',backgroundColor:'rgba(37,99,235,0.1)',
-             tension:0.3,fill:true,pointRadius:4,pointBackgroundColor:'#2563eb'},
-            {label:'Net Margin %',data:metrics.map(function(m){return parseFloat(m.d.nm.toFixed(1));}),
-             borderColor:'#10b981',backgroundColor:'rgba(16,185,129,0.08)',
-             tension:0.3,fill:true,pointRadius:4,
-             pointBackgroundColor:metrics.map(function(m){return m.d.nm>=0?'#10b981':'#ef4444';})}
-          ]
-        },
-        options:{
-          responsive:true,plugins:{legend:{labels:{font:{size:11}}}},
-          scales:{y:{ticks:{callback:function(v){return v.toFixed(1)+'%';}},grid:{color:'rgba(0,0,0,0.05)'}},
-                  x:{grid:{display:false}}}
-        }
-      });
-    }
-
-    // Chart 3: Expense breakdown stacked bar
-    var ctx3=document.getElementById('chartExpenses');
-    if(ctx3){
-      if(ctx3._chartInstance) ctx3._chartInstance.destroy();
-      // Collect all expense account names
-      var expAccounts=[];
-      entries.forEach(function(p){ if(/cost of sales|expense/i.test(p[1].type||'')) expAccounts.push(p[0]); });
-      var palette=['#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6','#06b6d4','#ec4899','#84cc16','#f97316','#6366f1'];
-      var datasets=expAccounts.slice(0,10).map(function(name,idx){
-        return {
-          label:name.length>30?name.substring(0,30)+'…':name,
-          data:allM.map(function(m){ return Math.abs(csvMultiMonthPL[name]&&csvMultiMonthPL[name].months[m]||0); }),
-          backgroundColor:palette[idx%palette.length],
-          borderRadius:2, stack:'expenses'
-        };
-      });
-      ctx3._chartInstance=new Chart(ctx3,{
-        type:'bar',
-        data:{labels:metrics.map(function(m){return m.label;}), datasets:datasets},
-        options:{
-          responsive:true,
-          plugins:{legend:{position:'right',labels:{font:{size:10},boxWidth:10}}},
-          scales:{
-            y:{stacked:true,ticks:{callback:function(v){return fmtMoney(v);}},grid:{color:'rgba(0,0,0,0.05)'}},
-            x:{stacked:true,grid:{display:false}}
-          }
-        }
-      });
-    }
-  });
-
-  // ── Build multi-month table ──────────────────────────────────────────────
   el.innerHTML=buildRawTimeSeries(csvMultiMonthPL,'pl');
   if(metaEl) metaEl.textContent='P&L · Multi-Month · Source: '+dataSources.pl;
 }
@@ -4432,14 +4399,59 @@ function switchTab(name,btn){
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   var tabEl=document.getElementById('tab-'+name);
   if(tabEl) tabEl.style.display='block';
-  btn.classList.add('active');
+  if(btn) btn.classList.add('active');
   if(name==='pl')  renderPL();
   if(name==='bs')  renderBS();
   if(name==='rpl') renderRestatedPL();
   if(name==='rbs') renderRestatedBS();
   if(name==='map') renderCOAMappingTab();
-  if(name==='cf')  renderCashFlow();
   if(name==='metrics') renderMetrics();
+  updateSidebarActive(name);
+}
+
+// Sidebar navigation helpers
+function switchTabSidebar(name){
+  // Show dashboard if not visible
+  var dash=document.getElementById('dashboard');
+  if(dash&&dash.style.display==='none'){ dash.style.display='block'; }
+  var setup=document.getElementById('setupSection');
+  if(setup) setup.style.display='none';
+  switchTab(name, null);
+}
+
+function updateSidebarActive(name){
+  ['pl','bs','map','rpl','rbs'].forEach(function(t){
+    var el=document.getElementById('nav-'+t);
+    if(el) el.classList.toggle('active', t===name);
+  });
+  var breadcrumbs={'pl':'Profit & Loss','bs':'Balance Sheet','map':'COA Mapping','rpl':'Restated P&L','rbs':'Restated Balance Sheet'};
+  var bc=document.getElementById('breadcrumb');
+  if(bc&&breadcrumbs[name]) bc.textContent=breadcrumbs[name];
+}
+
+function showSetup(){
+  var dash=document.getElementById('dashboard');
+  if(dash) dash.style.display='none';
+  var setup=document.getElementById('setupSection');
+  if(setup) setup.style.display='block';
+  // Update sidebar active
+  ['pl','bs','map','rpl','rbs'].forEach(function(t){
+    var el=document.getElementById('nav-'+t);
+    if(el) el.classList.remove('active');
+  });
+  var setupNav=document.getElementById('nav-setup');
+  if(setupNav) setupNav.classList.add('active');
+  var bc=document.getElementById('breadcrumb');
+  if(bc) bc.textContent='Upload Data';
+}
+
+function showSidebarReports(){
+  ['nav-section-reports','nav-reports','nav-section-restated','nav-restated'].forEach(function(id){
+    var el=document.getElementById(id);
+    if(el) el.style.display='';
+  });
+  var setupNav=document.getElementById('nav-setup');
+  if(setupNav) setupNav.classList.remove('active');
 }
 
 // ── Format ───────────────────────────────────────────────────────────────────
