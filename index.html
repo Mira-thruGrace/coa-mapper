@@ -349,42 +349,63 @@
     <!-- CSV MODE -->
     <div id="csvMode" style="display:none;">
       <div id="csvUploadErrors" style="display:none;" class="error-box"></div>
-      <div class="info-box" style="margin-bottom:14px;">
-        Upload your P&L and/or Balance Sheet as CSV files. Download the template first to see the expected format. Operating Metrics upload is optional.
-      </div>
-      <div style="display:grid;gap:14px;">
-        <div style="border:1.5px solid var(--border);border-radius:10px;padding:16px;">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
-            <div style="font-weight:600;font-size:13px;">📊 P&L CSV <span style="color:var(--danger);font-size:11px;">Required</span></div>
-            <button class="btn btn-secondary btn-sm" onclick="downloadPLTemplate()">⬇ Download Template</button>
+
+      <!-- Step 1 -->
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:18px 20px;margin-bottom:14px;">
+        <div style="font-size:13px;font-weight:700;margin-bottom:4px;">Step 1 — Set your historical date range</div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:14px;">Choose the start and end month for your historical data.</div>
+        <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+          <div>
+            <label style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.4px;display:block;margin-bottom:5px;">Start Month</label>
+            <input type="month" id="csvStartMonth" onchange="onCsvDateChange()" style="padding:7px 10px;border:1px solid var(--border);border-radius:var(--radius);font-family:var(--mono);font-size:13px;">
           </div>
-          <div style="font-size:12px;color:var(--muted);margin-bottom:8px;">Columns: <code>Account</code>, <code>Amount</code>. Optional: <code>Category</code></div>
-          <input type="file" id="plFileInput" accept=".csv" style="font-size:12px;">
-          <div id="plCSVStatus" style="font-size:12px;margin-top:6px;"></div>
-        </div>
-        <div style="border:1.5px solid var(--border);border-radius:10px;padding:16px;">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
-            <div style="font-weight:600;font-size:13px;">🏦 Balance Sheet CSV <span style="color:var(--muted);font-size:11px;">Optional</span></div>
-            <button class="btn btn-secondary btn-sm" onclick="downloadBSTemplate()">⬇ Download Template</button>
+          <div>
+            <label style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.4px;display:block;margin-bottom:5px;">End Month</label>
+            <input type="month" id="csvEndMonth" onchange="onCsvDateChange()" style="padding:7px 10px;border:1px solid var(--border);border-radius:var(--radius);font-family:var(--mono);font-size:13px;">
           </div>
-          <div style="font-size:12px;color:var(--muted);margin-bottom:8px;">Columns: <code>Account</code>, <code>Amount</code>. Optional: <code>Category</code></div>
-          <input type="file" id="bsFileInput" accept=".csv" style="font-size:12px;">
-          <div id="bsCSVStatus" style="font-size:12px;margin-top:6px;"></div>
-        </div>
-        <div style="border:1.5px solid var(--border);border-radius:10px;padding:16px;background:var(--bg);">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
-            <div style="font-weight:600;font-size:13px;">📈 Operating Metrics CSV <span style="color:var(--muted);font-size:11px;">Optional</span></div>
-            <button class="btn btn-secondary btn-sm" onclick="downloadMetricsTemplate()">⬇ Download Template</button>
-          </div>
-          <div style="font-size:12px;color:var(--muted);margin-bottom:8px;">Use the sector-specific template. You can skip this and enter metrics manually in the dashboard.</div>
-          <input type="file" id="metricsFileInput" accept=".csv" style="font-size:12px;">
-          <div id="metricsCSVStatus" style="font-size:12px;margin-top:6px;"></div>
+          <div id="csvMonthCount" style="font-size:12px;color:var(--muted);padding-top:18px;"></div>
         </div>
       </div>
-      <div style="margin-top:20px;display:flex;gap:10px;align-items:center;">
-        <button class="btn btn-primary" onclick="launchFromCSV()">Load Dashboard →</button>
-        <span style="font-size:12px;color:var(--muted);">P&L is required; Balance Sheet and Metrics are optional</span>
+
+      <!-- Step 2 -->
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:18px 20px;margin-bottom:14px;">
+        <div style="font-size:13px;font-weight:700;margin-bottom:4px;">Step 2 — Download &amp; fill the template</div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:12px;">
+          Template columns: <strong>Account Name</strong> · <strong>Type</strong> · <strong>Standard COA Category</strong> · one column per month.<br>
+          Fill in amounts and map each account to a standard COA category.
+        </div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:8px;">
+          <button class="btn btn-primary btn-sm" id="csvDownloadPL" onclick="downloadCombinedTemplate('pl')" disabled>⬇ P&amp;L Template</button>
+          <button class="btn btn-secondary btn-sm" id="csvDownloadBS" onclick="downloadCombinedTemplate('bs')" disabled>⬇ Balance Sheet Template</button>
+        </div>
+        <div style="font-size:11px;color:var(--muted);" id="csvTemplateHint">Set date range above to activate downloads</div>
       </div>
+
+      <!-- Step 3 -->
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:18px 20px;margin-bottom:16px;">
+        <div style="font-size:13px;font-weight:700;margin-bottom:4px;">Step 3 — Upload completed template</div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:12px;">Upload your filled template. P&L is required; Balance Sheet is optional.</div>
+        <div style="display:grid;gap:12px;">
+          <div style="border:1px solid var(--border);border-radius:var(--radius);padding:14px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+            <div>
+              <div style="font-weight:600;font-size:13px;">P&amp;L Template <span style="color:var(--danger);font-size:11px;">Required</span></div>
+              <div id="plCSVStatus" style="font-size:11px;color:var(--muted);margin-top:2px;">No file uploaded</div>
+            </div>
+            <button class="btn btn-secondary btn-sm" onclick="document.getElementById('plFileInput').click()">⇧ Upload</button>
+            <input type="file" id="plFileInput" accept=".csv" style="display:none;" onchange="onCsvFileUpload(this,'pl')">
+          </div>
+          <div style="border:1px solid var(--border);border-radius:var(--radius);padding:14px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+            <div>
+              <div style="font-weight:600;font-size:13px;">Balance Sheet Template <span style="color:var(--muted);font-size:11px;">Optional</span></div>
+              <div id="bsCSVStatus" style="font-size:11px;color:var(--muted);margin-top:2px;">No file uploaded</div>
+            </div>
+            <button class="btn btn-secondary btn-sm" onclick="document.getElementById('bsFileInput').click()">⇧ Upload</button>
+            <input type="file" id="bsFileInput" accept=".csv" style="display:none;" onchange="onCsvFileUpload(this,'bs')">
+          </div>
+        </div>
+      </div>
+
+      <button class="btn btn-primary" onclick="launchFromCSV()">Load Dashboard →</button>
     </div>
   </div>
 
@@ -486,7 +507,6 @@
     <button class="tab" onclick="switchTab('rpl',this)">✦ Restated P&amp;L</button>
     <button class="tab" onclick="switchTab('rbs',this)">✦ Restated BS</button>
     <button class="tab" onclick="switchTab('cf',this)">Cash Flow</button>
-    <button class="tab" onclick="switchTab('metrics',this)">Operating Metrics</button>
   </div>
 
   <!-- P&L Tab -->
@@ -667,15 +687,35 @@
   </div>
 
     <!-- Restated P&L Tab -->
-  <div id="tab-rpl" class="table-card" style="display:none;">
-    <div class="table-header"><div><h3>Restated Profit &amp; Loss</h3><div class="table-meta">Grouped by your sector standard COA</div></div><button class="btn btn-secondary btn-sm" onclick="exportSingleCSV('rpl')">Export CSV</button></div>
-    <div id="rplContent"><div style="padding:20px;color:var(--muted);font-size:13px;">Complete COA Mapping to view the restated P&L.</div></div>
+  <di  <div id="tab-rpl" class="table-card" style="display:none;">
+    <div class="table-header">
+      <div><h3>Restated Profit &amp; Loss</h3><div class="table-meta">Grouped by your sector standard COA</div></div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <div style="display:flex;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:2px;gap:2px;">
+          <button id="rplViewSingle" onclick="setRplView('single')" style="padding:4px 10px;border-radius:4px;border:none;font-size:11px;font-weight:600;cursor:pointer;background:var(--accent);color:white;">Single Period</button>
+          <button id="rplViewTimeseries" onclick="setRplView('timeseries')" style="padding:4px 10px;border-radius:4px;border:none;font-size:11px;font-weight:500;cursor:pointer;background:transparent;color:var(--muted);">Time Series</button>
+        </div>
+        <button class="btn btn-secondary btn-sm" onclick="exportSingleCSV('rpl')">Export CSV</button>
+      </div>
+    </div>
+    <div id="rplContent"></div>
+  </div>
   </div>
 
   <!-- Restated Balance Sheet Tab -->
-  <div id="tab-rbs" class="table-card" style="display:none;">
-    <div class="table-header"><div><h3>Restated Balance Sheet</h3><div class="table-meta">Grouped by your sector standard COA</div></div><button class="btn btn-secondary btn-sm" onclick="exportSingleCSV('rbs')">Export CSV</button></div>
-    <div id="rbsContent"><div style="padding:20px;color:var(--muted);font-size:13px;">Complete COA Mapping to view the restated Balance Sheet.</div></div>
+  <di  <div id="tab-rbs" class="table-card" style="display:none;">
+    <div class="table-header">
+      <div><h3>Restated Balance Sheet</h3><div class="table-meta">Balance Sheet restated using your Standard COA mapping</div></div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <div style="display:flex;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:2px;gap:2px;">
+          <button id="rbsViewSingle" onclick="setRbsView('single')" style="padding:4px 10px;border-radius:4px;border:none;font-size:11px;font-weight:600;cursor:pointer;background:var(--accent);color:white;">Single Period</button>
+          <button id="rbsViewTimeseries" onclick="setRbsView('timeseries')" style="padding:4px 10px;border-radius:4px;border:none;font-size:11px;font-weight:500;cursor:pointer;background:transparent;color:var(--muted);">Time Series</button>
+        </div>
+        <button class="btn btn-secondary btn-sm" onclick="exportSingleCSV('rbs')">Export CSV</button>
+      </div>
+    </div>
+    <div id="rbsContent"></div>
+  </div>
   </div>
 
   <!-- Cash Flow Tab -->
@@ -719,53 +759,7 @@
     </div>
   </div>
 
-  <!-- Operating Metrics Tab -->
-  <div id="tab-metrics" style="display:none;">
 
-    <!-- Auto-metrics header — NO quarter selector here -->
-    <div style="margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
-      <div>
-        <div style="font-size:15px;font-weight:600;">Operating Metrics Dashboard</div>
-        <div style="font-size:12px;color:var(--muted);">Auto-calculated metrics use the period set in the date bar above. The quarter filter below applies only to manual/CSV metrics.</div>
-      </div>
-      <button class="btn btn-secondary btn-sm" onclick="exportSingleCSV('metrics')">Export CSV</button>
-    </div>
-
-    <!-- Period indicator for auto metrics -->
-    <div style="background:var(--accent2-light);border:1px solid #c0d4f0;border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:12px;color:var(--accent2);">
-      📅 <strong>Auto-metrics period:</strong> <span id="metricsDateLabel" style="font-family:var(--mono);">Set using the date bar above</span>
-    </div>
-
-    <!-- Auto-calculated grid -->
-    <div id="metricsAutoGrid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-bottom:24px;"></div>
-    <div id="metricsCharts" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px;margin-bottom:24px;"></div>
-
-    <!-- Manual / CSV Metrics — quarter filter lives HERE only -->
-    <div class="table-card">
-      <div class="table-header">
-        <div>
-          <h3>Manual / CSV Metrics</h3>
-          <div class="table-meta" id="metricsCsvSource">No CSV uploaded — showing template headers</div>
-        </div>
-        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-          <label style="font-size:12px;color:var(--muted);">Filter period:</label>
-          <select id="metricsQuarter" onchange="renderManualMetrics()" style="padding:6px 10px;border:1px solid var(--border);border-radius:7px;font-family:var(--mono);font-size:12px;background:var(--surface);color:var(--text);">
-            <option value="full">All Periods</option>
-            <option value="Q1">Q1 (Jan–Mar)</option>
-            <option value="Q2">Q2 (Apr–Jun)</option>
-            <option value="Q3">Q3 (Jul–Sep)</option>
-            <option value="Q4">Q4 (Oct–Dec)</option>
-          </select>
-          <button class="btn btn-secondary btn-sm" onclick="downloadMetricsTemplate()">⬇ Template</button>
-          <label class="btn btn-secondary btn-sm" style="cursor:pointer;margin:0;">
-            📂 Upload CSV
-            <input type="file" accept=".csv" id="metricsUploadInput" onchange="uploadMetricsCSV(this)" style="display:none;">
-          </label>
-        </div>
-      </div>
-      <div id="metricsManualContent" style="padding:16px;"></div>
-    </div>
-  </div>
 
   <!-- COA Tab -->
   <div id="tab-coa" class="table-card" style="display:none;">
@@ -1445,12 +1439,12 @@ async function launchFromCSV(){
   document.getElementById('csvUploadErrors').style.display='none';
   const plFile=document.getElementById('plFileInput').files[0];
   const bsFile=document.getElementById('bsFileInput').files[0];
-  const metricsFile=document.getElementById('metricsFileInput').files[0];
+  // Operating Metrics removed
   if(!plFile&&!bsFile){showMsg('Please upload at least one CSV file (P&L or Balance Sheet).','error');return;}
   try{
     if(plFile){const rows=await parseCSVFile(plFile,'pl','plCSVStatus');if(rows.length)plReports=[{Rows:csvToRows(rows,'pl')}];}
     if(bsFile){const rows=await parseCSVFile(bsFile,'bs','bsCSVStatus');if(rows.length)bsReports=[{Rows:csvToRows(rows,'bs')}];}
-    if(metricsFile){const rows=await parseCSVFile(metricsFile,'metrics','metricsCSVStatus');userMetrics=rows.map(r=>({name:Object.values(r)[0]||'',value:Object.values(r)[1]||'',unit:Object.values(r)[2]||''}));}
+  
     dataSources.timestamp=new Date().toLocaleString();
     dataMode='csv';
     launchDashboard('Financial Reports','Data loaded from CSV upload');
@@ -1826,6 +1820,8 @@ function updateMapping(selectEl){
   // Update header badges and progress bar
   updateSectionBadges();
   updateMappingProgressBar();
+  // Refresh restated P&L net so cash flow stays in sync
+  if(Object.keys(mappings).length>0) renderRestatedPL();
 }
 
 function completeMappingStep(){
@@ -1862,6 +1858,33 @@ function launchDashboard(title,sub){
 }
 
 // ── Render all ─────────────────────────────────────────────────────────────────
+let rplView='single';
+let rbsView='single';
+
+function setRplView(v){
+  rplView=v;
+  ['single','timeseries'].forEach(function(k){
+    var el=document.getElementById('rplView'+k.charAt(0).toUpperCase()+k.slice(1));
+    if(!el)return;
+    el.style.background=k===v?'var(--accent)':'transparent';
+    el.style.color=k===v?'white':'var(--muted)';
+    el.style.fontWeight=k===v?'600':'500';
+  });
+  renderRestatedPL();
+}
+
+function setRbsView(v){
+  rbsView=v;
+  ['single','timeseries'].forEach(function(k){
+    var el=document.getElementById('rbsView'+k.charAt(0).toUpperCase()+k.slice(1));
+    if(!el)return;
+    el.style.background=k===v?'var(--accent)':'transparent';
+    el.style.color=k===v?'white':'var(--muted)';
+    el.style.fontWeight=k===v?'600':'500';
+  });
+  renderRestatedBS();
+}
+
 function renderAll(){
   renderPL();renderBS();renderCashFlow();renderMetrics();
   if(coaData.length||getAccountsList().length){renderCOA();renderMapping();}
@@ -2883,6 +2906,138 @@ function clearTableSelection(section){
 
 // ══ END BULK MAP FUNCTIONS ════════════════════════════════════════════════════
 
+// ── CSV Date range helpers ────────────────────────────────────────────────────
+// Stores multi-month data: {accountName: {type, coa, months: {YYYY-MM: amt}}}
+let csvMultiMonthPL = {};
+let csvMultiMonthBS = {};
+
+function getCsvMonths(){
+  var start=document.getElementById('csvStartMonth').value;
+  var end=document.getElementById('csvEndMonth').value;
+  if(!start||!end) return [];
+  var months=[];
+  var cur=new Date(start+'-01');
+  var endD=new Date(end+'-01');
+  while(cur<=endD){
+    months.push(cur.toISOString().slice(0,7)); // YYYY-MM
+    cur.setMonth(cur.getMonth()+1);
+  }
+  return months;
+}
+
+function onCsvDateChange(){
+  var months=getCsvMonths();
+  var countEl=document.getElementById('csvMonthCount');
+  var hintEl=document.getElementById('csvTemplateHint');
+  var dlPL=document.getElementById('csvDownloadPL');
+  var dlBS=document.getElementById('csvDownloadBS');
+  if(months.length>0){
+    if(countEl) countEl.textContent=months.length+' month'+(months.length>1?'s':'')+' selected';
+    if(hintEl) hintEl.textContent='Templates ready — '+months[0]+' to '+months[months.length-1];
+    if(dlPL){dlPL.disabled=false;dlPL.style.opacity='1';dlPL.style.cursor='pointer';}
+    if(dlBS){dlBS.disabled=false;dlBS.style.opacity='1';dlBS.style.cursor='pointer';}
+  } else {
+    if(countEl) countEl.textContent='';
+    if(hintEl) hintEl.textContent='Set date range above to activate downloads';
+    if(dlPL){dlPL.disabled=true;dlPL.style.opacity='0.4';dlPL.style.cursor='not-allowed';}
+    if(dlBS){dlBS.disabled=true;dlBS.style.opacity='0.4';dlBS.style.cursor='not-allowed';}
+  }
+}
+
+function downloadCombinedTemplate(type){
+  var months=getCsvMonths();
+  if(!months.length){showMsg('Set start and end month first.','error');return;}
+
+  var plRows=[
+    ['Recurring Revenue','Revenue','Revenue - Sales'],
+    ['Other Revenue','Revenue','Revenue - Other'],
+    ['Cost of Goods Sold','COGS','Cost of Goods Sold'],
+    ['Cost of Services','COGS','Cost of Services'],
+    ['Salaries - G&A','OpEx','Payroll & Salaries'],
+    ['Salaries - Sales','OpEx','Payroll & Salaries'],
+    ['Bank Fees & Charges','OpEx','Bank Fees & Charges'],
+    ['Subscriptions','OpEx','Subscriptions'],
+    ['Other Office Expenses','OpEx','Other Office Expenses'],
+    ['Legal & Accounting','OpEx','General & Administrative'],
+    ['Depreciation','OpEx','Depreciation & Amortisation'],
+  ];
+  var bsRows=[
+    ['Bank','Current Assets','Bank'],
+    ['Accounts Receivable','Current Assets','Accounts Receivable'],
+    ['Prepaid Expenses','Current Assets','Prepaid Expenses'],
+    ['Property & Equipment','Non-Current Assets','Property Plant & Equipment'],
+    ['Accumulated Depreciation','Non-Current Assets','Accumulated Depreciation'],
+    ['Accounts Payable','Current Liabilities','Accounts Payable'],
+    ['Accrued Liabilities','Current Liabilities','Accrued Liabilities'],
+    ['Long-term Debt','Non-Current Liabilities','Long-term Debt'],
+    ['Share Capital','Equity','Share Capital'],
+    ['Retained Earnings','Equity','Retained Earnings'],
+  ];
+
+  var rows=type==='pl'?plRows:bsRows;
+  var headerArr=['Account Name','Type','Standard COA Category'].concat(months);
+  var lines=[headerArr.join(',')];
+  rows.forEach(function(r){
+    var cells=r.map(function(v){return '"'+v+'"';});
+    months.forEach(function(){cells.push('');});
+    lines.push(cells.join(','));
+  });
+  for(var i=0;i<5;i++){
+    var empty=['','',''];
+    months.forEach(function(){empty.push('');});
+    lines.push(empty.join(','));
+  }
+
+  var csv=lines.join('\n');
+  var filename=(type==='pl'?'PL':'BS')+'_Template_'+months[0]+'_to_'+months[months.length-1]+'.csv';
+  dlCSV(csv,filename);
+  showMsg('Template downloaded — fill in amounts and upload in Step 3.','success');
+}
+
+function onCsvFileUpload(input, type){
+  var file=input.files[0];
+  if(!file)return;
+  var statusEl=document.getElementById(type==='pl'?'plCSVStatus':'bsCSVStatus');
+  var reader=new FileReader();
+  reader.onload=function(e){
+    try{
+      var lines=e.target.result.split(/\r?\n/).filter(function(l){return l.trim();});
+      if(lines.length<2){showMsg('Template must have a header row and data.','error');return;}
+      var headers=splitCSVLine(lines[0]).map(function(h){return h.trim().replace(/"/g,'');});
+      var nameIdx=0, typeIdx=1, coaIdx=2;
+      // Month columns start at index 3
+      var monthCols=headers.slice(3);
+
+      var data={};
+      lines.slice(1).forEach(function(line){
+        var cols=splitCSVLine(line).map(function(v){return v.trim().replace(/"/g,'');});
+        var name=cols[nameIdx]||'';
+        if(!name)return;
+        var acctType=cols[typeIdx]||'';
+        var coa=cols[coaIdx]||'';
+        var months={};
+        monthCols.forEach(function(m,i){
+          var val=parseFloat(cols[3+i]||'0')||0;
+          if(val!==0) months[m]=val;
+        });
+        data[name]={type:acctType,coa:coa,months:months};
+      });
+
+      if(type==='pl') csvMultiMonthPL=data;
+      else csvMultiMonthBS=data;
+
+      var accountCount=Object.keys(data).length;
+      var monthCount=monthCols.length;
+      if(statusEl) statusEl.textContent='✓ Loaded '+accountCount+' accounts × '+monthCount+' months';
+      showMsg('✓ '+type.toUpperCase()+' template loaded — '+accountCount+' accounts.','success');
+    }catch(err){
+      showMsg('Error reading file: '+err.message,'error');
+    }
+  };
+  reader.readAsText(file);
+  input.value='';
+}
+
 function downloadCOATemplate(){
   // Standard COA template only — no Xero accounts included
   // User defines their own categories; import enables dropdown mapping
@@ -3294,6 +3449,21 @@ function renderRestatedPL(){
     +'<td class="amount '+(net>=0?'pos':'neg')+'"><strong>'+fmtMoney(net)+'</strong></td></tr>';
   html+='</tbody></table>';
 
+  // ── Update sumNet so Cash Flow uses the same net as Restated P&L ──────────
+  if(Object.keys(catTotals).length>0){
+    var sumNetEl=document.getElementById('sumNet');
+    if(sumNetEl){
+      sumNetEl.textContent=fmtMoney(net);
+      sumNetEl.className='summary-value '+(net>=0?'green':'red');
+    }
+  }
+
+  // ── Time-series view: if csvMultiMonthPL has data, build a time-series table ──
+  if(rplView==='timeseries'&&Object.keys(csvMultiMonthPL).length>0){
+    el.innerHTML=buildTimeSeriesTable(csvMultiMonthPL,'pl');
+    return;
+  }
+
   // Summary banner at top showing mapping progress
   var mappedCount=Object.keys(catTotals).length;
   var unmappedCount=unmappedIncome.length+unmappedExpense.length;
@@ -3477,6 +3647,13 @@ function renderRestatedBS(){
   var bsBannerText=unmappedCountBS===0?'✓ All accounts mapped':'⚠️ '+unmappedCountBS+' of '+totalBS+' accounts not yet mapped — shown at the bottom. Go to COA Mapping to assign BS sections.';
   var bsBannerColor2=unmappedCountBS===0?'#065f46':'#92400e';
   var bsBanner='<div style="background:'+bsBannerColor+';border:1px solid '+bsBannerBorder+';border-radius:8px;padding:10px 14px;margin:14px 16px;font-size:12px;color:'+bsBannerColor2+';font-weight:500;">'+bsBannerText+'</div>';
+
+  // ── Time-series view ──────────────────────────────────────────────────────
+  if(rbsView==='timeseries'&&Object.keys(csvMultiMonthBS).length>0){
+    el.innerHTML=buildTimeSeriesTable(csvMultiMonthBS,'bs');
+    return;
+  }
+
   el.innerHTML=bsBanner+html;
 }
 
@@ -4021,6 +4198,72 @@ function setPreset(preset,e){
 }
 
 // ── Tabs ─────────────────────────────────────────────────────────────────────
+// ── Time-series table builder ─────────────────────────────────────────────────
+function buildTimeSeriesTable(multiMonthData, type){
+  // Get all months across all accounts
+  var monthsSet=new Set();
+  Object.values(multiMonthData).forEach(function(acc){
+    Object.keys(acc.months||{}).forEach(function(m){monthsSet.add(m);});
+  });
+  var months=Array.from(monthsSet).sort();
+  if(!months.length) return '<p style="padding:16px;color:var(--muted);">No monthly data found in uploaded template.</p>';
+
+  // Group accounts by their COA category
+  var groups={};
+  Object.keys(multiMonthData).forEach(function(name){
+    var acc=multiMonthData[name];
+    var cat=acc.coa||mappings[name]||'Unmapped';
+    if(!groups[cat]) groups[cat]={items:[],months:{}};
+    groups[cat].items.push(name);
+    months.forEach(function(m){
+      groups[cat].months[m]=(groups[cat].months[m]||0)+(acc.months[m]||0);
+    });
+  });
+
+  // Format month headers
+  var fmtMonth=function(m){
+    var d=new Date(m+'-01');
+    return d.toLocaleDateString('en-SG',{month:'short',year:'2-digit'});
+  };
+
+  var html='<div style="overflow-x:auto;">'
+    +'<table style="width:100%;border-collapse:collapse;min-width:600px;">'
+    +'<thead><tr>'
+    +'<th style="padding:9px 16px;text-align:left;background:var(--bg);font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;border-bottom:1px solid var(--border);min-width:180px;">Category</th>';
+  months.forEach(function(m){
+    html+='<th style="padding:9px 12px;text-align:right;background:var(--bg);font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;border-bottom:1px solid var(--border);white-space:nowrap;">'+fmtMonth(m)+'</th>';
+  });
+  html+='</tr></thead><tbody>';
+
+  // Sort categories
+  var cats=Object.keys(groups).sort();
+  cats.forEach(function(cat){
+    var g=groups[cat];
+    html+='<tr style="border-bottom:1px solid var(--border);">'
+      +'<td style="padding:9px 16px;font-size:13px;font-weight:600;">'+cat+'</td>';
+    months.forEach(function(m){
+      var v=g.months[m]||0;
+      html+='<td style="padding:9px 12px;text-align:right;font-family:var(--mono);font-size:12px;color:'+(v<0?'var(--danger)':'var(--accent)')+';">'+(v!==0?fmtMoney(v):'—')+'</td>';
+    });
+    html+='</tr>';
+  });
+
+  // Total row
+  var totals={};
+  months.forEach(function(m){
+    totals[m]=Object.values(groups).reduce(function(s,g){return s+(g.months[m]||0);},0);
+  });
+  html+='<tr style="background:#f0fdf4;font-weight:700;border-top:2px solid var(--border);">'
+    +'<td style="padding:10px 16px;font-size:13px;">TOTAL</td>';
+  months.forEach(function(m){
+    var v=totals[m];
+    html+='<td style="padding:10px 12px;text-align:right;font-family:var(--mono);font-size:12px;font-weight:700;color:'+(v<0?'var(--danger)':'var(--accent)')+';">'+fmtMoney(v)+'</td>';
+  });
+  html+='</tr>';
+  html+='</tbody></table></div>';
+  return html;
+}
+
 function switchTab(name,btn){
   ['pl','bs','coa','map','rpl','rbs','cf','metrics'].forEach(t=>document.getElementById('tab-'+t).style.display='none');
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
@@ -4198,7 +4441,7 @@ function exportFullReport(){
     +'<button class="tab-btn active" onclick="showTab(\"pl\",this)">Restated P&L</button>'
     +'<button class="tab-btn" onclick="showTab(\"bs\",this)">Restated BS</button>'
     +'<button class="tab-btn" onclick="showTab(\"cf\",this)">Cash Flow</button>'
-    +'<button class="tab-btn" onclick="showTab(\"metrics\",this)">Operating Metrics</button>'
+    
     +'</div>'
 
     +'<div id="tab-pl" class="tab-content active">'
@@ -4213,9 +4456,7 @@ function exportFullReport(){
     +'<div class="section-card"><div class="card-header"><span class="card-title">Cash Flow Statement</span><span class="card-sub">Indirect method · '+currency+'</span></div>'
     +'<div style="padding:16px;">'+cfHTML+'</div></div></div>'
 
-    +'<div id="tab-metrics" class="tab-content">'
-    +'<div class="section-card"><div class="card-header"><span class="card-title">Operating Metrics</span><span class="card-sub">Period: '+period+'</span></div>'
-    +metricsHTML+'</div></div>'
+    
 
     +'<script>function showTab(id,btn){document.querySelectorAll(".tab-content").forEach(function(el){el.classList.remove("active");});document.querySelectorAll(".tab-btn").forEach(function(el){el.classList.remove("active");});document.getElementById("tab-"+id).classList.add("active");btn.classList.add("active");}<\/script>'
     +'</body></html>';
