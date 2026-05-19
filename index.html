@@ -4791,3 +4791,12 @@ window.addEventListener('load',()=>{
 </script>
 </body>
 </html>
+<script>
+(function(){
+  var code = new URLSearchParams(location.search).get('code');
+  if(code && window.opener && !window.opener.closed){
+    try{ window.opener.postMessage({xero_code: code}, '*'); }catch(e){}
+    setTimeout(function(){ window.close(); }, 200);
+  }
+})();
+</script>
