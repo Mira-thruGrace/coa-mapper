@@ -371,10 +371,10 @@
       <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:18px 20px;margin-bottom:14px;">
         <div style="font-size:13px;font-weight:700;margin-bottom:4px;">Step 2 — Download &amp; fill the template</div>
         <div style="font-size:12px;color:var(--muted);margin-bottom:12px;">
-          Downloads a <strong>.csv</strong> with 3 pre-filled example rows + 47 blank rows to fill in, plus month columns.<br>
+          Downloads <strong>2 CSV files</strong>: the template (3 examples + 47 blank rows) and the SaaS Standard COA reference.<br>
           <strong>Col A — Account Name:</strong> Your account name (e.g. AWS Hosting, Engineer Salaries)<br>
           <strong>Col B — Account Type:</strong> Category (e.g. Revenue, COGS, OpEx, Current Asset…)<br>
-          <strong>Col C — COA Mapping:</strong> Map to a SaaS Standard COA account — reference list included at the bottom of the file<br>
+          <strong>Col C — COA Mapping:</strong> Account name from the COA reference file<br>
           <strong>Col D+ — Months:</strong> Enter amounts for each period
         </div>
         <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:8px;">
@@ -3073,46 +3073,44 @@ function downloadCombinedTemplate(type){
 
   var isPL=type==='pl';
 
-  // 3 example rows only — user fills the rest
+  // 3 example rows — col C is account name only, no account number
   var examples=isPL
-    ? [['Subscription Revenue','Revenue','4000 - Subscription Revenue - SaaS'],
-       ['AWS / Cloud Hosting','COGS','5000 - Hosting & Infrastructure (AWS / Azure / GCP)'],
-       ['Engineer Salaries','OpEx','6000 - Salaries & Wages - R&D']]
-    : [['Business Checking Account','Current Asset','1000 - Cash - Operating Account'],
-       ['Accounts Receivable','Current Asset','1100 - Accounts Receivable'],
-       ['Accounts Payable','Current Liability','2000 - Accounts Payable']];
+    ? [['Subscription Revenue','Revenue','Subscription Revenue - SaaS'],
+       ['AWS / Cloud Hosting','COGS','Hosting & Infrastructure (AWS / Azure / GCP)'],
+       ['Engineer Salaries','OpEx','Salaries & Wages - R&D']]
+    : [['Business Checking Account','Current Asset','Cash - Operating Account'],
+       ['Accounts Receivable','Current Asset','Accounts Receivable'],
+       ['Accounts Payable','Current Liability','Accounts Payable']];
 
-  // Header: Account Name | Account Type | COA Mapping | month1 | month2 ...
+  // Template CSV: Account Name | Account Type | COA Mapping | months...
   var header=['"Account Name"','"Account Type"','"COA Mapping"'].concat(months.map(function(m){return '"'+m+'"';}));
   var lines=[header.join(',')];
 
-  // 3 example rows (italic note handled by user — just pre-fill values)
   examples.forEach(function(r){
     var cells=r.map(function(v){return '"'+v+'"';});
     months.forEach(function(){cells.push('');});
     lines.push(cells.join(','));
   });
 
-  // 47 blank rows for user data
   for(var i=0;i<47;i++){
-    var empty=['"[Account Name]"','"[Account Type]"','"[COA Mapping]"'];
+    var empty=['','',''];
     months.forEach(function(){empty.push('');});
     lines.push(empty.join(','));
   }
 
-  // COA reference block at bottom
-  lines.push('');
-  var coaList=isPL?SAAS_PL_COA:SAAS_BS_COA;
-  lines.push('"--- SaaS Standard COA Reference ('+(isPL?'P&L: 4000-9900':'BS: 1000-3600')+') — copy values into COA Mapping column above ---"');
-  lines.push('"Acct #","Account Name","Type"');
-  coaList.forEach(function(r){
-    lines.push('"'+r.acct+'","'+r.name+'","'+r.type+'"');
-  });
+  dlCSV(lines.join('\n'),'SaaS_'+(isPL?'PL':'BS')+'_Template_'+months[0]+'_to_'+months[months.length-1]+'.csv');
 
-  var csv=lines.join('\n');
-  var filename='SaaS_'+(isPL?'PL':'BS')+'_Template_'+months[0]+'_to_'+months[months.length-1]+'.csv';
-  dlCSV(csv,filename);
-  showMsg('✓ '+(isPL?'P&L':'Balance Sheet')+' CSV template downloaded — 3 examples pre-filled, COA reference included at the bottom.','success');
+  // COA reference — separate file, downloaded 300ms later
+  var coaList=isPL?SAAS_PL_COA:SAAS_BS_COA;
+  var coaLines=['"Account #","Account Name","Type"'];
+  coaList.forEach(function(r){
+    coaLines.push('"'+r.acct+'","'+r.name+'","'+r.type+'"');
+  });
+  setTimeout(function(){
+    dlCSV(coaLines.join('\n'),'SaaS_'+(isPL?'PL':'BS')+'_COA_Reference.csv');
+  },300);
+
+  showMsg('✓ 2 files downloaded: template + COA reference. Use the COA reference to fill in the COA Mapping column.','success');
 }
 
 function onCsvFileUpload(input, type){
