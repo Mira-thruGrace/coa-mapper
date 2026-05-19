@@ -3003,8 +3003,8 @@ function renderPL(){
     +'<th style="padding:9px 16px;text-align:right;background:var(--bg);font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;border-bottom:1px solid var(--border);">Total (Jun 25 – Apr 26)</th>'
     +'</tr></thead><tbody>';
 
-  var grandTotal=0;
-  // Render in defined order first, then any remaining
+  // Track section totals for Net Profit = Revenue - Cost of Sales - Expense
+  var totalRevenue=0, totalCostOfSales=0, totalExpense=0;
   var rendered={};
   sectionOrder.concat(Object.keys(groups).filter(function(g){return sectionOrder.indexOf(g)===-1;})).forEach(function(grp){
     if(rendered[grp]||!groups[grp]) return;
@@ -3018,16 +3018,19 @@ function renderPL(){
         +'<td style="padding:8px 16px;text-align:right;font-family:var(--mono);font-size:13px;color:'+(item.total<0?'var(--danger)':'var(--text)')+';">'+fmtMoney(item.total)+'</td>'
         +'</tr>';
     });
-    grandTotal+=subtotal;
+    if(/revenue/i.test(grp)) totalRevenue+=subtotal;
+    else if(/cost of sales/i.test(grp)) totalCostOfSales+=Math.abs(subtotal);
+    else totalExpense+=Math.abs(subtotal);
     html+='<tr style="background:var(--accent-light);font-weight:700;">'
       +'<td style="padding:8px 16px;font-size:13px;">Total '+escHtml(grp)+'</td>'
       +'<td style="padding:8px 16px;text-align:right;font-family:var(--mono);font-size:13px;font-weight:700;">'+fmtMoney(subtotal)+'</td>'
       +'</tr>';
   });
 
+  var netProfit=totalRevenue-totalCostOfSales-totalExpense;
   html+='<tr style="background:#f0fdf4;font-weight:700;border-top:2px solid var(--border);">'
     +'<td style="padding:10px 16px;font-size:14px;">NET PROFIT / (LOSS)</td>'
-    +'<td style="padding:10px 16px;text-align:right;font-family:var(--mono);font-size:14px;font-weight:700;color:'+(grandTotal>=0?'var(--green)':'var(--danger)')+';">'+fmtMoney(grandTotal)+'</td>'
+    +'<td style="padding:10px 16px;text-align:right;font-family:var(--mono);font-size:14px;font-weight:700;color:'+(netProfit>=0?'var(--green)':'var(--danger)')+';">'+fmtMoney(netProfit)+'</td>'
     +'</tr>';
   html+='</tbody></table></div>';
   el.innerHTML=html;
@@ -3102,20 +3105,32 @@ function renderBS(){
     if(/bank|asset/i.test(sec.key)) totalAssets+=subtotal;
     else if(/liabilit/i.test(sec.key)) totalLiab+=subtotal;
     else if(/equity/i.test(sec.key)) totalEquity+=subtotal;
+    // Insert TOTAL ASSETS after Non-Current Assets section
+    if(sec.key==='Non-Current Assets'){
+      html+='<tr style="background:#1e3a5f;color:white;font-weight:700;border-top:2px solid var(--border);border-bottom:2px solid var(--border);">'
+        +'<td style="padding:10px 16px;font-size:13px;color:white;">TOTAL ASSETS</td>'
+        +'<td style="padding:10px 16px;text-align:right;font-family:var(--mono);font-size:13px;font-weight:700;color:white;">'+fmtMoney(totalAssets)+'</td>'
+        +'</tr>';
+      html+='<tr><td colspan="2" style="padding:6px 0;"></td></tr>';
+    }
+    // Insert TOTAL LIABILITIES after Non-Current Liabilities section
+    if(sec.key==='Non-Current Liabilities'||(!sectionDef.some(function(s){return s.key==='Non-Current Liabilities';})&&/liabilit/i.test(sec.key))){
+      html+='<tr style="background:var(--bg);font-weight:700;border-top:1px solid var(--border);">'
+        +'<td style="padding:8px 16px;font-size:13px;">Total Liabilities</td>'
+        +'<td style="padding:8px 16px;text-align:right;font-family:var(--mono);font-size:13px;font-weight:700;">'+fmtMoney(totalLiab)+'</td>'
+        +'</tr>';
+    }
   });
 
+  // TOTAL LIABILITIES & SHAREHOLDERS' EQUITY — after equity
   var totalLiabEq=totalLiab+totalEquity;
   var diff=Math.abs(totalAssets)-Math.abs(totalLiabEq);
-  html+='<tr style="background:#f0fdf4;font-weight:700;border-top:2px solid var(--border);">'
-    +'<td style="padding:10px 16px;font-size:14px;">TOTAL ASSETS</td>'
-    +'<td style="padding:10px 16px;text-align:right;font-family:var(--mono);font-size:14px;font-weight:700;">'+fmtMoney(totalAssets)+'</td>'
-    +'</tr>';
-  html+='<tr style="background:#f0f9ff;font-weight:700;">'
-    +'<td style="padding:10px 16px;font-size:14px;">TOTAL LIABILITIES + EQUITY</td>'
-    +'<td style="padding:10px 16px;text-align:right;font-family:var(--mono);font-size:14px;font-weight:700;">'+fmtMoney(totalLiabEq)+'</td>'
+  html+='<tr style="background:#1e3a5f;color:white;font-weight:700;border-top:2px solid var(--border);">'
+    +'<td style="padding:10px 16px;font-size:13px;color:white;">TOTAL LIABILITIES &amp; SHAREHOLDERS&#39; EQUITY</td>'
+    +'<td style="padding:10px 16px;text-align:right;font-family:var(--mono);font-size:13px;font-weight:700;color:white;">'+fmtMoney(totalLiabEq)+'</td>'
     +'</tr>';
   html+='<tr style="background:'+(Math.abs(diff)<1?'var(--green-light)':'var(--danger-light)')+'">'
-    +'<td style="padding:8px 16px;font-size:12px;color:'+(Math.abs(diff)<1?'#065f46':'#991b1b')+';">'
+    +'<td style="padding:7px 16px;font-size:11px;color:'+(Math.abs(diff)<1?'#065f46':'#991b1b')+';">'
     +(Math.abs(diff)<1?'✓ Balance sheet balances':'⚠ Out of balance by '+fmtMoney(Math.abs(diff)))+'</td>'
     +'<td></td></tr>';
   html+='</tbody></table></div>';
@@ -3372,13 +3387,17 @@ function renderRestatedPL(){
         html+='</tr>';
         return;
       }
-      // Regular line item
+      // Regular line item — skip row if all columns are zero
+      var rowHasValue=colData.some(function(col){return (col.ct[row.label]||0)!==0;});
+      if(!rowHasValue) return;
       html+='<tr style="border-bottom:1px solid var(--border);">'
         +'<td style="padding:8px 16px 8px 28px;font-size:13px;">'+row.label+'</td>';
       colData.forEach(function(col){
         var v=col.ct[row.label]||0;
         var isNeg=catToSection[row.label]==='cogs'||catToSection[row.label]==='opex'||catToSection[row.label]==='other';
-        html+='<td style="padding:8px 12px;text-align:right;font-family:var(--mono);font-size:12px;color:'+(v<0?'var(--danger)':v===0?'var(--muted)':'var(--accent)')+';">'+(v===0?'—':fmtMoney(isNeg?Math.abs(v):v))+'</td>';
+        // Show expenses as positive (absolute) so subtotals deduct correctly
+        var display=isNeg?Math.abs(v):v;
+        html+='<td style="padding:8px 12px;text-align:right;font-family:var(--mono);font-size:12px;color:'+(v<0?'var(--danger)':v===0?'var(--muted)':'var(--accent)')+';">'+(v===0?'—':fmtMoney(display))+'</td>';
       });
       html+='</tr>';
     });
@@ -3423,184 +3442,218 @@ function renderRestatedPL(){
 // Groups by user-defined mappings only — no sector required
 function renderRestatedBS(){
   const el=document.getElementById('rbsContent');
-  if(!bsReports.length){el.innerHTML='<div class="warn-box" style="margin:16px;">⚠️ No Balance Sheet data loaded.</div>';return;}
-
-  // Use global BS_SKIP and CYE_NAMES constants
-
-  const lineItems=[];
-  bsReports[0].Rows.forEach(function(section){
-    if(!section.Rows)return;
-    section.Rows.forEach(function(row){
-      if(row.RowType==='Row'&&row.Cells){
-        const name=row.Cells[0]?.Value||'';
-        const amt=parseFloat(row.Cells[1]?.Value)||0;
-        // Skip Xero computed totals/summary rows
-        if(BS_SKIP.has(name)) return;
-        if(name) lineItems.push({name,amt,section:section.Title||'',isCYE:CYE_NAMES.has(name)});
-      }
-    });
-  });
-
-  const catTotals={}, catItems={}, unmappedItems=[];
-  lineItems.forEach(function(item){
-    // Current Year Earnings — auto-map to Equity regardless of user mapping
-    if(item.isCYE){
-      var cyeCat='Current Year Earnings';
-      catTotals[cyeCat]=(catTotals[cyeCat]||0)+item.amt;
-      if(!catItems[cyeCat]) catItems[cyeCat]=[];
-      catItems[cyeCat].push(item);
-      return;
-    }
-
-    const account=coaData.find(function(a){return a.Name===item.name;})||{AccountID:item.name};
-    const key=account.AccountID||item.name;
-    const cat=mappings[key]||mappings[item.name];
-    if(!cat||cat==='[ Not mapped ]'){unmappedItems.push(item);}
-    else{
-      catTotals[cat]=(catTotals[cat]||0)+item.amt;
-      if(!catItems[cat]) catItems[cat]=[];
-      catItems[cat].push(item);
-    }
-  });
-
-  // Ensure Current Year Earnings is always in Equity bucket
-  if(catTotals['Current Year Earnings']!==undefined){
-    // Force it into equityCats after classification
-    // We'll handle this by adding to sectorBSCatSection below
+  if(!bsReports.length&&!Object.keys(csvMultiMonthBS).length){
+    el.innerHTML='<div class="warn-box" style="margin:16px;">⚠️ No Balance Sheet data loaded.</div>';return;
   }
-
-  // Classify into BS sections using:
-  // 1. bsSections user overrides (set in mapping tab BS Section column)
-  // 2. Sector BS structure lookup
-  // 3. Keyword fallback
-  const currentAssetCats={}, noncurrentAssetCats={}, currentLiabCats={}, noncurrentLiabCats={}, equityCats={};
-
-  const sectorBS=selectedSector&&SECTORS[selectedSector]?SECTORS[selectedSector].bs:null;
-  const sectorBSCatSection={};
-  if(sectorBS){
-    (sectorBS.current_assets||[]).forEach(function(i){sectorBSCatSection[i]='Current Assets';});
-    (sectorBS.noncurrent_assets||[]).forEach(function(i){sectorBSCatSection[i]='Non-Current Assets';});
-    (sectorBS.current_liabilities||[]).forEach(function(i){sectorBSCatSection[i]='Current Liabilities';});
-    (sectorBS.noncurrent_liabilities||[]).forEach(function(i){sectorBSCatSection[i]='Non-Current Liabilities';});
-    (sectorBS.equity||[]).forEach(function(i){sectorBSCatSection[i]='Equity';});
-  }
-
-  // Build: category → BS section from user bsSections overrides
-  const catBSOverride={};
-  Object.keys(bsSections).forEach(function(accId){
-    var sec=bsSections[accId];
-    var cat=mappings[accId];
-    if(sec&&cat&&!catBSOverride[cat]) catBSOverride[cat]=sec;
-  });
-  // Current Year Earnings always goes to Equity
-  catBSOverride['Current Year Earnings']='Equity';
-
-  Object.keys(catTotals).forEach(function(cat){
-    var total=catTotals[cat];
-    var sec=catBSOverride[cat]||sectorBSCatSection[cat];
-    if(!sec){
-      // keyword fallback
-      if(/equity|capital|retained|reserve|paid.in/i.test(cat)) sec='Equity';
-      else if(/long.term.*liab|non.current.*liab|term.*loan|non.current.*debt/i.test(cat)) sec='Non-Current Liabilities';
-      else if(/liabilit|payable|accrued|deferred.*rev|short.term.*loan|line.*credit/i.test(cat)) sec='Current Liabilities';
-      else if(/property|equipment|intangible|goodwill|depreciation|amortization|right.of.use|non.current.*asset|long.term.*asset/i.test(cat)) sec='Non-Current Assets';
-      else sec='Current Assets'; // default assets
-    }
-    if(sec==='Equity') equityCats[cat]=total;
-    else if(sec==='Non-Current Liabilities') noncurrentLiabCats[cat]=total;
-    else if(sec==='Current Liabilities') currentLiabCats[cat]=total;
-    else if(sec==='Non-Current Assets') noncurrentAssetCats[cat]=total;
-    else currentAssetCats[cat]=total;
-  });
-
-  var totalCurrAssets=0, totalNonCurrAssets=0, totalCurrLiab=0, totalNonCurrLiab=0, totalEquityAmt=0;
-  var html='<table><thead><tr><th>Standard COA Category</th><th>Xero Accounts</th><th style="text-align:right">Amount</th></tr></thead><tbody>';
-
-  function renderBSSec(title,cats){
-    if(!Object.keys(cats).length) return 0;
-    var secTotal=0;
-    html+='<tr class="section-row"><td colspan="3" style="padding:8px 14px">'+title+'</td></tr>';
-    Object.keys(cats).sort(function(a,b){return Math.abs(cats[b])-Math.abs(cats[a]);}).forEach(function(cat){
-      var total=cats[cat]; secTotal+=total;
-      var names=(catItems[cat]||[]).map(function(i){return i.name;}).join(', ');
-      html+='<tr><td style="padding-left:20px"><strong>'+cat+'</strong></td>'
-        +'<td style="font-size:11px;color:var(--muted)">'+names+'</td>'
-        +'<td class="amount '+(total>=0?'pos':'neg')+'">'+fmtMoney(total)+'</td></tr>';
-    });
-    html+='<tr class="subtotal-row"><td style="padding-left:14px" colspan="2"><strong>Total '+title+'</strong></td>'
-      +'<td class="amount"><strong>'+fmtMoney(secTotal)+'</strong></td></tr>';
-    return secTotal;
-  }
-
-  totalCurrAssets=renderBSSec('CURRENT ASSETS',currentAssetCats);
-  totalNonCurrAssets=renderBSSec('NON-CURRENT ASSETS',noncurrentAssetCats);
-  var totalAssets=totalCurrAssets+totalNonCurrAssets;
-  if(Object.keys(currentAssetCats).length||Object.keys(noncurrentAssetCats).length){
-    html+='<tr class="total-row"><td colspan="2" style="padding:8px 14px;"><strong>TOTAL ASSETS</strong></td>'
-      +'<td class="amount pos"><strong>'+fmtMoney(totalAssets)+'</strong></td></tr>';
-  }
-
-  totalCurrLiab=renderBSSec('CURRENT LIABILITIES',currentLiabCats);
-  totalNonCurrLiab=renderBSSec('NON-CURRENT LIABILITIES',noncurrentLiabCats);
-  var totalLiab=totalCurrLiab+totalNonCurrLiab;
-  if(Object.keys(currentLiabCats).length||Object.keys(noncurrentLiabCats).length){
-    html+='<tr class="subtotal-row"><td colspan="2" style="padding:6px 14px 6px 20px;"><strong>Total Liabilities</strong></td>'
-      +'<td class="amount"><strong>'+fmtMoney(totalLiab)+'</strong></td></tr>';
-  }
-
-  totalEquityAmt=renderBSSec('EQUITY',equityCats);
-
-  // Unmapped items — always shown with totals
-  var unmappedTotal=0;
-  if(unmappedItems.length){
-    html+='<tr class="unmapped-section-row"><td colspan="3" style="padding:8px 14px">⚠ UNMAPPED ITEMS</td></tr>';
-    unmappedItems.forEach(function(item){
-      unmappedTotal+=item.amt;
-      html+='<tr style="background:#fffbeb;"><td style="padding-left:20px;color:#92400e;">'+item.name+'</td>'
-        +'<td style="font-size:11px;color:#92400e;">'+item.section+'</td>'
-        +'<td class="amount" style="color:#92400e;">'+fmtMoney(item.amt)+'</td></tr>';
-    });
-    html+='<tr style="background:#fef3c7;font-weight:600;"><td style="padding-left:14px;color:#92400e;" colspan="2">Total Unmapped Items</td>'
-      +'<td class="amount" style="font-weight:700;color:#92400e;">'+fmtMoney(unmappedTotal)+'</td></tr>';
-  }
-
-  var totalLiabEquity=totalLiab+totalEquityAmt;
-  var diff=totalAssets-totalLiabEquity;
-  html+='<tr class="total-row"><td colspan="2"><strong>TOTAL LIABILITIES + EQUITY</strong></td>'
-    +'<td class="amount pos"><strong>'+fmtMoney(totalLiabEquity)+'</strong></td></tr>';
-
-  // Balance check — only meaningful when mapping is complete
-  var balCheckBg=unmappedItems.length>0?'#fffbeb':(Math.abs(diff)<1?'var(--green-light)':'var(--danger-light)');
-  var balCheckColor=unmappedItems.length>0?'#92400e':(Math.abs(diff)<1?'#065f46':'#991b1b');
-  var balCheckMsg=unmappedItems.length>0
-    ?'⚠️ '+unmappedItems.length+' unmapped items ('+fmtMoney(unmappedTotal)+') excluded from totals — assign BS sections to balance'
-    :(Math.abs(diff)<1?'✓ Balance sheet balances':'⚠️ Out of balance — check BS section assignments');
-  html+='<tr style="background:'+balCheckBg+';">'
-    +'<td colspan="2" style="font-size:12px;padding:10px 16px;font-weight:600;color:'+balCheckColor+'">'+balCheckMsg+'</td>'
-    +'<td class="amount" style="font-weight:700;color:'+balCheckColor+';">'+(unmappedItems.length>0?'':fmtMoney(Math.abs(diff)))+'</td>'
-    +'</tr>';
-  html+='</tbody></table>';
-
-  // Summary banner
-  var mappedCountBS=Object.keys(catTotals).length;
-  var unmappedCountBS=unmappedItems.length;
-  var totalBS=mappedCountBS+unmappedCountBS;
-  var bsBannerColor=unmappedCountBS===0?'var(--green-light)':'#fffbeb';
-  var bsBannerBorder=unmappedCountBS===0?'#a7f3d0':'#fde68a';
-  var bsBannerText=unmappedCountBS===0?'✓ All accounts mapped':'⚠️ '+unmappedCountBS+' of '+totalBS+' accounts not yet mapped — shown at the bottom. Go to COA Mapping to assign BS sections.';
-  var bsBannerColor2=unmappedCountBS===0?'#065f46':'#92400e';
-  var bsBanner='<div style="background:'+bsBannerColor+';border:1px solid '+bsBannerBorder+';border-radius:8px;padding:10px 14px;margin:14px 16px;font-size:12px;color:'+bsBannerColor2+';font-weight:500;">'+bsBannerText+'</div>';
 
   // ── Time-series view ──────────────────────────────────────────────────────
   if(rbsView==='timeseries'&&Object.keys(csvMultiMonthBS).length>0){
-    el.innerHTML=buildRawTimeSeries(csvMultiMonthBS,'bs');
+    el.innerHTML=buildRestatedBSTimeSeries();
     return;
   }
 
-  el.innerHTML=bsBanner+html;
+  // ── Single-period view: show mapped COA accounts as at latest month ───────
+  // Build from csvMultiMonthBS using col C (acc.coa) as the account name
+  var entries=Object.entries(csvMultiMonthBS);
+  if(!entries.length){
+    el.innerHTML='<div class="warn-box" style="margin:16px;">⚠️ No Balance Sheet CSV data loaded.</div>';return;
+  }
+
+  // Get latest month
+  var allMonths=[];
+  entries.forEach(function(pair){ Object.keys(pair[1].months||{}).forEach(function(m){ if(allMonths.indexOf(m)===-1) allMonths.push(m); }); });
+  allMonths.sort();
+  var latestM=allMonths[allMonths.length-1]||'';
+  var fmtLatest=latestM?(new Date(latestM+'-01').toLocaleDateString('en-SG',{month:'short',year:'numeric'})):'Latest';
+
+  // Section structure matching the image
+  var sectorBS=selectedSector&&SECTORS[selectedSector]?SECTORS[selectedSector].bs:null;
+
+  // Map: COA name → { section, balance }
+  // Use acc.coa (col C) as the display name; group by acc.type or keyword fallback
+  function getSec(acc){
+    var t=(acc.type||'').toLowerCase();
+    if(t==='bank') return 'Current Assets'; // bank is part of Current Assets in image
+    if(/current asset/i.test(t)&&!/non.current/i.test(t)) return 'Current Assets';
+    if(/non.current asset/i.test(t)) return 'Non-Current Assets';
+    if(/current liabilit/i.test(t)&&!/non.current/i.test(t)) return 'Current Liabilities';
+    if(/non.current liabilit/i.test(t)) return 'Non-Current Liabilities';
+    if(/equity/i.test(t)) return "Shareholders' Equity";
+    // keyword fallback on COA name
+    var c=(acc.coa||'').toLowerCase();
+    if(/cash|bank|receivable|prepaid|inventory|deposit/i.test(c)&&!/non.current/i.test(c)) return 'Current Assets';
+    if(/property|equipment|intangible|software|right.of.use/i.test(c)) return 'Non-Current Assets';
+    if(/payable|accrued|deferred|tax payable|short.term/i.test(c)&&!/non.current/i.test(c)) return 'Current Liabilities';
+    if(/long.term|convertible|safe note|lease.*non/i.test(c)) return 'Non-Current Liabilities';
+    if(/stock|capital|retained|earning|apic|treasury|comprehensive/i.test(c)) return "Shareholders' Equity";
+    return 'Current Assets';
+  }
+
+  // Sector-ordered COA list for display order
+  var sectorOrder=[];
+  if(sectorBS){
+    ['current_assets','noncurrent_assets','current_liabilities','noncurrent_liabilities','equity'].forEach(function(k){
+      (sectorBS[k]||[]).forEach(function(name){ sectorOrder.push(name); });
+    });
+  }
+
+  // Build section buckets using COA name (col C) as key
+  var sections={'Current Assets':[],'Non-Current Assets':[],'Current Liabilities':[],'Non-Current Liabilities':[],"Shareholders' Equity":[]};
+  // Track by COA name to avoid duplicates (sum if same COA maps multiple raw accounts)
+  var coaTotals={}, coaSection={};
+  entries.forEach(function(pair){
+    var rawName=pair[0], acc=pair[1];
+    var coaName=acc.coa||rawName;
+    var bal=acc.months[latestM]||0;
+    coaTotals[coaName]=(coaTotals[coaName]||0)+bal;
+    coaSection[coaName]=getSec(acc);
+  });
+
+  Object.keys(coaTotals).forEach(function(coaName){
+    var sec=coaSection[coaName];
+    if(sections[sec]) sections[sec].push({name:coaName, bal:coaTotals[coaName]});
+  });
+
+  // Sort each section by sector order, then alphabetically
+  Object.keys(sections).forEach(function(sec){
+    sections[sec].sort(function(a,b){
+      var ia=sectorOrder.indexOf(a.name), ib=sectorOrder.indexOf(b.name);
+      if(ia===-1&&ib===-1) return a.name.localeCompare(b.name);
+      if(ia===-1) return 1; if(ib===-1) return -1;
+      return ia-ib;
+    });
+  });
+
+  // Styles matching the image
+  var thStyle='padding:10px 16px;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px solid var(--border);background:var(--bg);';
+  var secHdrStyle='padding:8px 16px;font-size:12px;font-weight:600;color:var(--accent);background:var(--accent-light);border-bottom:1px solid var(--border);';
+  var rowStyle='padding:8px 16px 8px 24px;font-size:13px;border-bottom:1px solid var(--border);';
+  var totalStyle='padding:8px 16px;font-size:13px;font-weight:700;background:var(--bg);border-top:1px solid var(--border);border-bottom:2px solid var(--border);';
+  var grandTotalStyle='padding:10px 16px;font-size:13px;font-weight:700;background:#1e3a5f;color:white;';
+
+  var html='<table style="width:100%;border-collapse:collapse;">'
+    +'<thead><tr>'
+    +'<th style="'+thStyle+'text-align:left;min-width:260px;">Line Item</th>'
+    +'<th style="'+thStyle+'text-align:right;">'+fmtLatest+'</th>'
+    +'</tr></thead><tbody>';
+
+  var totalCurrAssets=0, totalNonCurrAssets=0, totalCurrLiab=0, totalNonCurrLiab=0, totalEquity=0;
+
+  function renderSection(label, items, accumVar){
+    if(!items.length) return 0;
+    var tot=0;
+    html+='<tr><td colspan="2" style="'+secHdrStyle+'">'+label+'</td></tr>';
+    items.forEach(function(item){
+      if(item.bal===0) return; // skip zero-balance accounts
+      tot+=item.bal;
+      html+='<tr style="border-bottom:1px solid var(--border);">'
+        +'<td style="'+rowStyle+'">'+escHtml(item.name)+'</td>'
+        +'<td style="padding:8px 16px;text-align:right;font-family:var(--mono);font-size:13px;color:'+(item.bal<0?'var(--danger)':'var(--text)')+';">'+fmtMoney(item.bal)+'</td>'
+        +'</tr>';
+    });
+    return tot;
+  }
+
+  // ASSETS
+  html+='<tr><td colspan="2" style="padding:8px 16px;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.7px;color:var(--text);background:var(--bg);border-bottom:1px solid var(--border);">ASSETS</td></tr>';
+  totalCurrAssets=renderSection('Current Assets',sections['Current Assets']);
+  html+='<tr><td style="'+totalStyle+'">TOTAL CURRENT ASSETS</td><td style="'+totalStyle+'text-align:right;font-family:var(--mono);">'+fmtMoney(totalCurrAssets)+'</td></tr>';
+  totalNonCurrAssets=renderSection('Non-Current Assets',sections['Non-Current Assets']);
+  if(sections['Non-Current Assets'].length)
+    html+='<tr><td style="'+totalStyle+'">TOTAL NON-CURRENT ASSETS</td><td style="'+totalStyle+'text-align:right;font-family:var(--mono);">'+fmtMoney(totalNonCurrAssets)+'</td></tr>';
+  var totalAssets=totalCurrAssets+totalNonCurrAssets;
+  html+='<tr><td style="'+grandTotalStyle+'">TOTAL ASSETS</td><td style="'+grandTotalStyle+'text-align:right;font-family:var(--mono);">'+fmtMoney(totalAssets)+'</td></tr>';
+  html+='<tr><td colspan="2" style="padding:4px 0;border-bottom:1px solid var(--border);"></td></tr>';
+
+  // LIABILITIES
+  html+='<tr><td colspan="2" style="padding:8px 16px;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.7px;color:var(--text);background:var(--bg);border-bottom:1px solid var(--border);">LIABILITIES</td></tr>';
+  totalCurrLiab=renderSection('Current Liabilities',sections['Current Liabilities']);
+  html+='<tr><td style="'+totalStyle+'">TOTAL CURRENT LIABILITIES</td><td style="'+totalStyle+'text-align:right;font-family:var(--mono);">'+fmtMoney(totalCurrLiab)+'</td></tr>';
+  totalNonCurrLiab=renderSection('Non-Current Liabilities',sections['Non-Current Liabilities']);
+  if(sections['Non-Current Liabilities'].length)
+    html+='<tr><td style="'+totalStyle+'">TOTAL NON-CURRENT LIABILITIES</td><td style="'+totalStyle+'text-align:right;font-family:var(--mono);">'+fmtMoney(totalNonCurrLiab)+'</td></tr>';
+  var totalLiab=totalCurrLiab+totalNonCurrLiab;
+  html+='<tr><td style="padding:8px 16px;font-size:13px;font-weight:700;background:var(--bg);border-top:2px solid var(--border);">TOTAL LIABILITIES</td><td style="padding:8px 16px;text-align:right;font-family:var(--mono);font-size:13px;font-weight:700;background:var(--bg);">'+fmtMoney(totalLiab)+'</td></tr>';
+  html+='<tr><td colspan="2" style="padding:4px 0;border-bottom:1px solid var(--border);"></td></tr>';
+
+  // EQUITY
+  html+='<tr><td colspan="2" style="padding:8px 16px;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.7px;color:var(--text);background:var(--bg);border-bottom:1px solid var(--border);">SHAREHOLDERS\' EQUITY</td></tr>';
+  totalEquity=renderSection("Shareholders' Equity",sections["Shareholders' Equity"]);
+  html+='<tr><td style="'+totalStyle+'">TOTAL SHAREHOLDERS\' EQUITY</td><td style="'+totalStyle+'text-align:right;font-family:var(--mono);">'+fmtMoney(totalEquity)+'</td></tr>';
+
+  var totalLiabEq=totalLiab+totalEquity;
+  var diff=totalAssets-totalLiabEq;
+  html+='<tr><td style="'+grandTotalStyle+'">TOTAL LIABILITIES &amp; SHAREHOLDERS&#39; EQUITY</td><td style="'+grandTotalStyle+'text-align:right;font-family:var(--mono);">'+fmtMoney(totalLiabEq)+'</td></tr>';
+  html+='<tr style="background:'+(Math.abs(diff)<1?'var(--green-light)':'var(--danger-light)')+'">'
+    +'<td colspan="2" style="padding:7px 16px;font-size:11px;color:'+(Math.abs(diff)<1?'#065f46':'#991b1b')+';">'
+    +(Math.abs(diff)<1?'✓ Balance sheet balances':'⚠ Out of balance by '+fmtMoney(Math.abs(diff)))+'</td></tr>';
+  html+='</tbody></table>';
+  el.innerHTML=html;
 }
 
-// ── Cash Flow (Indirect Method) ──────────────────────────────────────────────
+// Multi-month restated BS: COA names × months
+function buildRestatedBSTimeSeries(){
+  var entries=Object.entries(csvMultiMonthBS);
+  if(!entries.length) return '<p style="padding:16px;color:var(--muted);">No data.</p>';
+  var allMonths=[];
+  entries.forEach(function(pair){ Object.keys(pair[1].months||{}).forEach(function(m){ if(allMonths.indexOf(m)===-1) allMonths.push(m); }); });
+  allMonths.sort();
+  var fmtM=function(m){ return new Date(m+'-01').toLocaleDateString('en-SG',{month:'short',year:'2-digit'}); };
+
+  // Build COA-level totals per month
+  var coaMonths={}, coaSec={};
+  entries.forEach(function(pair){
+    var rawName=pair[0], acc=pair[1];
+    var coaName=acc.coa||rawName;
+    if(!coaMonths[coaName]) coaMonths[coaName]={};
+    allMonths.forEach(function(m){ coaMonths[coaName][m]=(coaMonths[coaName][m]||0)+(acc.months[m]||0); });
+    // Section classification
+    var t=(acc.type||'').toLowerCase();
+    if(t==='bank'||(/current asset/i.test(t)&&!/non.current/i.test(t))) coaSec[coaName]='Current Assets';
+    else if(/non.current asset/i.test(t)) coaSec[coaName]='Non-Current Assets';
+    else if(/current liabilit/i.test(t)&&!/non.current/i.test(t)) coaSec[coaName]='Current Liabilities';
+    else if(/non.current liabilit/i.test(t)) coaSec[coaName]='Non-Current Liabilities';
+    else if(/equity/i.test(t)) coaSec[coaName]="Shareholders' Equity";
+    else coaSec[coaName]='Current Assets';
+  });
+
+  var sectionOrder2=['Current Assets','Non-Current Assets','Current Liabilities','Non-Current Liabilities',"Shareholders' Equity"];
+  var groups2={};
+  sectionOrder2.forEach(function(s){ groups2[s]=[]; });
+  Object.keys(coaMonths).forEach(function(name){ (groups2[coaSec[name]]||[]).push(name); });
+
+  var thS='padding:9px 10px;text-align:right;background:var(--bg);font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;border-bottom:1px solid var(--border);white-space:nowrap;min-width:90px;';
+  var html='<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;">'
+    +'<thead><tr><th style="padding:9px 16px;text-align:left;background:var(--bg);font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;border-bottom:1px solid var(--border);min-width:200px;position:sticky;left:0;">Account</th>';
+  allMonths.forEach(function(m){ html+='<th style="'+thS+'">'+fmtM(m)+'</th>'; });
+  html+='</tr></thead><tbody>';
+
+  sectionOrder2.forEach(function(sec){
+    var names=groups2[sec];
+    if(!names||!names.length) return;
+    html+='<tr style="background:var(--accent-light);"><td colspan="'+(allMonths.length+1)+'" style="padding:7px 16px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--accent);">'+sec+'</td></tr>';
+    names.forEach(function(name){
+      var hasVal=allMonths.some(function(m){ return (coaMonths[name][m]||0)!==0; });
+      if(!hasVal) return;
+      html+='<tr style="border-bottom:1px solid var(--border);"><td style="padding:8px 16px 8px 28px;font-size:13px;position:sticky;left:0;background:white;">'+escHtml(name)+'</td>';
+      allMonths.forEach(function(m){
+        var v=coaMonths[name][m]||0;
+        html+='<td style="padding:8px 10px;text-align:right;font-family:var(--mono);font-size:12px;color:'+(v<0?'var(--danger)':'var(--text)')+';">'+(v!==0?fmtMoney(v):'—')+'</td>';
+      });
+      html+='</tr>';
+    });
+    // Section subtotal
+    html+='<tr style="background:var(--bg);font-weight:700;"><td style="padding:8px 16px;font-size:12px;font-weight:700;position:sticky;left:0;background:var(--bg);">Total '+sec+'</td>';
+    allMonths.forEach(function(m){
+      var tot=names.reduce(function(s,n){ return s+(coaMonths[n][m]||0); },0);
+      html+='<td style="padding:8px 10px;text-align:right;font-family:var(--mono);font-size:12px;font-weight:700;color:'+(tot<0?'var(--danger)':'var(--accent)')+';">'+(tot!==0?fmtMoney(tot):'—')+'</td>';
+    });
+    html+='</tr>';
+  });
+  html+='</tbody></table></div>';
+  return html;
+}
+
 // ── Prior Period BS loaders ───────────────────────────────────────────────────
 function loadPriorBS(){
   const text=document.getElementById('priorBsInput').value.trim();
@@ -3688,24 +3741,34 @@ function renderCashFlow(){
   var allMonths=[];
   bsData.forEach(function(pair){ Object.keys(pair[1].months||{}).forEach(function(m){ if(allMonths.indexOf(m)===-1) allMonths.push(m); }); });
   allMonths.sort();
-  var cfMonths=allMonths.slice(-5); // last 5 months
+  var cfMonths=allMonths.length>=5?allMonths.slice(-5):allMonths.slice(); // last 5 months (or all if fewer)
+  if(!cfMonths.length){
+    cfEl.innerHTML='<div style="margin:16px;padding:12px;background:var(--amber-light);border-radius:8px;color:#92400e;font-size:13px;">⚠ No monthly data found in Balance Sheet template. Ensure your BS CSV has month columns filled in.</div>';
+    return;
+  }
 
   var fmtM=function(m){ return new Date(m+'-01').toLocaleDateString('en-SG',{month:'short',year:'2-digit'}); };
 
   // ── BS account classification ─────────────────────────────────────────────────
   function getTag(name, acc){
-    var t=(acc.coa||acc.type||'').toLowerCase();
+    // Check acc.type first (exact values from BS template col B)
+    var tp=acc.type||'';
+    if(tp==='Bank') return 'CASH';
+    if(tp==='Current Assets') return 'CA';
+    if(tp==='Non-Current Assets') return 'NCA';
+    if(tp==='Current Liabilities') return 'CL';
+    if(tp==='Non-Current Liabilities') return 'NCL';
+    if(tp==='Equity') return 'EQ';
+    // Then check COA name (col C) and account name
+    var t=(acc.coa||'').toLowerCase();
     var n=name.toLowerCase();
-    if(/cash|bank/i.test(t)||/cash|bank/i.test(n)) return 'CASH';
+    if(/^cash|^bank/i.test(t)||tp.toLowerCase()==='bank') return 'CASH';
+    if(/cash.*operating|cash.*payroll|cash.*investment|petty cash/i.test(t)) return 'CASH';
     if(/current asset/i.test(t)&&!/non.current/i.test(t)) return 'CA';
     if(/non.current asset/i.test(t)) return 'NCA';
     if(/current liabilit/i.test(t)&&!/non.current/i.test(t)) return 'CL';
     if(/non.current liabilit/i.test(t)) return 'NCL';
-    if(/equity/i.test(t)) return 'EQ';
-    if(acc.type==='Bank') return 'CASH';
-    if(acc.type==='Current Assets') return 'CA';
-    if(acc.type==='Current Liabilities') return 'CL';
-    if(acc.type==='Equity') return 'EQ';
+    if(/equity|capital|retained|apic|stock/i.test(t)) return 'EQ';
     return 'OTHER';
   }
 
