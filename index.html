@@ -3251,17 +3251,18 @@ function renderRestatedPL(){
         if(cat.toLowerCase().startsWith('less:'))discounts+=Math.abs(v);
         else rev+=v;
       });
-      (sectorPL.cogs||[]).forEach(function(cat){cogs+=Math.abs(ct[cat]||0);});
+      // Use raw signed values: positive expense = cost, negative = reversal/credit
+      (sectorPL.cogs||[]).forEach(function(cat){ cogs+=(ct[cat]||0); });
       if(sectorPL.opex){
         Object.keys(sectorPL.opex).forEach(function(grp){
           opexGrps[grp]=0;
           (sectorPL.opex[grp]||[]).forEach(function(cat){
-            var v=Math.abs(ct[cat]||0);
-            opexGrps[grp]+=v;opex+=v;
+            var v=ct[cat]||0;
+            opexGrps[grp]+=v; opex+=v;
           });
         });
       }
-      (sectorPL.other||[]).forEach(function(cat){other+=Math.abs(ct[cat]||0);});
+      (sectorPL.other||[]).forEach(function(cat){ other+=(ct[cat]||0); });
     } else {
       Object.keys(ct).forEach(function(cat){
         var v=ct[cat];
@@ -3269,6 +3270,7 @@ function renderRestatedPL(){
       });
     }
     var netRev=rev-discounts;
+    // cogs, opex, other are now signed (positive=cost, negative=credit/reversal)
     var gp=netRev-cogs;
     ebitda=gp-opex;
     net=ebitda-other;
@@ -3394,10 +3396,11 @@ function renderRestatedPL(){
         +'<td style="padding:8px 16px 8px 28px;font-size:13px;">'+row.label+'</td>';
       colData.forEach(function(col){
         var v=col.ct[row.label]||0;
-        var isNeg=catToSection[row.label]==='cogs'||catToSection[row.label]==='opex'||catToSection[row.label]==='other';
-        // Show expenses as positive (absolute) so subtotals deduct correctly
-        var display=isNeg?Math.abs(v):v;
-        html+='<td style="padding:8px 12px;text-align:right;font-family:var(--mono);font-size:12px;color:'+(v<0?'var(--danger)':v===0?'var(--muted)':'var(--accent)')+';">'+(v===0?'—':fmtMoney(display))+'</td>';
+        var isExpense=catToSection[row.label]==='cogs'||catToSection[row.label]==='opex'||catToSection[row.label]==='other';
+        // For expense rows: positive value = cost (show as-is), negative = credit/reversal (show with − prefix in red)
+        var display=v;
+        var color=v===0?'var(--muted)':isExpense&&v<0?'var(--danger)':isExpense&&v>0?'var(--text)':'var(--accent)';
+        html+='<td style="padding:8px 12px;text-align:right;font-family:var(--mono);font-size:12px;color:'+color+';">'+(v===0?'—':fmtMoney(display))+'</td>';
       });
       html+='</tr>';
     });
@@ -3628,9 +3631,14 @@ function buildRestatedBSTimeSeries(){
   allMonths.forEach(function(m){ html+='<th style="'+thS+'">'+fmtM(m)+'</th>'; });
   html+='</tr></thead><tbody>';
 
+  // Track per-section monthly totals for summary rows
+  var secMonthTotals={}; // section → month → total
+  sectionOrder2.forEach(function(sec){ secMonthTotals[sec]={}; });
+
   sectionOrder2.forEach(function(sec){
     var names=groups2[sec];
     if(!names||!names.length) return;
+    // Section header
     html+='<tr style="background:var(--accent-light);"><td colspan="'+(allMonths.length+1)+'" style="padding:7px 16px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--accent);">'+sec+'</td></tr>';
     names.forEach(function(name){
       var hasVal=allMonths.some(function(m){ return (coaMonths[name][m]||0)!==0; });
@@ -3642,14 +3650,36 @@ function buildRestatedBSTimeSeries(){
       });
       html+='</tr>';
     });
-    // Section subtotal
+    // Section subtotal — also accumulate into secMonthTotals
     html+='<tr style="background:var(--bg);font-weight:700;"><td style="padding:8px 16px;font-size:12px;font-weight:700;position:sticky;left:0;background:var(--bg);">Total '+sec+'</td>';
     allMonths.forEach(function(m){
       var tot=names.reduce(function(s,n){ return s+(coaMonths[n][m]||0); },0);
+      secMonthTotals[sec][m]=tot;
       html+='<td style="padding:8px 10px;text-align:right;font-family:var(--mono);font-size:12px;font-weight:700;color:'+(tot<0?'var(--danger)':'var(--accent)')+';">'+(tot!==0?fmtMoney(tot):'—')+'</td>';
     });
     html+='</tr>';
+
+    // Insert TOTAL ASSETS banner after Non-Current Assets
+    if(sec==='Non-Current Assets'){
+      html+='<tr style="background:#1e3a5f;font-weight:700;border-top:2px solid var(--border);"><td style="padding:10px 16px;font-size:13px;font-weight:700;color:white;position:sticky;left:0;background:#1e3a5f;">TOTAL ASSETS</td>';
+      allMonths.forEach(function(m){
+        var tot=(secMonthTotals['Current Assets'][m]||0)+(secMonthTotals['Non-Current Assets'][m]||0);
+        html+='<td style="padding:10px 10px;text-align:right;font-family:var(--mono);font-size:12px;font-weight:700;color:white;">'+fmtMoney(tot)+'</td>';
+      });
+      html+='</tr><tr><td colspan="'+(allMonths.length+1)+'" style="padding:3px 0;"></td></tr>';
+    }
   });
+
+  // TOTAL LIABILITIES & SHAREHOLDERS' EQUITY
+  html+='<tr style="background:#1e3a5f;font-weight:700;border-top:2px solid var(--border);"><td style="padding:10px 16px;font-size:13px;font-weight:700;color:white;position:sticky;left:0;background:#1e3a5f;">TOTAL LIABILITIES &amp; EQUITY</td>';
+  allMonths.forEach(function(m){
+    var tot=(secMonthTotals['Current Liabilities'][m]||0)
+           +(secMonthTotals['Non-Current Liabilities'][m]||0)
+           +(secMonthTotals["Shareholders' Equity"][m]||0);
+    html+='<td style="padding:10px 10px;text-align:right;font-family:var(--mono);font-size:12px;font-weight:700;color:white;">'+fmtMoney(tot)+'</td>';
+  });
+  html+='</tr>';
+
   html+='</tbody></table></div>';
   return html;
 }
@@ -4342,14 +4372,59 @@ function buildRawTimeSeries(multiMonthData, type){
     html+='</tr>';
   });
 
-  // Grand total row
-  html+='<tr style="background:#f0fdf4;font-weight:700;border-top:2px solid var(--border);">'
-    +'<td style="padding:10px 16px;font-size:13px;position:sticky;left:0;background:#f0fdf4;">TOTAL</td>';
-  allMonths.forEach(function(m){
-    var tot=Object.values(multiMonthData).reduce(function(s,acc){ return s+(acc.months[m]||0); },0);
-    html+='<td style="padding:10px 10px;text-align:right;font-family:var(--mono);font-size:12px;font-weight:700;white-space:nowrap;color:'+(tot<0?'var(--danger)':'var(--green)')+';">'+fmtMoney(tot)+'</td>';
-  });
-  html+='</tr></tbody></table></div>';
+
+  // Bottom summary rows — differ by type
+  if(type==='pl'){
+    // Track section subtotals per month for NET PROFIT formula
+    var sectionTotals={}; // grp → {month → subtotal}
+    allSections.forEach(function(grp){
+      if(!groups[grp]) return;
+      sectionTotals[grp]={};
+      allMonths.forEach(function(m){
+        sectionTotals[grp][m]=groups[grp].reduce(function(s,item){ return s+(item.months[m]||0); },0);
+      });
+    });
+    // NET PROFIT / (LOSS) = Revenue − |Cost of Sales| − |Expense|
+    var grandStyle='background:#1e3a5f;font-weight:700;border-top:2px solid var(--border);';
+    html+='<tr style="'+grandStyle+'">'
+      +'<td style="padding:10px 16px;font-size:13px;font-weight:700;color:white;position:sticky;left:0;background:#1e3a5f;">NET PROFIT / (LOSS)</td>';
+    allMonths.forEach(function(m){
+      var rev=(sectionTotals['Revenue']&&sectionTotals['Revenue'][m])||0;
+      var cos=Math.abs((sectionTotals['Cost of Sales']&&sectionTotals['Cost of Sales'][m])||0);
+      var exp=Math.abs((sectionTotals['Expense']&&sectionTotals['Expense'][m])||0);
+      var net=rev-cos-exp;
+      html+='<td style="padding:10px 10px;text-align:right;font-family:var(--mono);font-size:12px;font-weight:700;white-space:nowrap;color:'+(net<0?'#fca5a5':'#86efac')+';">'+fmtMoney(net)+'</td>';
+    });
+    html+='</tr>';
+  } else {
+    // BS: compute section subtotals, add TOTAL ASSETS and TOTAL LIAB & EQUITY rows
+    var assetGrps=['Bank','Current Assets','Non-Current Assets'];
+    var liabGrps=['Current Liabilities','Non-Current Liabilities'];
+    var eqGrps=['Equity'];
+    function bsMonthTotal(grpList, m){
+      return grpList.reduce(function(s,g){ return s+(groups[g]?(groups[g].reduce(function(s2,item){return s2+(item.months[m]||0);},0)):0); },0);
+    }
+    var grandStyle2='background:#1e3a5f;font-weight:700;border-top:2px solid var(--border);';
+    // TOTAL ASSETS
+    html+='<tr style="'+grandStyle2+'">'
+      +'<td style="padding:10px 16px;font-size:13px;font-weight:700;color:white;position:sticky;left:0;background:#1e3a5f;">TOTAL ASSETS</td>';
+    allMonths.forEach(function(m){
+      var v=bsMonthTotal(assetGrps,m);
+      html+='<td style="padding:10px 10px;text-align:right;font-family:var(--mono);font-size:12px;font-weight:700;white-space:nowrap;color:white;">'+fmtMoney(v)+'</td>';
+    });
+    html+='</tr>';
+    // TOTAL LIABILITIES & EQUITY
+    html+='<tr style="background:#2d5a8e;font-weight:700;">'
+      +'<td style="padding:10px 16px;font-size:13px;font-weight:700;color:white;position:sticky;left:0;background:#2d5a8e;">TOTAL LIABILITIES &amp; EQUITY</td>';
+    allMonths.forEach(function(m){
+      var v=bsMonthTotal(liabGrps,m)+bsMonthTotal(eqGrps,m);
+      html+='<td style="padding:10px 10px;text-align:right;font-family:var(--mono);font-size:12px;font-weight:700;white-space:nowrap;color:white;">'+fmtMoney(v)+'</td>';
+    });
+    html+='</tr>';
+  }
+  html+='</tbody></table></div>';
+  return html;
+}
   return html;
 }
 
