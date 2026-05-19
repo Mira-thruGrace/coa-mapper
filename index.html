@@ -254,14 +254,42 @@
     <div style="font-size:15px;font-weight:600;margin-bottom:16px;">Load your financial data</div>
     <div class="mode-toggle">
       <div class="mode-card active" id="modeXero" onclick="setMode('xero')">
-        <div class="mode-icon">🔗</div>
+        <div class="mode-icon" style="margin-bottom:6px;">
+          <svg width="36" height="36" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect width="40" height="40" rx="8" fill="#13B5EA"/>
+            <path d="M20 8C13.373 8 8 13.373 8 20s5.373 12 12 12 12-5.373 12-12S26.627 8 20 8zm-3.2 16.8l-2.4-3.2-2.4 3.2H9.6l4-5.333-3.867-5.067h2.4l2.267 3.067 2.267-3.067h2.4l-3.867 5.067L19.2 24.8h-2.4zm11.2 0h-2.133l-5.6-10.4h2.4l4.267 8 .133.267V24.8h.933z" fill="white"/>
+          </svg>
+        </div>
         <h3>Xero API</h3>
         <p>Connect directly to Xero for live data</p>
       </div>
+      <div class="mode-card" id="modeQBO" onclick="setMode('qbo')" style="opacity:0.7;">
+        <div class="mode-icon" style="margin-bottom:6px;">
+          <svg width="36" height="36" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect width="40" height="40" rx="8" fill="#2CA01C"/>
+            <circle cx="20" cy="20" r="10" fill="white"/>
+            <circle cx="20" cy="20" r="7" fill="#2CA01C"/>
+            <circle cx="23" cy="23" r="3" fill="white"/>
+            <text x="20" y="24" font-family="Arial" font-size="10" font-weight="bold" fill="#2CA01C" text-anchor="middle">QB</text>
+          </svg>
+        </div>
+        <h3>QuickBooks <span style="font-size:10px;background:#fef3c7;color:#92400e;padding:1px 5px;border-radius:4px;vertical-align:middle;">Soon</span></h3>
+        <p>QuickBooks Online integration — coming soon</p>
+      </div>
       <div class="mode-card" id="modeCSV" onclick="setMode('csv')">
-        <div class="mode-icon">📂</div>
+        <div class="mode-icon" style="margin-bottom:6px;">
+          <svg width="36" height="36" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect width="40" height="40" rx="8" fill="#4B5563"/>
+            <rect x="10" y="8" width="15" height="20" rx="2" fill="white"/>
+            <path d="M25 8l5 5h-5V8z" fill="#9CA3AF"/>
+            <rect x="13" y="14" width="9" height="1.5" rx="0.75" fill="#D1D5DB"/>
+            <rect x="13" y="17" width="9" height="1.5" rx="0.75" fill="#D1D5DB"/>
+            <rect x="13" y="20" width="6" height="1.5" rx="0.75" fill="#D1D5DB"/>
+            <text x="20" y="35" font-family="monospace" font-size="7" font-weight="bold" fill="white" text-anchor="middle">CSV</text>
+          </svg>
+        </div>
         <h3>CSV Upload</h3>
-        <p>Upload CSV files for P&L, Balance Sheet, and Metrics</p>
+        <p>Upload CSV files for P&L and Balance Sheet</p>
       </div>
     </div>
 
@@ -321,31 +349,41 @@
     <!-- CSV MODE -->
     <div id="csvMode" style="display:none;">
       <div id="csvUploadErrors" style="display:none;" class="error-box"></div>
-      <div style="display:grid;gap:16px;">
-        <div style="border:1px solid var(--border);border-radius:10px;padding:16px;">
-          <div style="font-weight:600;margin-bottom:4px;">📊 P&L CSV</div>
-          <div style="font-size:12px;color:var(--muted);margin-bottom:10px;">Required columns: <code>Account</code>, <code>Amount</code>. Optional: <code>Category</code>, <code>Type</code></div>
+      <div class="info-box" style="margin-bottom:14px;">
+        Upload your P&L and/or Balance Sheet as CSV files. Download the template first to see the expected format. Operating Metrics upload is optional.
+      </div>
+      <div style="display:grid;gap:14px;">
+        <div style="border:1.5px solid var(--border);border-radius:10px;padding:16px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+            <div style="font-weight:600;font-size:13px;">📊 P&L CSV <span style="color:var(--danger);font-size:11px;">Required</span></div>
+            <button class="btn btn-secondary btn-sm" onclick="downloadPLTemplate()">⬇ Download Template</button>
+          </div>
+          <div style="font-size:12px;color:var(--muted);margin-bottom:8px;">Columns: <code>Account</code>, <code>Amount</code>. Optional: <code>Category</code></div>
           <input type="file" id="plFileInput" accept=".csv" style="font-size:12px;">
           <div id="plCSVStatus" style="font-size:12px;margin-top:6px;"></div>
         </div>
-        <div style="border:1px solid var(--border);border-radius:10px;padding:16px;">
-          <div style="font-weight:600;margin-bottom:4px;">🏦 Balance Sheet CSV</div>
-          <div style="font-size:12px;color:var(--muted);margin-bottom:10px;">Required columns: <code>Account</code>, <code>Amount</code>. Optional: <code>Category</code></div>
+        <div style="border:1.5px solid var(--border);border-radius:10px;padding:16px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+            <div style="font-weight:600;font-size:13px;">🏦 Balance Sheet CSV <span style="color:var(--muted);font-size:11px;">Optional</span></div>
+            <button class="btn btn-secondary btn-sm" onclick="downloadBSTemplate()">⬇ Download Template</button>
+          </div>
+          <div style="font-size:12px;color:var(--muted);margin-bottom:8px;">Columns: <code>Account</code>, <code>Amount</code>. Optional: <code>Category</code></div>
           <input type="file" id="bsFileInput" accept=".csv" style="font-size:12px;">
           <div id="bsCSVStatus" style="font-size:12px;margin-top:6px;"></div>
         </div>
-        <div style="border:1px solid var(--border);border-radius:10px;padding:16px;">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
-            <div style="font-weight:600;">📈 Operating Metrics CSV</div>
+        <div style="border:1.5px solid var(--border);border-radius:10px;padding:16px;background:var(--bg);">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+            <div style="font-weight:600;font-size:13px;">📈 Operating Metrics CSV <span style="color:var(--muted);font-size:11px;">Optional</span></div>
             <button class="btn btn-secondary btn-sm" onclick="downloadMetricsTemplate()">⬇ Download Template</button>
           </div>
-          <div style="font-size:12px;color:var(--muted);margin-bottom:10px;">Upload metrics using the sector-specific template. Download the template first if you don't have it.</div>
+          <div style="font-size:12px;color:var(--muted);margin-bottom:8px;">Use the sector-specific template. You can skip this and enter metrics manually in the dashboard.</div>
           <input type="file" id="metricsFileInput" accept=".csv" style="font-size:12px;">
           <div id="metricsCSVStatus" style="font-size:12px;margin-top:6px;"></div>
         </div>
       </div>
-      <div style="margin-top:20px;">
+      <div style="margin-top:20px;display:flex;gap:10px;align-items:center;">
         <button class="btn btn-primary" onclick="launchFromCSV()">Load Dashboard →</button>
+        <span style="font-size:12px;color:var(--muted);">P&L is required; Balance Sheet and Metrics are optional</span>
       </div>
     </div>
   </div>
@@ -986,9 +1024,15 @@ function selectSector(key){
 
 // ── Mode toggle ─────────────────────────────────────────────────────────────
 function setMode(mode){
+  if(mode==='qbo'){
+    showMsg('QuickBooks Online integration is coming soon. Please use Xero API or CSV Upload for now.','warn');
+    return;
+  }
   dataMode=mode;
   document.getElementById('modeXero').classList.toggle('active',mode==='xero');
   document.getElementById('modeCSV').classList.toggle('active',mode==='csv');
+  var qboCard=document.getElementById('modeQBO');
+  if(qboCard) qboCard.classList.toggle('active',mode==='qbo');
   document.getElementById('xeroMode').style.display=mode==='xero'?'block':'none';
   document.getElementById('csvMode').style.display=mode==='csv'?'block':'none';
 }
@@ -1420,6 +1464,18 @@ function uploadMetricsCSV(input){
     document.getElementById('metricsCsvSource').textContent='Source: '+file.name;
     renderMetrics();
   }).catch(()=>{});
+}
+
+function downloadPLTemplate(){
+  var rows=['Account,Amount,Category','"Recurring Revenue - Monthly",85614.02,Revenue','"Recurring Revenue - Annual",2639.83,Revenue','"Revenue - Managed Services",560.00,Revenue','"Bank Fees",1.00,""','"Rent",120.96,""'];
+  dlCSV(rows.join('\n'),'pl_template.csv');
+  showMsg('P&L template downloaded.','success');
+}
+
+function downloadBSTemplate(){
+  var rows=['Account,Amount,Category','"Cash & Bank",50000.00,"Current Assets"','"Accounts Receivable",25000.00,"Current Assets"','"Prepaid Expenses",3000.00,"Current Assets"','"Property & Equipment",120000.00,"Non-Current Assets"','"Accumulated Depreciation",-20000.00,"Non-Current Assets"','"Accounts Payable",15000.00,"Current Liabilities"','"Accrued Expenses",5000.00,"Current Liabilities"','"Long-term Debt",80000.00,"Non-Current Liabilities"','"Share Capital",50000.00,"Equity"','"Retained Earnings",28000.00,"Equity"'];
+  dlCSV(rows.join('\n'),'bs_template.csv');
+  showMsg('Balance Sheet template downloaded.','success');
 }
 
 function downloadMetricsTemplate(){
@@ -3506,38 +3562,41 @@ function renderCashFlow(){
   const priorBS=hasPrior?extractBSAccounts(priorBsReports):{};
 
   // ── STEP 1: Net Profit & Depreciation from P&L ──────────────────────────────
+  // ── Net Profit: use the value already computed by renderPL (sumNet) ──────────
+  // This ensures cash flow always matches the P&L displayed on screen
   var netProfit=0, depreciation=0;
+  var sumNetEl=document.getElementById('sumNet');
+  if(sumNetEl&&sumNetEl.textContent&&sumNetEl.textContent!=='—'){
+    netProfit=parseFloat(sumNetEl.textContent.replace(/,/g,''))||0;
+  } else if(plReports.length&&plReports[0].Rows){
+    // Fallback: compute from raw P&L rows
+    var rev=0,exp=0;
+    plReports[0].Rows.forEach(function(section){
+      if(!section.Rows)return;
+      section.Rows.forEach(function(row){
+        if(row.RowType==='Row'&&row.Cells){
+          var nm=row.Cells[0]?.Value||'';
+          var amt=parseFloat(String(row.Cells[1]?.Value||'0').replace(/,/g,''))||0;
+          if(/depreciation|amortis/i.test(nm)) depreciation+=Math.abs(amt);
+          if(section.Title&&/income|revenue/i.test(section.Title)) rev+=amt;
+          if(section.Title&&/expense|cost|overhead|operating/i.test(section.Title)) exp+=Math.abs(amt);
+        }
+      });
+    });
+    netProfit=rev-exp;
+  }
+  // Depreciation from P&L rows (always needed for add-back)
   if(plReports.length&&plReports[0].Rows){
     plReports[0].Rows.forEach(function(section){
       if(!section.Rows)return;
       section.Rows.forEach(function(row){
         if(row.RowType==='Row'&&row.Cells){
-          const nm=row.Cells[0]?.Value||'';
-          const amt=parseFloat(String(row.Cells[1]?.Value||'0').replace(/,/g,''))||0;
+          var nm=row.Cells[0]?.Value||'';
+          var amt=parseFloat(String(row.Cells[1]?.Value||'0').replace(/,/g,''))||0;
           if(/depreciation|amortis/i.test(nm)) depreciation+=Math.abs(amt);
-        }
-        if(row.RowType==='SummaryRow'&&row.Cells){
-          const nm=(row.Cells[0]?.Value||'').toLowerCase();
-          const amt=parseFloat(String(row.Cells[1]?.Value||'0').replace(/,/g,''))||0;
-          if(/net profit|net loss|profit for|net income/i.test(nm)) netProfit=amt;
         }
       });
     });
-    if(netProfit===0){
-      var rev=0,exp=0;
-      plReports[0].Rows.forEach(function(section){
-        if(!section.Rows)return;
-        section.Rows.forEach(function(row){
-          if(row.RowType==='SummaryRow'&&row.Cells){
-            const nm=(row.Cells[0]?.Value||'').toLowerCase();
-            const amt=parseFloat(String(row.Cells[1]?.Value||'0').replace(/,/g,''))||0;
-            if(/total income|total revenue/i.test(nm)) rev=amt;
-            if(/total expense|total cost|total overhead/i.test(nm)) exp+=Math.abs(amt);
-          }
-        });
-      });
-      if(rev!==0) netProfit=rev-exp;
-    }
   }
 
   // ── STEP 2: Classify all BS accounts by Xero type ───────────────────────────
@@ -4053,6 +4112,112 @@ function exportSingleCSV(type){
     filename='restated_bs_'+date+'.csv';
   }
   if(csv)dlCSV(csv,filename);
+}
+
+function exportFullReport(){
+  // Build a styled multi-tab HTML report matching the Fin Projections template format
+  // Tabs: Restated P&L, Restated BS, Cash Flow, Operating Metrics
+  var company=document.getElementById('dashTitle').textContent||'Company';
+  var period=document.getElementById('dateFrom').value+' to '+document.getElementById('dateTo').value;
+  var currency=reportCurrency||'SGD';
+  var today=new Date().toLocaleDateString('en-SG',{year:'numeric',month:'short',day:'numeric'});
+
+  function tableStyles(){
+    return '<style>'
+      +'*{font-family:Inter,Arial,sans-serif;box-sizing:border-box;margin:0;padding:0;}'
+      +'body{background:#f4f5f7;padding:32px;font-size:13px;color:#111827;}'
+      +'.report-header{margin-bottom:28px;}'
+      +'.report-title{font-size:22px;font-weight:700;letter-spacing:-0.5px;margin-bottom:4px;}'
+      +'.report-sub{font-size:12px;color:#6b7280;}'
+      +'.tabs{display:flex;gap:0;border-bottom:2px solid #e5e7eb;margin-bottom:24px;}'
+      +'.tab-btn{padding:10px 20px;font-size:13px;font-weight:500;cursor:pointer;border:none;background:none;color:#6b7280;border-bottom:2px solid transparent;margin-bottom:-2px;}'
+      +'.tab-btn.active{color:#2563eb;border-bottom-color:#2563eb;font-weight:600;}'
+      +'.tab-content{display:none;}'
+      +'.tab-content.active{display:block;}'
+      +'.section-card{background:white;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;margin-bottom:20px;box-shadow:0 1px 3px rgba(0,0,0,0.06);}'
+      +'.card-header{padding:14px 20px;border-bottom:1px solid #e5e7eb;display:flex;justify-content:space-between;align-items:center;}'
+      +'.card-title{font-size:15px;font-weight:700;}'
+      +'.card-sub{font-size:11px;color:#6b7280;font-family:monospace;}'
+      +'table{width:100%;border-collapse:collapse;}'
+      +'thead th{background:#f9fafb;padding:9px 16px;text-align:left;font-size:11px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px solid #e5e7eb;}'
+      +'tbody tr{border-bottom:1px solid #f3f4f6;}'
+      +'tbody tr:hover{background:#fafafa;}'
+      +'tbody td{padding:10px 16px;font-size:13px;vertical-align:middle;}'
+      +'.section-row td{background:#f9fafb!important;font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:#6b7280;}'
+      +'.total-row td{background:#f0fdf4;font-weight:700;border-top:2px solid #e5e7eb;}'
+      +'.subtotal-row td{background:#f9fafb;font-weight:600;}'
+      +'.pos{color:#10b981;font-family:monospace;text-align:right;}'
+      +'.neg{color:#ef4444;font-family:monospace;text-align:right;}'
+      +'.amt{font-family:monospace;text-align:right;}'
+      +'.highlight-row td{background:#eff6ff;font-weight:700;}'
+      +'.ebitda-row td{background:#e0f2fe;font-weight:700;}'
+      +'</style>';
+  }
+
+  // Get rendered content from the tabs
+  var rplEl=document.getElementById('rplContent');
+  var rbsEl=document.getElementById('rbsContent');
+  var cfEl=document.getElementById('cfContent');
+
+  // Trigger renders if not yet done
+  renderRestatedPL();
+  renderRestatedBS();
+  renderCashFlow();
+
+  var rplHTML=document.getElementById('rplContent').innerHTML||'<p style="color:#6b7280;padding:16px;">No data — complete COA mapping first.</p>';
+  var rbsHTML=document.getElementById('rbsContent').innerHTML||'<p style="color:#6b7280;padding:16px;">No data — complete COA mapping first.</p>';
+  var cfHTML=document.getElementById('cfContent').innerHTML||'<p style="color:#6b7280;padding:16px;">No cash flow data.</p>';
+
+  // Build operating metrics table
+  var metricsHTML='<table><thead><tr><th>Metric</th><th style="text-align:right">Value</th><th>Unit</th></tr></thead><tbody>';
+  (userMetrics||[]).forEach(function(m){
+    var name=m.name||m.metric||'';
+    var val=m.value||'—';
+    var unit=m.unit||'';
+    metricsHTML+='<tr><td>'+name+'</td><td style="text-align:right;font-family:monospace;">'+val+'</td><td style="color:#6b7280;">'+unit+'</td></tr>';
+  });
+  metricsHTML+='</tbody></table>';
+
+  var html='<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>'+company+' — Financial Report</title>'
+    +tableStyles()
+    +'</head><body>'
+    +'<div class="report-header">'
+    +'<div class="report-title">'+company+'</div>'
+    +'<div class="report-sub">Financial Report · '+period+' · '+currency+' · Generated '+today+'</div>'
+    +'</div>'
+
+    +'<div class="tabs">'
+    +'<button class="tab-btn active" onclick="showTab(\"pl\",this)">Restated P&L</button>'
+    +'<button class="tab-btn" onclick="showTab(\"bs\",this)">Restated BS</button>'
+    +'<button class="tab-btn" onclick="showTab(\"cf\",this)">Cash Flow</button>'
+    +'<button class="tab-btn" onclick="showTab(\"metrics\",this)">Operating Metrics</button>'
+    +'</div>'
+
+    +'<div id="tab-pl" class="tab-content active">'
+    +'<div class="section-card"><div class="card-header"><span class="card-title">Restated Profit &amp; Loss</span><span class="card-sub">Period: '+period+' · '+currency+'</span></div>'
+    +rplHTML+'</div></div>'
+
+    +'<div id="tab-bs" class="tab-content">'
+    +'<div class="section-card"><div class="card-header"><span class="card-title">Restated Balance Sheet</span><span class="card-sub">As at: '+document.getElementById('dateTo').value+' · '+currency+'</span></div>'
+    +rbsHTML+'</div></div>'
+
+    +'<div id="tab-cf" class="tab-content">'
+    +'<div class="section-card"><div class="card-header"><span class="card-title">Cash Flow Statement</span><span class="card-sub">Indirect method · '+currency+'</span></div>'
+    +'<div style="padding:16px;">'+cfHTML+'</div></div></div>'
+
+    +'<div id="tab-metrics" class="tab-content">'
+    +'<div class="section-card"><div class="card-header"><span class="card-title">Operating Metrics</span><span class="card-sub">Period: '+period+'</span></div>'
+    +metricsHTML+'</div></div>'
+
+    +'<script>function showTab(id,btn){document.querySelectorAll(".tab-content").forEach(function(el){el.classList.remove("active");});document.querySelectorAll(".tab-btn").forEach(function(el){el.classList.remove("active");});document.getElementById("tab-"+id).classList.add("active");btn.classList.add("active");}<\/script>'
+    +'</body></html>';
+
+  var filename=company.replace(/[^a-zA-Z0-9]/g,'-')+'-Financial-Report-'+new Date().toISOString().split('T')[0]+'.html';
+  var a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([html],{type:'text/html'}));
+  a.download=filename;
+  a.click();
+  showMsg('✓ Full report exported as '+filename+' — open in any browser.','success');
 }
 
 function exportAllCSV(){
