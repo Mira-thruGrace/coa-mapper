@@ -371,8 +371,9 @@
       <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:18px 20px;margin-bottom:14px;">
         <div style="font-size:13px;font-weight:700;margin-bottom:4px;">Step 2 — Download &amp; fill the template</div>
         <div style="font-size:12px;color:var(--muted);margin-bottom:12px;">
-          Template columns: <strong>Account Name</strong> · <strong>Type</strong> · <strong>Standard COA Category</strong> · one column per month.<br>
-          Fill in amounts and map each account to a standard COA category.
+          Templates are pre-filled with all <strong>SaaS Standard COA accounts</strong> (P&L: accounts 4000–9900 · BS: accounts 1000–3600).<br>
+          Columns: <strong>Account Name</strong> · <strong>Account #</strong> · <strong>Standard COA Category</strong> · <strong>COA Sub-Type</strong> · one column per month.<br>
+          Fill in monthly amounts — add custom rows at the bottom for any additional accounts.
         </div>
         <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:8px;">
           <button class="btn btn-primary btn-sm" id="csvDownloadPL" onclick="downloadCombinedTemplate('pl')" disabled>⬇ P&amp;L Template</button>
@@ -384,7 +385,7 @@
       <!-- Step 3 -->
       <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:18px 20px;margin-bottom:16px;">
         <div style="font-size:13px;font-weight:700;margin-bottom:4px;">Step 3 — Upload completed template</div>
-        <div style="font-size:12px;color:var(--muted);margin-bottom:12px;">Upload your filled template. P&L is required; Balance Sheet is optional.</div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:12px;">Upload your filled templates. Both P&L and Balance Sheet are required.</div>
         <div style="display:grid;gap:12px;">
           <div style="border:1px solid var(--border);border-radius:var(--radius);padding:14px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
             <div>
@@ -396,7 +397,7 @@
           </div>
           <div style="border:1px solid var(--border);border-radius:var(--radius);padding:14px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
             <div>
-              <div style="font-weight:600;font-size:13px;">Balance Sheet Template <span style="color:var(--muted);font-size:11px;">Optional</span></div>
+              <div style="font-weight:600;font-size:13px;">Balance Sheet Template <span style="color:var(--danger);font-size:11px;">Required</span></div>
               <div id="bsCSVStatus" style="font-size:11px;color:var(--muted);margin-top:2px;">No file uploaded</div>
             </div>
             <button class="btn btn-secondary btn-sm" onclick="document.getElementById('bsFileInput').click()">⇧ Upload</button>
@@ -1443,7 +1444,8 @@ async function launchFromCSV(){
   const plFile=document.getElementById('plFileInput').files[0];
   const bsFile=document.getElementById('bsFileInput').files[0];
   // Operating Metrics removed
-  if(!plFile&&!bsFile){showMsg('Please upload at least one CSV file (P&L or Balance Sheet).','error');return;}
+  if(!plFile){showMsg('Please upload a P&L template (required).','error');return;}
+  if(!bsFile){showMsg('Please upload a Balance Sheet template (required).','error');return;}
   try{
     if(plFile){const rows=await parseCSVFile(plFile,'pl','plCSVStatus');if(rows.length)plReports=[{Rows:csvToRows(rows,'pl')}];}
     if(bsFile){const rows=await parseCSVFile(bsFile,'bs','bsCSVStatus');if(rows.length)bsReports=[{Rows:csvToRows(rows,'bs')}];}
@@ -2948,54 +2950,153 @@ function onCsvDateChange(){
   }
 }
 
+// SaaS Standard COA — P&L accounts (Account# | Name | Sub-Type)
+var SAAS_PL_COA=[
+  {acct:'4000',name:'Subscription Revenue - SaaS',type:'Recurring Revenue'},
+  {acct:'4200',name:'Professional Services Revenue',type:'Non-Recurring Revenue'},
+  {acct:'4500',name:'Hardware Revenue',type:'Non-Recurring Revenue'},
+  {acct:'4600',name:'Other Revenue',type:'Non-Recurring Revenue'},
+  {acct:'4800',name:'Sales Discounts - Subscription',type:'Contra-Revenue'},
+  {acct:'4810',name:'Sales Discounts - Services',type:'Contra-Revenue'},
+  {acct:'4900',name:'Sales Returns & Refunds',type:'Contra-Revenue'},
+  {acct:'5000',name:'Hosting & Infrastructure (AWS / Azure / GCP)',type:'COGS'},
+  {acct:'5010',name:'AI / LLM API Costs (OpenAI, Anthropic, etc.)',type:'COGS'},
+  {acct:'5100',name:'Salaries & Wages - COGS',type:'COGS'},
+  {acct:'5200',name:'Statutory Contributions & Benefits - COGS',type:'COGS'},
+  {acct:'5210',name:'Contractors & Outsourced Services - COGS',type:'COGS'},
+  {acct:'5300',name:'Software Tools & Subscriptions - COGS',type:'COGS'},
+  {acct:'5400',name:'Payment Processing Fees',type:'COGS'},
+  {acct:'5600',name:'Amortization - Capitalized Software',type:'COGS'},
+  {acct:'5900',name:'Hardware COGS',type:'COGS'},
+  {acct:'6000',name:'Salaries & Wages - R&D',type:'R&D'},
+  {acct:'6100',name:'Statutory Contributions & Benefits - R&D',type:'R&D'},
+  {acct:'6200',name:'Contractors & Consultants - R&D',type:'R&D'},
+  {acct:'6300',name:'Software Tools & Subscriptions - R&D',type:'R&D'},
+  {acct:'6310',name:'AI / LLM Internal Development Costs',type:'R&D'},
+  {acct:'6400',name:'R&D Equipment & Hardware',type:'R&D'},
+  {acct:'6500',name:'Travel & Expenses - R&D',type:'R&D'},
+  {acct:'6600',name:'Training & Development - R&D',type:'R&D'},
+  {acct:'7000',name:'Salaries & Wages - S&M',type:'S&M'},
+  {acct:'7010',name:'Sales Commissions & Bonuses',type:'S&M'},
+  {acct:'7100',name:'Statutory Contributions & Benefits - S&M',type:'S&M'},
+  {acct:'7200',name:'Contractors & Consultants - S&M',type:'S&M'},
+  {acct:'7300',name:'Digital Advertising & Paid Media',type:'S&M'},
+  {acct:'7310',name:'Content & SEO',type:'S&M'},
+  {acct:'7320',name:'Events, Conferences & Sponsorships',type:'S&M'},
+  {acct:'7400',name:'Software Tools & Subscriptions - S&M',type:'S&M'},
+  {acct:'7500',name:'Travel & Expenses - S&M',type:'S&M'},
+  {acct:'7600',name:'Training & Development - S&M',type:'S&M'},
+  {acct:'8000',name:'Salaries & Wages - G&A',type:'G&A'},
+  {acct:'8100',name:'Statutory Contributions & Benefits - G&A',type:'G&A'},
+  {acct:'8200',name:'Legal Fees (External)',type:'G&A'},
+  {acct:'8210',name:'Audit & Tax Advisory Fees',type:'G&A'},
+  {acct:'8220',name:'Accounting & Corporate Secretarial Fees',type:'G&A'},
+  {acct:'8230',name:'Other Professional Services',type:'G&A'},
+  {acct:'8300',name:'Office Rent & Facilities',type:'G&A'},
+  {acct:'8310',name:'Utilities & Telecommunications',type:'G&A'},
+  {acct:'8320',name:'Office Supplies & Low-Value Assets',type:'G&A'},
+  {acct:'8400',name:'Insurance - General',type:'G&A'},
+  {acct:'8500',name:'Software Tools & Subscriptions - G&A',type:'G&A'},
+  {acct:'8600',name:'Recruiting & Hiring Costs',type:'G&A'},
+  {acct:'8610',name:'Staff Welfare & Entertainment',type:'G&A'},
+  {acct:'8700',name:'Travel & Expenses - G&A',type:'G&A'},
+  {acct:'8710',name:'Training & Development - G&A',type:'G&A'},
+  {acct:'8800',name:'Bad Debt Expense',type:'G&A'},
+  {acct:'8810',name:'Bank Charges & Fees',type:'G&A'},
+  {acct:'8990',name:'Miscellaneous G&A Expense',type:'G&A'},
+  {acct:'9000',name:'Interest Income',type:'Non-Operating'},
+  {acct:'9010',name:'Interest Expense',type:'Non-Operating'},
+  {acct:'9100',name:'Foreign Exchange Gain / (Loss)',type:'Non-Operating'},
+  {acct:'9200',name:'Depreciation Expense',type:'Non-Operating'},
+  {acct:'9210',name:'Amortization - Lease ROU Asset',type:'Non-Operating'},
+  {acct:'9300',name:'Gain / (Loss) on Disposal of Assets',type:'Non-Operating'},
+  {acct:'9400',name:'Income Tax Expense - Current',type:'Non-Operating'},
+  {acct:'9500',name:'Stock-Based Compensation Expense',type:'Non-Operating'},
+  {acct:'9900',name:'Other Non-Operating Income / (Expense)',type:'Non-Operating'},
+];
+
+// SaaS Standard COA — Balance Sheet accounts
+var SAAS_BS_COA=[
+  {acct:'1000',name:'Cash - Operating Account',type:'Current Asset'},
+  {acct:'1010',name:'Cash - Investment Account',type:'Current Asset'},
+  {acct:'1020',name:'Cash - Payroll Account',type:'Current Asset'},
+  {acct:'1030',name:'Cash - Foreign Currency Accounts',type:'Current Asset'},
+  {acct:'1050',name:'Petty Cash',type:'Current Asset'},
+  {acct:'1100',name:'Accounts Receivable',type:'Current Asset'},
+  {acct:'1110',name:'Allowance for Doubtful Accounts',type:'Current Asset'},
+  {acct:'1200',name:'Prepaid Expenses - Insurance',type:'Current Asset'},
+  {acct:'1210',name:'Prepaid Expenses - Software & Licenses',type:'Current Asset'},
+  {acct:'1220',name:'Prepaid Expenses - Rent & Deposits',type:'Current Asset'},
+  {acct:'1230',name:'Prepaid Expenses - Other',type:'Current Asset'},
+  {acct:'1300',name:'Employee Advances & Loans',type:'Current Asset'},
+  {acct:'1310',name:'Other Receivables',type:'Current Asset'},
+  {acct:'1400',name:'Security Deposits',type:'Non-Current Asset'},
+  {acct:'1500',name:'Property & Equipment',type:'Non-Current Asset'},
+  {acct:'1510',name:'Accumulated Depreciation - P&E',type:'Non-Current Asset'},
+  {acct:'1600',name:'Capitalized Software Development Costs',type:'Non-Current Asset'},
+  {acct:'1610',name:'Accumulated Amortization - Software',type:'Non-Current Asset'},
+  {acct:'1700',name:'Right-of-Use Asset (Operating Lease)',type:'Non-Current Asset'},
+  {acct:'1800',name:'Intangible Assets - Other',type:'Non-Current Asset'},
+  {acct:'2000',name:'Accounts Payable',type:'Current Liability'},
+  {acct:'2100',name:'Salary Payable',type:'Current Liability'},
+  {acct:'2110',name:'Accrued Expenses',type:'Current Liability'},
+  {acct:'2200',name:'Deferred Revenue',type:'Current Liability'},
+  {acct:'2300',name:'Credit Card Payable',type:'Current Liability'},
+  {acct:'2400',name:'GST / VAT Payable',type:'Current Liability'},
+  {acct:'2410',name:'Income Tax Payable',type:'Current Liability'},
+  {acct:'2500',name:'Short-Term Debt / Line of Credit',type:'Current Liability'},
+  {acct:'2510',name:'Current Portion of Long-Term Debt',type:'Current Liability'},
+  {acct:'2600',name:'Operating Lease Liability - Current',type:'Current Liability'},
+  {acct:'2700',name:'Long-Term Debt',type:'Non-Current Liability'},
+  {acct:'2710',name:'Factoring Facility Payable',type:'Non-Current Liability'},
+  {acct:'2800',name:'Operating Lease Liability - Non-Current',type:'Non-Current Liability'},
+  {acct:'2900',name:'SAFE Notes Payable',type:'Non-Current Liability'},
+  {acct:'2910',name:'Convertible Notes Payable',type:'Non-Current Liability'},
+  {acct:'3000',name:'Common Stock',type:'Equity'},
+  {acct:'3010',name:'Preferred Stock',type:'Equity'},
+  {acct:'3100',name:'Additional Paid-In Capital (APIC) - Common',type:'Equity'},
+  {acct:'3110',name:'Additional Paid-In Capital (APIC) - Preferred',type:'Equity'},
+  {acct:'3200',name:'Stock-Based Compensation Reserve',type:'Equity'},
+  {acct:'3300',name:'Treasury Stock',type:'Equity'},
+  {acct:'3400',name:'Retained Earnings',type:'Equity'},
+  {acct:'3500',name:'Accumulated Other Comprehensive Income (AOCI)',type:'Equity'},
+  {acct:'3600',name:"Owner's Distributions / Dividends",type:'Equity'},
+];
+
 function downloadCombinedTemplate(type){
   var months=getCsvMonths();
   if(!months.length){showMsg('Set start and end month first.','error');return;}
 
-  var plRows=[
-    ['Recurring Revenue','Revenue','Revenue - Sales'],
-    ['Other Revenue','Revenue','Revenue - Other'],
-    ['Cost of Goods Sold','COGS','Cost of Goods Sold'],
-    ['Cost of Services','COGS','Cost of Services'],
-    ['Salaries - G&A','OpEx','Payroll & Salaries'],
-    ['Salaries - Sales','OpEx','Payroll & Salaries'],
-    ['Bank Fees & Charges','OpEx','Bank Fees & Charges'],
-    ['Subscriptions','OpEx','Subscriptions'],
-    ['Other Office Expenses','OpEx','Other Office Expenses'],
-    ['Legal & Accounting','OpEx','General & Administrative'],
-    ['Depreciation','OpEx','Depreciation & Amortisation'],
-  ];
-  var bsRows=[
-    ['Bank','Current Assets','Bank'],
-    ['Accounts Receivable','Current Assets','Accounts Receivable'],
-    ['Prepaid Expenses','Current Assets','Prepaid Expenses'],
-    ['Property & Equipment','Non-Current Assets','Property Plant & Equipment'],
-    ['Accumulated Depreciation','Non-Current Assets','Accumulated Depreciation'],
-    ['Accounts Payable','Current Liabilities','Accounts Payable'],
-    ['Accrued Liabilities','Current Liabilities','Accrued Liabilities'],
-    ['Long-term Debt','Non-Current Liabilities','Long-term Debt'],
-    ['Share Capital','Equity','Share Capital'],
-    ['Retained Earnings','Equity','Retained Earnings'],
-  ];
+  var coaList=type==='pl'?SAAS_PL_COA:SAAS_BS_COA;
 
-  var rows=type==='pl'?plRows:bsRows;
-  var headerArr=['Account Name','Type','Standard COA Category'].concat(months);
-  var lines=[headerArr.join(',')];
-  rows.forEach(function(r){
-    var cells=r.map(function(v){return '"'+v+'"';});
+  // Build header
+  var headerArr=['Account Name','Account #','Standard COA Category (Acct# - Name)','COA Sub-Type'].concat(months);
+  var lines=[headerArr.map(function(h){return '"'+h+'"';}).join(',')];
+
+  // Add one row per COA line with the account pre-filled
+  coaList.forEach(function(r){
+    var coaLabel=r.acct+' - '+r.name;
+    var cells=['"'+r.name+'"','"'+r.acct+'"','"'+coaLabel+'"','"'+r.type+'"'];
     months.forEach(function(){cells.push('');});
     lines.push(cells.join(','));
   });
-  for(var i=0;i<5;i++){
-    var empty=['','',''];
+
+  // Add 10 blank rows for custom/additional accounts
+  for(var i=0;i<10;i++){
+    var empty=['"[Enter account name]','','',''];
     months.forEach(function(){empty.push('');});
     lines.push(empty.join(','));
   }
 
+  // Add a legend note at the bottom
+  lines.push('');
+  lines.push('"INSTRUCTIONS: The Standard COA Category column is pre-filled with SaaS Standard COA accounts. Map each row to the correct account. Add custom rows at the bottom if needed."');
+  lines.push('"COA Reference: P&L uses accounts 4000-9900 | Balance Sheet uses accounts 1000-3600"');
+
   var csv=lines.join('\n');
-  var filename=(type==='pl'?'PL':'BS')+'_Template_'+months[0]+'_to_'+months[months.length-1]+'.csv';
+  var filename='SaaS_'+(type==='pl'?'PL':'BS')+'_Template_'+months[0]+'_to_'+months[months.length-1]+'.csv';
   dlCSV(csv,filename);
-  showMsg('Template downloaded — fill in amounts and upload in Step 3.','success');
+  showMsg('✓ SaaS '+type.toUpperCase()+' template downloaded — accounts pre-filled from standard COA. Fill in monthly amounts and upload in Step 3.','success');
 }
 
 function onCsvFileUpload(input, type){
@@ -3008,20 +3109,28 @@ function onCsvFileUpload(input, type){
       var lines=e.target.result.split(/\r?\n/).filter(function(l){return l.trim();});
       if(lines.length<2){showMsg('Template must have a header row and data.','error');return;}
       var headers=splitCSVLine(lines[0]).map(function(h){return h.trim().replace(/"/g,'');});
-      var nameIdx=0, typeIdx=1, coaIdx=2;
-      // Month columns start at index 3
-      var monthCols=headers.slice(3);
+      // Support both old format (3 cols: Name,Type,COA) and new SaaS format (4 cols: Name,Acct#,COA,SubType)
+      var nameIdx=0, coaIdx, typeIdx, monthStart;
+      var isNewFormat=(headers[1]==='Account #'||headers[2].indexOf('Standard COA')===0);
+      if(isNewFormat){
+        // New: Account Name | Account # | Standard COA Category | COA Sub-Type | months...
+        coaIdx=2; typeIdx=3; monthStart=4;
+      } else {
+        // Old: Account Name | Type | Standard COA Category | months...
+        typeIdx=1; coaIdx=2; monthStart=3;
+      }
+      var monthCols=headers.slice(monthStart);
 
       var data={};
       lines.slice(1).forEach(function(line){
         var cols=splitCSVLine(line).map(function(v){return v.trim().replace(/"/g,'');});
         var name=cols[nameIdx]||'';
-        if(!name)return;
+        if(!name||name.startsWith('[Enter')||name.startsWith('INSTRUCTIONS'))return;
         var acctType=cols[typeIdx]||'';
         var coa=cols[coaIdx]||'';
         var months={};
         monthCols.forEach(function(m,i){
-          var val=parseFloat(cols[3+i]||'0')||0;
+          var val=parseFloat(cols[monthStart+i]||'0')||0;
           if(val!==0) months[m]=val;
         });
         data[name]={type:acctType,coa:coa,months:months};
