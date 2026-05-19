@@ -476,10 +476,6 @@
     <div class="table-header">
       <div><h3>Profit &amp; Loss <span style="font-size:11px;font-weight:400;color:var(--muted);margin-left:6px;">Raw report — as per Account Name column</span></h3><div class="table-meta" id="plMeta"></div></div>
       <div style="display:flex;gap:8px;align-items:center;">
-        <div style="display:flex;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:2px;gap:2px;">
-          <button id="plViewSingle" onclick="setRawView('pl','single')" style="padding:4px 10px;border-radius:4px;border:none;font-size:11px;font-weight:600;cursor:pointer;background:var(--accent);color:white;">Totals</button>
-          <button id="plViewTimeseries" onclick="setRawView('pl','timeseries')" style="padding:4px 10px;border-radius:4px;border:none;font-size:11px;font-weight:500;cursor:pointer;background:transparent;color:var(--muted);">Multi-Month</button>
-        </div>
         <button class="btn btn-secondary btn-sm" onclick="exportSingleCSV('pl')">⬇ Export CSV</button>
       </div>
     </div>
@@ -491,10 +487,6 @@
     <div class="table-header">
       <div><h3>Balance Sheet <span style="font-size:11px;font-weight:400;color:var(--muted);margin-left:6px;">Raw report — as per Account Name column</span></h3><div class="table-meta" id="bsMeta"></div></div>
       <div style="display:flex;gap:8px;align-items:center;">
-        <div style="display:flex;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:2px;gap:2px;">
-          <button id="bsViewSingle" onclick="setRawView('bs','single')" style="padding:4px 10px;border-radius:4px;border:none;font-size:11px;font-weight:600;cursor:pointer;background:var(--accent);color:white;">Totals</button>
-          <button id="bsViewTimeseries" onclick="setRawView('bs','timeseries')" style="padding:4px 10px;border-radius:4px;border:none;font-size:11px;font-weight:500;cursor:pointer;background:transparent;color:var(--muted);">Multi-Month</button>
-        </div>
         <button class="btn btn-secondary btn-sm" onclick="exportSingleCSV('bs')">⬇ Export CSV</button>
       </div>
     </div>
@@ -1712,8 +1704,8 @@ function launchDashboard(title,sub){
 // ── Render all ─────────────────────────────────────────────────────────────────
 let rplView='single';
 let rbsView='single';
-let plRawView='single';
-let bsRawView='single';
+let plRawView='timeseries';
+let bsRawView='timeseries';
 
 function setRawView(tab, v){
   if(tab==='pl'){ plRawView=v; renderPL(); }
