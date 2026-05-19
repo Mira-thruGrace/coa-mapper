@@ -512,10 +512,6 @@
     <div class="table-header">
       <div><h3>Restated Profit &amp; Loss</h3><div class="table-meta" id="rplMeta">Structured time-series table · Sector standard COA</div></div>
       <div style="display:flex;gap:8px;align-items:center;">
-        <div style="display:flex;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:2px;gap:2px;">
-          <button id="rplViewSingle" onclick="setRplView('single')" style="padding:4px 10px;border-radius:4px;border:none;font-size:11px;font-weight:600;cursor:pointer;background:var(--accent);color:white;">Current Period</button>
-          <button id="rplViewTimeseries" onclick="setRplView('timeseries')" style="padding:4px 10px;border-radius:4px;border:none;font-size:11px;font-weight:500;cursor:pointer;background:transparent;color:var(--muted);">Multi-Month</button>
-        </div>
         <button class="btn btn-primary btn-sm" onclick="exportSingleCSV('rpl')" title="Download Restated P&L as CSV">⬇ Download Restated P&L</button>
       </div>
     </div>
@@ -528,10 +524,6 @@
     <div class="table-header">
       <div><h3>Restated Balance Sheet</h3><div class="table-meta">Structured time-series table · Sector standard COA</div></div>
       <div style="display:flex;gap:8px;align-items:center;">
-        <div style="display:flex;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:2px;gap:2px;">
-          <button id="rbsViewSingle" onclick="setRbsView('single')" style="padding:4px 10px;border-radius:4px;border:none;font-size:11px;font-weight:600;cursor:pointer;background:var(--accent);color:white;">Current Period</button>
-          <button id="rbsViewTimeseries" onclick="setRbsView('timeseries')" style="padding:4px 10px;border-radius:4px;border:none;font-size:11px;font-weight:500;cursor:pointer;background:transparent;color:var(--muted);">Multi-Month</button>
-        </div>
         <button class="btn btn-primary btn-sm" onclick="exportSingleCSV('rbs')" title="Download Restated BS as CSV">⬇ Download Restated BS</button>
       </div>
     </div>
@@ -1702,8 +1694,8 @@ function launchDashboard(title,sub){
 }
 
 // ── Render all ─────────────────────────────────────────────────────────────────
-let rplView='single';
-let rbsView='single';
+let rplView='timeseries';
+let rbsView='timeseries';
 let plRawView='timeseries';
 let bsRawView='timeseries';
 
@@ -3097,8 +3089,9 @@ function renderBS(){
     if(/bank|asset/i.test(sec.key)) totalAssets+=subtotal;
     else if(/liabilit/i.test(sec.key)) totalLiab+=subtotal;
     else if(/equity/i.test(sec.key)) totalEquity+=subtotal;
-    // Insert TOTAL ASSETS after Non-Current Assets section
-    if(sec.key==='Non-Current Assets'){
+    // Insert TOTAL ASSETS after Current Assets (when no NCA) or after Non-Current Assets
+    var hasNCA=(groups['Non-Current Assets']||[]).length>0;
+    if((sec.key==='Current Assets'&&!hasNCA)||sec.key==='Non-Current Assets'){
       html+='<tr style="background:#1e3a5f;color:white;font-weight:700;border-top:2px solid var(--border);border-bottom:2px solid var(--border);">'
         +'<td style="padding:10px 16px;font-size:13px;color:white;">TOTAL ASSETS</td>'
         +'<td style="padding:10px 16px;text-align:right;font-family:var(--mono);font-size:13px;font-weight:700;color:white;">'+fmtMoney(totalAssets)+'</td>'
@@ -3651,7 +3644,16 @@ function buildRestatedBSTimeSeries(){
     });
     html+='</tr>';
 
-    // Insert TOTAL ASSETS banner after Non-Current Assets
+    // Insert TOTAL ASSETS after Current Assets when no NCA exists, or after Non-Current Assets
+    var hasNCA2=(groups[type==='bs'?'Non-Current Assets':'_']||[]).length>0;
+    if(sec==='Current Assets'&&!hasNCA2){
+      html+='<tr style="background:#1e3a5f;font-weight:700;border-top:2px solid var(--border);"><td style="padding:10px 16px;font-size:13px;font-weight:700;color:white;position:sticky;left:0;background:#1e3a5f;">TOTAL ASSETS</td>';
+      allMonths.forEach(function(m){
+        var tot=secMonthTotals['Current Assets'][m]||0;
+        html+='<td style="padding:10px 10px;text-align:right;font-family:var(--mono);font-size:12px;font-weight:700;color:white;">'+fmtMoney(tot)+'</td>';
+      });
+      html+='</tr><tr><td colspan="'+(allMonths.length+1)+'" style="padding:3px 0;"></td></tr>';
+    }
     if(sec==='Non-Current Assets'){
       html+='<tr style="background:#1e3a5f;font-weight:700;border-top:2px solid var(--border);"><td style="padding:10px 16px;font-size:13px;font-weight:700;color:white;position:sticky;left:0;background:#1e3a5f;">TOTAL ASSETS</td>';
       allMonths.forEach(function(m){
@@ -3804,15 +3806,16 @@ function renderCashFlow(){
 
   // ── Net Profit per month from P&L ────────────────────────────────────────────
   function netProfitForMonth(m){
-    var rev=0, exp=0;
+    var rev=0, cos=0, exp=0;
     plData.forEach(function(pair){
       var acc=pair[1];
       var t=(acc.type||'').toLowerCase();
       var v=acc.months[m]||0;
       if(/revenue/i.test(t)) rev+=v;
-      else if(/cost of sales|expense/i.test(t)) exp+=Math.abs(v);
+      else if(/cost of sales/i.test(t)) cos+=Math.abs(v);
+      else if(/expense/i.test(t)) exp+=Math.abs(v);
     });
-    return rev-exp;
+    return rev-cos-exp;
   }
 
   // ── D&A per month ─────────────────────────────────────────────────────────────
@@ -3843,7 +3846,10 @@ function renderCashFlow(){
       var movement=close-open;
 
       if(tag==='CASH'){ openCash+=open; closeCash+=close; return; }
-      if(movement===0) return; // no change, skip
+      // If no prior period (openM===closeM), use closing balance as movement proxy
+      var effectiveMovement=(openM===closeM)?close:movement;
+      if(effectiveMovement===0) return; // no change, skip
+      movement=effectiveMovement;
 
       // Impact calculation per indirect method rules
       var impact=0;
