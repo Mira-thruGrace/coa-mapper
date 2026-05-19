@@ -22,11 +22,6 @@
     --amber:#f59e0b;--amber-light:#fffbeb;
     --green:#10b981;--green-light:#ecfdf5;
     --purple:#8b5cf6;--purple-light:#f5f3ff;
-    --sidebar-bg:#0f172a;
-    --sidebar-text:#cbd5e1;
-    --sidebar-text-active:#ffffff;
-    --sidebar-accent:#3b82f6;
-    --sidebar-width:220px;
     --mono:'DM Mono',monospace;
     --sans:'Plus Jakarta Sans',sans-serif;
     --radius:8px;--radius-lg:12px;
@@ -36,53 +31,8 @@
   *{box-sizing:border-box;margin:0;padding:0;}
   body{font-family:var(--sans);background:var(--bg);color:var(--text);min-height:100vh;font-size:14px;line-height:1.5;display:flex;flex-direction:column;}
 
-  /* ── Sidebar ── */
-  .sidebar{
-    width:var(--sidebar-width);
-    background:var(--sidebar-bg);
-    min-height:100vh;
-    position:fixed;top:0;left:0;
-    display:flex;flex-direction:column;
-    padding:0;
-    z-index:200;
-    box-shadow:4px 0 24px rgba(0,0,0,0.15);
-  }
-  .sidebar-logo{
-    padding:22px 20px 18px;
-    border-bottom:1px solid rgba(255,255,255,0.07);
-    display:flex;align-items:center;gap:10px;
-  }
-  .sidebar-logo-icon{
-    width:32px;height:32px;
-    background:linear-gradient(135deg,#3b82f6,#60a5fa);
-    border-radius:8px;
-    display:flex;align-items:center;justify-content:center;
-    flex-shrink:0;
-  }
-  .sidebar-logo-icon svg{width:16px;height:16px;fill:white;}
-  .sidebar-logo-text{display:flex;flex-direction:column;}
-  .sidebar-logo-name{font-size:13px;font-weight:700;color:#ffffff;letter-spacing:-0.2px;line-height:1.2;}
-  .sidebar-logo-sub{font-size:10px;color:var(--sidebar-text);letter-spacing:0.3px;text-transform:uppercase;margin-top:1px;}
-
-  .sidebar-section{padding:16px 12px 4px;font-size:10px;font-weight:600;letter-spacing:0.8px;text-transform:uppercase;color:#475569;}
-  .sidebar-nav{list-style:none;padding:0 8px;}
-  .sidebar-nav li{margin-bottom:2px;}
-  .sidebar-nav a{
-    display:flex;align-items:center;gap:10px;
-    padding:8px 12px;border-radius:7px;
-    font-size:13px;font-weight:500;
-    color:var(--sidebar-text);
-    text-decoration:none;cursor:pointer;
-    transition:all 0.15s;
-  }
-  .sidebar-nav a:hover{background:rgba(255,255,255,0.07);color:var(--sidebar-text-active);}
-  .sidebar-nav a.active{background:rgba(59,130,246,0.2);color:#93c5fd;font-weight:600;}
-  .sidebar-nav a svg{width:15px;height:15px;flex-shrink:0;opacity:0.7;}
-  .sidebar-nav a.active svg{opacity:1;}
-
-  /* ── Top bar (right of sidebar) ── */
+  /* ── Top bar ── */
   .header{
-    margin-left:var(--sidebar-width);
     background:var(--surface);
     border-bottom:1px solid var(--border);
     padding:0 28px;
@@ -102,7 +52,7 @@
   .status-dot.on{background:var(--green);}
 
   /* ── Main layout ── */
-  .main{margin-left:var(--sidebar-width);padding:28px 32px;min-height:calc(100vh - 56px);}
+  .main{padding:28px 32px;min-height:calc(100vh - 56px);}
 
   /* ── Buttons ── */
   .btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:var(--radius);border:none;font-family:var(--sans);font-size:13px;font-weight:500;cursor:pointer;transition:all 0.15s;white-space:nowrap;}
@@ -268,59 +218,7 @@
 </head>
 <body>
 
-<!-- ══ SIDEBAR ═══════════════════════════════════════════════════════ -->
-<div class="sidebar">
-  <div class="sidebar-logo">
-    <div class="sidebar-logo-icon">
-      <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-        <rect x="2" y="14" width="4" height="8" rx="1"/>
-        <rect x="8" y="9" width="4" height="13" rx="1"/>
-        <rect x="14" y="5" width="4" height="17" rx="1"/>
-        <rect x="20" y="2" width="4" height="20" rx="1"/>
-      </svg>
-    </div>
-    <div class="sidebar-logo-text">
-      <span class="sidebar-logo-name">Financial Mapper</span>
-      <span class="sidebar-logo-sub">Financial Models</span>
-    </div>
-  </div>
 
-  <div class="sidebar-section">Data</div>
-  <ul class="sidebar-nav">
-    <li><a onclick="showSetup()" id="nav-setup">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
-      Upload Data
-    </a></li>
-  </ul>
-
-  <div class="sidebar-section" id="nav-section-reports" style="display:none;">Reports</div>
-  <ul class="sidebar-nav" id="nav-reports" style="display:none;">
-    <li><a onclick="switchTabSidebar('pl')" id="nav-pl">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
-      Profit &amp; Loss
-    </a></li>
-    <li><a onclick="switchTabSidebar('bs')" id="nav-bs">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
-      Balance Sheet
-    </a></li>
-    <li><a onclick="switchTabSidebar('map')" id="nav-map">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-2M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m0 0H8m8 0l3 3-3 3m0-3H8"/></svg>
-      COA Mapping
-    </a></li>
-  </ul>
-
-  <div class="sidebar-section" id="nav-section-restated" style="display:none;">Restated</div>
-  <ul class="sidebar-nav" id="nav-restated" style="display:none;">
-    <li><a onclick="switchTabSidebar('rpl')" id="nav-rpl">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
-      Restated P&amp;L
-    </a></li>
-    <li><a onclick="switchTabSidebar('rbs')" id="nav-rbs">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 10h18M3 14h18M10 3v18M6 3h12a3 3 0 013 3v12a3 3 0 01-3 3H6a3 3 0 01-3-3V6a3 3 0 013-3z"/></svg>
-      Restated BS
-    </a></li>
-  </ul>
-</div>
 
 <!-- ══ TOP BAR ══════════════════════════════════════════════════════ -->
 <div class="header">
@@ -603,7 +501,7 @@
   </div>
 
     <!-- Restated P&L Tab -->
-  <di  <div id="tab-rpl" class="table-card" style="display:none;">
+  <div id="tab-rpl" class="table-card" style="display:none;">
     <div class="table-header">
       <div><h3>Restated Profit &amp; Loss</h3><div class="table-meta" id="rplMeta">Structured time-series table · Sector standard COA</div></div>
       <div style="display:flex;gap:8px;align-items:center;">
@@ -612,10 +510,9 @@
     </div>
     <div id="rplContent"></div>
   </div>
-  </div>
 
   <!-- Restated Balance Sheet Tab -->
-  <di  <div id="tab-rbs" class="table-card" style="display:none;">
+  <div id="tab-rbs" class="table-card" style="display:none;">
     <div class="table-header">
       <div><h3>Restated Balance Sheet</h3><div class="table-meta">Structured time-series table · Sector standard COA</div></div>
       <div style="display:flex;gap:8px;align-items:center;">
@@ -623,7 +520,6 @@
       </div>
     </div>
     <div id="rbsContent"></div>
-  </div>
   </div>
 
   <!-- Cash Flow Tab -->
