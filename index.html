@@ -2692,6 +2692,22 @@ function downloadCombinedTemplate(type){
   showMsg('✓ 2 files downloaded: template + COA reference. Use the COA reference to fill in the COA Mapping column.','success');
 }
 
+// Parses formatted numbers from CSV: handles commas, parentheses for negatives, dashes for zero
+function parseCsvAmount(raw){
+  if(!raw) return 0;
+  var s=raw.toString().trim();
+  // Dash variants = zero
+  if(/^[-–—\s]*$/.test(s)) return 0;
+  // Strip currency symbols and spaces
+  s=s.replace(/[$£€¥,\s]/g,'');
+  // Parentheses = negative: (123.45) → -123.45
+  var negative=s.startsWith('(')&&s.endsWith(')');
+  s=s.replace(/[()]/g,'');
+  var n=parseFloat(s);
+  if(isNaN(n)) return 0;
+  return negative?-n:n;
+}
+
 function onCsvFileUpload(input, type){
   var file=input.files[0];
   if(!file)return;
@@ -2715,7 +2731,8 @@ function onCsvFileUpload(input, type){
         var coa=cols[coaIdx]||'';
         var months={};
         monthCols.forEach(function(m,i){
-          var val=parseFloat(cols[monthStart+i]||'0')||0;
+          var raw=(cols[monthStart+i]||'').trim();
+          var val=parseCsvAmount(raw);
           if(val!==0) months[m]=val;
         });
         data[name]={type:acctType,coa:coa,months:months};
