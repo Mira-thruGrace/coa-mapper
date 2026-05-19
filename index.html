@@ -3089,21 +3089,34 @@ function renderBS(){
     if(/bank|asset/i.test(sec.key)) totalAssets+=subtotal;
     else if(/liabilit/i.test(sec.key)) totalLiab+=subtotal;
     else if(/equity/i.test(sec.key)) totalEquity+=subtotal;
-    // Insert TOTAL ASSETS after Current Assets (when no NCA) or after Non-Current Assets
-    var hasNCA=(groups['Non-Current Assets']||[]).length>0;
-    if((sec.key==='Current Assets'&&!hasNCA)||sec.key==='Non-Current Assets'){
-      html+='<tr style="background:#1e3a5f;color:white;font-weight:700;border-top:2px solid var(--border);border-bottom:2px solid var(--border);">'
-        +'<td style="padding:10px 16px;font-size:13px;color:white;">TOTAL ASSETS</td>'
-        +'<td style="padding:10px 16px;text-align:right;font-family:var(--mono);font-size:13px;font-weight:700;color:white;">'+fmtMoney(totalAssets)+'</td>'
-        +'</tr>';
-      html+='<tr><td colspan="2" style="padding:6px 0;"></td></tr>';
+    // Insert TOTAL ASSETS after the last asset section with data
+    var assetSecs=['Bank','Current Assets','Non-Current Assets'];
+    var isAsset=assetSecs.indexOf(sec.key)!==-1;
+    var nextAssetSec=isAsset?null:null;
+    if(isAsset){
+      // Check if any later asset section has data
+      var myIdx=assetSecs.indexOf(sec.key);
+      var hasLaterAsset=assetSecs.slice(myIdx+1).some(function(k){return groups[k]&&groups[k].length>0;});
+      if(!hasLaterAsset){
+        html+='<tr style="background:#1e3a5f;color:white;font-weight:700;border-top:2px solid var(--border);border-bottom:2px solid var(--border);">'
+          +'<td style="padding:10px 16px;font-size:13px;color:white;">TOTAL ASSETS</td>'
+          +'<td style="padding:10px 16px;text-align:right;font-family:var(--mono);font-size:13px;font-weight:700;color:white;">'+fmtMoney(totalAssets)+'</td>'
+          +'</tr>';
+        html+='<tr><td colspan="2" style="padding:6px 0;"></td></tr>';
+      }
     }
-    // Insert TOTAL LIABILITIES after Non-Current Liabilities section
-    if(sec.key==='Non-Current Liabilities'||(!sectionDef.some(function(s){return s.key==='Non-Current Liabilities';})&&/liabilit/i.test(sec.key))){
-      html+='<tr style="background:var(--bg);font-weight:700;border-top:1px solid var(--border);">'
-        +'<td style="padding:8px 16px;font-size:13px;">Total Liabilities</td>'
-        +'<td style="padding:8px 16px;text-align:right;font-family:var(--mono);font-size:13px;font-weight:700;">'+fmtMoney(totalLiab)+'</td>'
-        +'</tr>';
+    // Insert TOTAL LIABILITIES after the last liability section with data
+    var liabSecs=['Current Liabilities','Non-Current Liabilities'];
+    var isLiab=liabSecs.indexOf(sec.key)!==-1;
+    if(isLiab){
+      var myLiabIdx=liabSecs.indexOf(sec.key);
+      var hasLaterLiab=liabSecs.slice(myLiabIdx+1).some(function(k){return groups[k]&&groups[k].length>0;});
+      if(!hasLaterLiab){
+        html+='<tr style="background:var(--bg);font-weight:700;border-top:1px solid var(--border);">'
+          +'<td style="padding:8px 16px;font-size:13px;">Total Liabilities</td>'
+          +'<td style="padding:8px 16px;text-align:right;font-family:var(--mono);font-size:13px;font-weight:700;">'+fmtMoney(totalLiab)+'</td>'
+          +'</tr>';
+      }
     }
   });
 
@@ -3644,23 +3657,19 @@ function buildRestatedBSTimeSeries(){
     });
     html+='</tr>';
 
-    // Insert TOTAL ASSETS after Current Assets when no NCA exists, or after Non-Current Assets
-    var hasNCA2=(groups[type==='bs'?'Non-Current Assets':'_']||[]).length>0;
-    if(sec==='Current Assets'&&!hasNCA2){
-      html+='<tr style="background:#1e3a5f;font-weight:700;border-top:2px solid var(--border);"><td style="padding:10px 16px;font-size:13px;font-weight:700;color:white;position:sticky;left:0;background:#1e3a5f;">TOTAL ASSETS</td>';
-      allMonths.forEach(function(m){
-        var tot=secMonthTotals['Current Assets'][m]||0;
-        html+='<td style="padding:10px 10px;text-align:right;font-family:var(--mono);font-size:12px;font-weight:700;color:white;">'+fmtMoney(tot)+'</td>';
-      });
-      html+='</tr><tr><td colspan="'+(allMonths.length+1)+'" style="padding:3px 0;"></td></tr>';
-    }
-    if(sec==='Non-Current Assets'){
-      html+='<tr style="background:#1e3a5f;font-weight:700;border-top:2px solid var(--border);"><td style="padding:10px 16px;font-size:13px;font-weight:700;color:white;position:sticky;left:0;background:#1e3a5f;">TOTAL ASSETS</td>';
-      allMonths.forEach(function(m){
-        var tot=(secMonthTotals['Current Assets'][m]||0)+(secMonthTotals['Non-Current Assets'][m]||0);
-        html+='<td style="padding:10px 10px;text-align:right;font-family:var(--mono);font-size:12px;font-weight:700;color:white;">'+fmtMoney(tot)+'</td>';
-      });
-      html+='</tr><tr><td colspan="'+(allMonths.length+1)+'" style="padding:3px 0;"></td></tr>';
+    // Insert TOTAL ASSETS after the last asset section that has data
+    var assetSecs2=['Current Assets','Non-Current Assets'];
+    if(assetSecs2.indexOf(sec)!==-1){
+      var myIdx2=assetSecs2.indexOf(sec);
+      var hasLaterAsset2=assetSecs2.slice(myIdx2+1).some(function(k){return (groups2[k]||[]).length>0;});
+      if(!hasLaterAsset2){
+        html+='<tr style="background:#1e3a5f;font-weight:700;border-top:2px solid var(--border);"><td style="padding:10px 16px;font-size:13px;font-weight:700;color:white;position:sticky;left:0;background:#1e3a5f;">TOTAL ASSETS</td>';
+        allMonths.forEach(function(m){
+          var tot=assetSecs2.reduce(function(s,k){return s+(secMonthTotals[k]&&secMonthTotals[k][m]||0);},0);
+          html+='<td style="padding:10px 10px;text-align:right;font-family:var(--mono);font-size:12px;font-weight:700;color:white;">'+fmtMoney(tot)+'</td>';
+        });
+        html+='</tr><tr><td colspan="'+(allMonths.length+1)+'" style="padding:3px 0;"></td></tr>';
+      }
     }
   });
 
@@ -3761,56 +3770,35 @@ function renderCashFlow(){
     return;
   }
 
-  // ── Collect all months, pick last 5 (Dec 25–Apr 26) ─────────────────────────
+  // Collect all months from BS, sort, pick last 5
   var allMonths=[];
-  bsData.forEach(function(pair){ Object.keys(pair[1].months||{}).forEach(function(m){ if(allMonths.indexOf(m)===-1) allMonths.push(m); }); });
+  bsData.forEach(function(p){ Object.keys(p[1].months||{}).forEach(function(m){ if(allMonths.indexOf(m)===-1) allMonths.push(m); }); });
   allMonths.sort();
-  var cfMonths=allMonths.length>=5?allMonths.slice(-5):allMonths.slice(); // last 5 months (or all if fewer)
+  var cfMonths=allMonths.length>0?allMonths.slice(-5):[];
   if(!cfMonths.length){
-    cfEl.innerHTML='<div style="margin:16px;padding:12px;background:var(--amber-light);border-radius:8px;color:#92400e;font-size:13px;">⚠ No monthly data found in Balance Sheet template. Ensure your BS CSV has month columns filled in.</div>';
+    cfEl.innerHTML='<div style="margin:16px;padding:12px;background:var(--amber-light);border-radius:8px;color:#92400e;font-size:13px;">⚠ No monthly data found in Balance Sheet template.</div>';
     return;
   }
 
   var fmtM=function(m){ return new Date(m+'-01').toLocaleDateString('en-SG',{month:'short',year:'2-digit'}); };
 
-  // ── BS account classification ─────────────────────────────────────────────────
-  function getTag(name, acc){
-    // Check acc.type first (exact values from BS template col B)
-    var tp=acc.type||'';
-    if(tp==='Bank') return 'CASH';
-    if(tp==='Current Assets') return 'CA';
-    if(tp==='Non-Current Assets') return 'NCA';
-    if(tp==='Current Liabilities') return 'CL';
-    if(tp==='Non-Current Liabilities') return 'NCL';
-    if(tp==='Equity') return 'EQ';
-    // Then check COA name (col C) and account name
-    var t=(acc.coa||'').toLowerCase();
-    var n=name.toLowerCase();
-    if(/^cash|^bank/i.test(t)||tp.toLowerCase()==='bank') return 'CASH';
-    if(/cash.*operating|cash.*payroll|cash.*investment|petty cash/i.test(t)) return 'CASH';
-    if(/current asset/i.test(t)&&!/non.current/i.test(t)) return 'CA';
-    if(/non.current asset/i.test(t)) return 'NCA';
-    if(/current liabilit/i.test(t)&&!/non.current/i.test(t)) return 'CL';
-    if(/non.current liabilit/i.test(t)) return 'NCL';
-    if(/equity|capital|retained|apic|stock/i.test(t)) return 'EQ';
+  // Classify BS account type from template col B (acc.type)
+  function getTag(acc){
+    var t=acc.type||'';
+    if(t==='Bank') return 'CASH';
+    if(t==='Current Assets') return 'CA';
+    if(t==='Non-Current Assets') return 'NCA';
+    if(t==='Current Liabilities') return 'CL';
+    if(t==='Non-Current Liabilities') return 'NCL';
+    if(t==='Equity') return 'EQ';
     return 'OTHER';
   }
 
-  // ── Build balance lookup: bsBals[name][month] = balance ──────────────────────
-  var bsBals={}, bsTags={};
-  bsData.forEach(function(pair){
-    var name=pair[0], acc=pair[1];
-    bsBals[name]=acc.months||{};
-    bsTags[name]=getTag(name,acc);
-  });
-
-  // ── Net Profit per month from P&L ────────────────────────────────────────────
+  // Net Profit per month: Revenue - Cost of Sales - Expense
   function netProfitForMonth(m){
-    var rev=0, cos=0, exp=0;
-    plData.forEach(function(pair){
-      var acc=pair[1];
-      var t=(acc.type||'').toLowerCase();
-      var v=acc.months[m]||0;
+    var rev=0,cos=0,exp=0;
+    plData.forEach(function(p){
+      var t=p[1].type||'', v=p[1].months[m]||0;
       if(/revenue/i.test(t)) rev+=v;
       else if(/cost of sales/i.test(t)) cos+=Math.abs(v);
       else if(/expense/i.test(t)) exp+=Math.abs(v);
@@ -3818,221 +3806,192 @@ function renderCashFlow(){
     return rev-cos-exp;
   }
 
-  // ── D&A per month ─────────────────────────────────────────────────────────────
+  // D&A add-back per month
   function dnaForMonth(m){
     var d=0;
-    plData.forEach(function(pair){
-      var name=pair[0], acc=pair[1];
-      if(/depreciation|amortis/i.test(name)||/depreciation|amortis/i.test(acc.coa||''))
+    plData.forEach(function(p){
+      var n=p[0], acc=p[1];
+      if(/depreciation|amortis/i.test(n)||/depreciation|amortis/i.test(acc.coa||''))
         d+=Math.abs(acc.months[m]||0);
     });
     return d;
   }
 
-  // ── Compute CF for one period (opening month → closing month) ────────────────
-  function computePeriodCF(openM, closeM){
-    var netProfit=netProfitForMonth(closeM);
+  // Compute one period's CF: openM = prior month balance, closeM = current month balance
+  function computePeriod(openM, closeM){
+    var np=netProfitForMonth(closeM);
     var dna=dnaForMonth(closeM);
-
-    var wcItems=[], invItems=[], finItems=[];
+    var wc=[], inv=[], fin=[], unmapped=[];
     var openCash=0, closeCash=0;
-    var unmappedAccounts=[];
 
-    bsData.forEach(function(pair){
-      var name=pair[0];
-      var tag=bsTags[name];
-      var open=bsBals[name][openM]||0;
-      var close=bsBals[name][closeM]||0;
-      var movement=close-open;
+    bsData.forEach(function(p){
+      var name=p[0], acc=p[1];
+      var tag=getTag(acc);
+      var open=acc.months[openM]||0;
+      var close=acc.months[closeM]||0;
+      // For first period (no prior), use close balance as the movement
+      var movement=(openM===closeM)?close:(close-open);
 
       if(tag==='CASH'){ openCash+=open; closeCash+=close; return; }
-      // If no prior period (openM===closeM), use closing balance as movement proxy
-      var effectiveMovement=(openM===closeM)?close:movement;
-      if(effectiveMovement===0) return; // no change, skip
-      movement=effectiveMovement;
+      if(tag==='OTHER'){ if(movement!==0) unmapped.push(name); return; }
+      if(movement===0) return;
 
-      // Impact calculation per indirect method rules
+      // Indirect method impact rules
       var impact=0;
-      if(tag==='CA')  impact=-movement;    // CA increase → cash out
-      if(tag==='CL')  impact=+movement;    // CL increase → cash in
-      if(tag==='NCA') impact=-movement;    // NCA increase → capex (cash out)
-      if(tag==='NCL') impact=+movement;    // NCL increase → financing in
+      if(tag==='CA')  impact=-movement;  // ↑ CA = cash out
+      if(tag==='CL')  impact=+movement;  // ↑ CL = cash in
+      if(tag==='NCA') impact=-movement;  // ↑ NCA = capex
+      if(tag==='NCL') impact=+movement;
       if(tag==='EQ'){
-        if(/retained earning|accumulated|current year/i.test(name)) return; // skip — flows via P&L
+        if(/retained earning|accumulated|current year/i.test(name)) return;
         impact=+movement;
       }
-      if(tag==='OTHER'){ unmappedAccounts.push(name); return; }
 
-      // Intercompany flag
       var isInterco=/due to|due from|interco|parent|subsidiar/i.test(name);
-      var item={name:name, open:open, close:close, movement:movement, impact:impact,
-                tag:tag, flag:isInterco?'⚑ Intercompany: '+name:''};
-
-      if(tag==='CA'||tag==='CL') wcItems.push(item);
-      else if(tag==='NCA') invItems.push(item);
-      else if(tag==='NCL'||tag==='EQ') finItems.push(item);
+      var item={name:name,tag:tag,open:open,close:close,movement:movement,impact:impact,interco:isInterco};
+      if(tag==='CA'||tag==='CL') wc.push(item);
+      else if(tag==='NCA') inv.push(item);
+      else if(tag==='NCL'||tag==='EQ') fin.push(item);
     });
 
-    var wcTotal=wcItems.reduce(function(s,i){return s+i.impact;},0);
-    var opCF=netProfit+dna+wcTotal;
-    var invCF=invItems.reduce(function(s,i){return s+i.impact;},0);
-    var finCF=finItems.reduce(function(s,i){return s+i.impact;},0);
-    var netMov=opCF+invCF+finCF;
-    var calcClose=openCash+netMov;
-    var balCheck=Math.abs(calcClose-closeCash)<1;
-
-    return {netProfit:netProfit,dna:dna,wcItems:wcItems,invItems:invItems,finItems:finItems,
-            opCF:opCF,invCF:invCF,finCF:finCF,netMov:netMov,
-            openCash:openCash,closeCash:closeCash,calcClose:calcClose,balCheck:balCheck,
-            unmapped:unmappedAccounts};
+    var wcTotal=wc.reduce(function(s,i){return s+i.impact;},0);
+    var opCF=np+dna+wcTotal;
+    var invCF=inv.reduce(function(s,i){return s+i.impact;},0);
+    var finCF=fin.reduce(function(s,i){return s+i.impact;},0);
+    return {np:np,dna:dna,wc:wc,inv:inv,fin:fin,
+            opCF:opCF,invCF:invCF,finCF:finCF,
+            netMov:opCF+invCF+finCF,
+            openCash:openCash,closeCash:closeCash,unmapped:unmapped};
   }
 
-  // ── Render ────────────────────────────────────────────────────────────────────
-  var periods=[];
-  for(var i=0;i<cfMonths.length;i++){
-    var closeM=cfMonths[i];
-    var openM=allMonths[allMonths.indexOf(closeM)-1]||cfMonths[i]; // prior month
-    periods.push({openM:openM, closeM:closeM, data:computePeriodCF(openM,closeM)});
-  }
+  // Build period data
+  var periods=cfMonths.map(function(closeM,i){
+    var openM=i>0?cfMonths[i-1]:closeM; // first period: openM=closeM (no prior)
+    return {label:fmtM(closeM),openM:openM,closeM:closeM,d:computePeriod(openM,closeM)};
+  });
 
-  // ── Column header ─────────────────────────────────────────────────────────────
-  var colW='min-width:110px;';
-  var thStyle='padding:9px 10px;text-align:right;background:var(--bg);font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;border-bottom:2px solid var(--border);white-space:nowrap;'+colW;
-  var tdLabelStyle='padding:8px 16px;font-size:13px;border-bottom:1px solid var(--border);min-width:260px;';
-  var tagStyle='display:inline-block;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:600;margin-left:6px;background:var(--bg);color:var(--muted);border:1px solid var(--border);font-family:var(--mono);';
+  // ── Collect all account names per section across all periods ──
+  function allNames(key){ var s={}; periods.forEach(function(p){ p.d[key].forEach(function(i){ s[i.name]=1; }); }); return Object.keys(s); }
+  var wcNames=allNames('wc'), invNames=allNames('inv'), finNames=allNames('fin');
 
-  function tdAmt(v){
+  // ── Styles ──
+  var ncol=periods.length+1;
+  var th='padding:9px 10px;text-align:right;font-size:11px;font-weight:600;color:var(--muted);background:var(--bg);border-bottom:2px solid var(--border);white-space:nowrap;min-width:100px;';
+  var lbl='padding:8px 16px;font-size:13px;border-bottom:1px solid var(--border);';
+  var tag='display:inline-block;padding:1px 5px;border-radius:3px;font-size:10px;font-weight:600;margin-left:5px;background:var(--bg);color:var(--muted);border:1px solid var(--border);font-family:var(--mono);';
+
+  function amt(v){
     var c=v>0?'var(--green)':v<0?'var(--danger)':'var(--muted)';
-    return '<td style="padding:8px 10px;text-align:right;font-family:var(--mono);font-size:12px;color:'+c+';border-bottom:1px solid var(--border);'+colW+'">'+(v!==0?fmtMoney(v):'—')+'</td>';
+    return '<td style="padding:8px 10px;text-align:right;font-family:var(--mono);font-size:12px;color:'+c+';border-bottom:1px solid var(--border);min-width:100px;">'+(v!==0?fmtMoney(v):'—')+'</td>';
   }
-  function tdAmtBold(v,bg){
+  function amtBold(v,bg){
     var c=v>0?'var(--green)':v<0?'var(--danger)':'var(--muted)';
-    return '<td style="padding:9px 10px;text-align:right;font-family:var(--mono);font-size:13px;font-weight:700;color:'+c+';background:'+bg+';border-bottom:1px solid var(--border);'+colW+'">'+fmtMoney(v)+'</td>';
+    return '<td style="padding:9px 10px;text-align:right;font-family:var(--mono);font-size:13px;font-weight:700;color:'+c+';background:'+bg+';border-bottom:1px solid var(--border);min-width:100px;">'+fmtMoney(v)+'</td>';
   }
-  function sectionHdr(label, colspan){
-    return '<tr><td colspan="'+colspan+'" style="padding:8px 16px;background:var(--bg);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:var(--text);border-bottom:1px solid var(--border);">'+label+'</td></tr>';
+  function secHdr(label){
+    return '<tr><td colspan="'+ncol+'" style="padding:8px 16px;background:var(--bg);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:var(--text);border-bottom:1px solid var(--border);">'+label+'</td></tr>';
   }
 
-  var numCols=periods.length+1;
-  var html='<div style="overflow-x:auto;padding:16px;">'
-    +'<table style="width:100%;border-collapse:collapse;"><thead><tr>'
-    +'<th style="padding:9px 16px;text-align:left;background:var(--bg);font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;border-bottom:2px solid var(--border);min-width:260px;">Item</th>';
-  periods.forEach(function(p){ html+='<th style="'+thStyle+'">'+fmtM(p.closeM)+'</th>'; });
+  var html='<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;">'
+    +'<thead><tr><th style="padding:9px 16px;text-align:left;background:var(--bg);font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;border-bottom:2px solid var(--border);min-width:260px;">Item</th>';
+  periods.forEach(function(p){ html+='<th style="'+th+'">'+p.label+'</th>'; });
   html+='</tr></thead><tbody>';
 
-  // ── A. Operating ──────────────────────────────────────────────────────────────
-  html+=sectionHdr('A. Operating Activities',numCols);
+  // A. Operating
+  html+=secHdr('A. Operating Activities');
+  html+='<tr><td style="'+lbl+'padding-left:28px;">Net Profit / (Loss)<span style="'+tag+'">P&L</span></td>';
+  periods.forEach(function(p){ html+=amt(p.d.np); }); html+='</tr>';
 
-  // Net Profit
-  html+='<tr><td style="'+tdLabelStyle+'padding-left:28px;">Net Profit / (Loss)<span style="'+tagStyle+'">P&L</span></td>';
-  periods.forEach(function(p){ html+=tdAmt(p.data.netProfit); }); html+='</tr>';
+  html+='<tr><td style="'+lbl+'padding-left:28px;">Add: Depreciation &amp; Amortization<span style="'+tag+'">Non-Cash</span></td>';
+  periods.forEach(function(p){ html+=amt(p.d.dna); }); html+='</tr>';
 
-  // D&A add-back
-  html+='<tr><td style="'+tdLabelStyle+'padding-left:28px;">Depreciation &amp; Amortization <em style="font-size:11px;color:var(--muted);">(add back)</em><span style="'+tagStyle+'">EXP-NC</span></td>';
-  periods.forEach(function(p){ html+=tdAmt(p.data.dna); }); html+='</tr>';
-
-  // Working Capital — collect all unique accounts
-  var allWCNames=[];
-  periods.forEach(function(p){ p.data.wcItems.forEach(function(i){ if(allWCNames.indexOf(i.name)===-1) allWCNames.push(i.name); }); });
-  if(allWCNames.length){
-    html+='<tr><td style="'+tdLabelStyle+'background:var(--bg);font-size:11px;font-weight:600;color:var(--muted);" colspan="'+numCols+'">Working Capital Adjustments</td></tr>';
-    allWCNames.forEach(function(name){
-      var tag=bsTags[name]||'';
+  if(wcNames.length){
+    html+='<tr><td colspan="'+ncol+'" style="padding:6px 16px;background:var(--bg);font-size:11px;font-weight:600;color:var(--muted);border-bottom:1px solid var(--border);">Working Capital Changes</td></tr>';
+    wcNames.forEach(function(name){
+      var tag2=bsData.find(function(p){return p[0]===name;})||[null,{type:''}];
+      var t=getTag(tag2[1]);
       var isInterco=/due to|due from|interco|parent|subsidiar/i.test(name);
-      html+='<tr><td style="'+tdLabelStyle+'padding-left:36px;">'+escHtml(name)+'<span style="'+tagStyle+'">'+tag+'</span>'+(isInterco?'<span style="font-size:10px;color:var(--amber);margin-left:4px;">⚑ Intercompany</span>':'')+'</td>';
+      html+='<tr><td style="'+lbl+'padding-left:36px;">'+escHtml(name)
+        +'<span style="'+tag+'">'+t+'</span>'
+        +(isInterco?'<span style="font-size:10px;color:var(--amber);margin-left:4px;">⚑ Interco</span>':'')
+        +'</td>';
       periods.forEach(function(p){
-        var item=p.data.wcItems.find(function(i){return i.name===name;});
-        html+=tdAmt(item?item.impact:0);
+        var item=p.d.wc.find(function(i){return i.name===name;});
+        html+=amt(item?item.impact:0);
       });
       html+='</tr>';
     });
   }
 
-  html+='<tr style="font-weight:700;">'
-    +'<td style="padding:9px 16px;font-size:13px;font-weight:700;background:var(--accent-light);border-bottom:1px solid var(--border);">Net Cash from Operating Activities</td>';
-  periods.forEach(function(p){ html+=tdAmtBold(p.data.opCF,'var(--accent-light)'); });
-  html+='</tr>';
+  html+='<tr><td style="padding:9px 16px;font-size:13px;font-weight:700;background:var(--accent-light);border-bottom:1px solid var(--border);">Net Cash from Operating Activities</td>';
+  periods.forEach(function(p){ html+=amtBold(p.d.opCF,'var(--accent-light)'); }); html+='</tr>';
 
-  // ── B. Investing ──────────────────────────────────────────────────────────────
-  html+=sectionHdr('B. Investing Activities',numCols);
-  var allInvNames=[];
-  periods.forEach(function(p){ p.data.invItems.forEach(function(i){ if(allInvNames.indexOf(i.name)===-1) allInvNames.push(i.name); }); });
-  if(allInvNames.length){
-    allInvNames.forEach(function(name){
-      html+='<tr><td style="'+tdLabelStyle+'padding-left:28px;">'+escHtml(name)+'<span style="'+tagStyle+'">NCA</span></td>';
+  // B. Investing
+  html+=secHdr('B. Investing Activities');
+  if(invNames.length){
+    invNames.forEach(function(name){
+      html+='<tr><td style="'+lbl+'padding-left:28px;">'+escHtml(name)+'<span style="'+tag+'">NCA</span></td>';
       periods.forEach(function(p){
-        var item=p.data.invItems.find(function(i){return i.name===name;});
-        html+=tdAmt(item?item.impact:0);
+        var item=p.d.inv.find(function(i){return i.name===name;});
+        html+=amt(item?item.impact:0);
       });
       html+='</tr>';
     });
   } else {
-    html+='<tr><td style="'+tdLabelStyle+'padding-left:28px;color:var(--muted);">No non-current asset movements</td>';
-    periods.forEach(function(){ html+=tdAmt(0); });
-    html+='</tr>';
+    html+='<tr><td style="'+lbl+'padding-left:28px;color:var(--muted);">No non-current asset movements</td>';
+    periods.forEach(function(){ html+=amt(0); }); html+='</tr>';
   }
   html+='<tr><td style="padding:9px 16px;font-size:13px;font-weight:700;background:var(--accent-light);border-bottom:1px solid var(--border);">Net Cash from Investing Activities</td>';
-  periods.forEach(function(p){ html+=tdAmtBold(p.data.invCF,'var(--accent-light)'); });
-  html+='</tr>';
+  periods.forEach(function(p){ html+=amtBold(p.d.invCF,'var(--accent-light)'); }); html+='</tr>';
 
-  // ── C. Financing ──────────────────────────────────────────────────────────────
-  html+=sectionHdr('C. Financing Activities',numCols);
-  var allFinNames=[];
-  periods.forEach(function(p){ p.data.finItems.forEach(function(i){ if(allFinNames.indexOf(i.name)===-1) allFinNames.push(i.name); }); });
-  if(allFinNames.length){
-    allFinNames.forEach(function(name){
-      var tag=bsTags[name]||'';
+  // C. Financing
+  html+=secHdr('C. Financing Activities');
+  if(finNames.length){
+    finNames.forEach(function(name){
       var isInterco=/due to|due from|interco|parent|subsidiar/i.test(name);
-      html+='<tr><td style="'+tdLabelStyle+'padding-left:28px;">'+escHtml(name)+'<span style="'+tagStyle+'">'+tag+'</span>'+(isInterco?'<span style="font-size:10px;color:var(--amber);margin-left:4px;">⚑ Intercompany</span>':'')+'</td>';
+      html+='<tr><td style="'+lbl+'padding-left:28px;">'+escHtml(name)
+        +(isInterco?'<span style="font-size:10px;color:var(--amber);margin-left:4px;">⚑ Intercompany</span>':'')
+        +'</td>';
       periods.forEach(function(p){
-        var item=p.data.finItems.find(function(i){return i.name===name;});
-        html+=tdAmt(item?item.impact:0);
+        var item=p.d.fin.find(function(i){return i.name===name;});
+        html+=amt(item?item.impact:0);
       });
       html+='</tr>';
     });
+  } else {
+    html+='<tr><td style="'+lbl+'padding-left:28px;color:var(--muted);">No financing movements</td>';
+    periods.forEach(function(){ html+=amt(0); }); html+='</tr>';
   }
   html+='<tr><td style="padding:9px 16px;font-size:13px;font-weight:700;background:var(--accent-light);border-bottom:1px solid var(--border);">Net Cash from Financing Activities</td>';
-  periods.forEach(function(p){ html+=tdAmtBold(p.data.finCF,'var(--accent-light)'); });
-  html+='</tr>';
+  periods.forEach(function(p){ html+=amtBold(p.d.finCF,'var(--accent-light)'); }); html+='</tr>';
 
-  // ── Summary ───────────────────────────────────────────────────────────────────
-  html+=sectionHdr('Summary',numCols);
+  // Summary
+  html+=secHdr('Summary');
   var summaryRows=[
-    {label:'NET CASH MOVEMENT', key:'netMov', bg:'var(--bg)'},
-    {label:'Opening Cash Balance', key:'openCash', bg:'white'},
-    {label:'CLOSING CASH BALANCE', key:'closeCash', bg:'var(--accent-light)'}
+    {label:'NET CASH MOVEMENT',key:'netMov'},
+    {label:'Opening Cash Balance',key:'openCash'},
+    {label:'Closing Cash Balance',key:'closeCash'}
   ];
   summaryRows.forEach(function(sr){
-    html+='<tr><td style="padding:9px 16px;font-size:13px;font-weight:700;background:'+sr.bg+';border-bottom:1px solid var(--border);">'+sr.label+'</td>';
-    periods.forEach(function(p){ html+=tdAmtBold(p.data[sr.key],sr.bg); });
+    html+='<tr><td style="padding:9px 16px;font-size:13px;font-weight:700;border-bottom:1px solid var(--border);">'+sr.label+'</td>';
+    periods.forEach(function(p){ html+=amtBold(p.d[sr.key],'var(--bg)'); });
     html+='</tr>';
   });
 
-  // ── Validation ────────────────────────────────────────────────────────────────
-  html+=sectionHdr('Validation Checks',numCols);
+  // Validation
+  html+='<tr><td colspan="'+ncol+'" style="padding:6px 16px;font-size:11px;color:var(--muted);border-top:2px solid var(--border);">Validation: Closing Cash = Opening + Net Movement</td></tr>';
   periods.forEach(function(p,pi){
-    if(pi>0) return; // show full validation for first visible period only
-    var d=p.data;
-    var checks=[
-      {label:'[1] Closing Cash matches BS cash account', pass:d.balCheck, note:d.balCheck?'':('Calc: '+fmtMoney(d.calcClose)+' vs BS: '+fmtMoney(d.closeCash))},
-      {label:'[2] Net Profit ties to P&L', pass:true, note:''},
-      {label:'[3] All BS accounts tagged', pass:d.unmapped.length===0, note:d.unmapped.length?'Unmapped: '+d.unmapped.slice(0,3).join(', ')+(d.unmapped.length>3?'…':''):''},
-      {label:'[4] Intercompany flagged', pass:true, note:'See ⚑ markers above'},
-      {label:'[5] D&A added back (not double-counted)', pass:true, note:''}
-    ];
-    checks.forEach(function(c){
-      html+='<tr><td colspan="'+numCols+'" style="padding:6px 16px;font-size:12px;border-bottom:1px solid var(--border);background:'+(c.pass?'var(--green-light)':'var(--danger-light)')+';color:'+(c.pass?'#065f46':'#991b1b')+';">'
-        +(c.pass?'✓ PASS':'✗ FAIL')+' — '+c.label+(c.note?' <em style="opacity:0.8;">('+c.note+')</em>':'')+'</td></tr>';
-    });
+    var calc=p.d.openCash+p.d.netMov;
+    var ok=Math.abs(calc-p.d.closeCash)<1;
+    html+='<tr><td colspan="'+ncol+'" style="padding:5px 16px;font-size:11px;background:'+(ok?'var(--green-light)':'var(--danger-light)')+';color:'+(ok?'#065f46':'#991b1b')+';">'
+      +(ok?'✓ '+p.label+' reconciles':'✗ '+p.label+': Calc '+fmtMoney(calc)+' vs BS '+fmtMoney(p.d.closeCash))+'</td></tr>';
   });
 
-  // Unmapped warning
-  var allUnmapped=[];
-  periods.forEach(function(p){ p.data.unmapped.forEach(function(n){ if(allUnmapped.indexOf(n)===-1) allUnmapped.push(n); }); });
+  // Unmapped
+  var allUnmapped=[]; periods.forEach(function(p){ p.d.unmapped.forEach(function(n){ if(allUnmapped.indexOf(n)===-1) allUnmapped.push(n); }); });
   if(allUnmapped.length){
-    html+='<tr><td colspan="'+numCols+'" style="padding:10px 16px;background:var(--amber-light);border-top:2px solid #fde68a;font-size:12px;color:#92400e;">'
-      +'<strong>⚠ '+allUnmapped.length+' account(s) unmapped — excluded from CF. Review COA Mapping tab.</strong><br>'
-      +allUnmapped.join(' · ')+'</td></tr>';
+    html+='<tr><td colspan="'+ncol+'" style="padding:8px 16px;background:var(--amber-light);font-size:12px;color:#92400e;">'
+      +'⚠ '+allUnmapped.length+' unmapped account(s) excluded: '+allUnmapped.join(', ')+'</td></tr>';
   }
 
   html+='</tbody></table></div>';
