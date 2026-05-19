@@ -438,74 +438,33 @@
     <span id="sourceTimestamp">Loaded: —</span>
   </div>
 
-  <!-- Date bar -->
-  <div class="date-bar">
-    <label>📅 Period:</label>
-    <div class="date-presets">
-      <button class="preset-btn" onclick="setPreset('ytd',event)">YTD</button>
-      <button class="preset-btn" onclick="setPreset('thismonth',event)">This Month</button>
-      <button class="preset-btn" onclick="setPreset('lastmonth',event)">Last Month</button>
-      <button class="preset-btn" onclick="setPreset('q1',event)">Q1</button>
-      <button class="preset-btn" onclick="setPreset('q2',event)">Q2</button>
-      <button class="preset-btn" onclick="setPreset('q3',event)">Q3</button>
-      <button class="preset-btn" onclick="setPreset('q4',event)">Q4</button>
-      <button class="preset-btn" onclick="setPreset('lastyear',event)">Last Year</button>
-    </div>
-    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-      <label>From</label><input type="date" id="dateFrom">
-      <label>To</label><input type="date" id="dateTo">
-      <label>BS As At</label><input type="date" id="dateBS">
-    </div>
-    <div style="display:flex;align-items:center;gap:8px;">
-      <label>Basis</label>
-      <select id="reportBasis" style="padding:6px 10px;border:1px solid var(--border);border-radius:7px;font-family:var(--mono);font-size:12px;background:var(--surface);color:var(--text);">
-        <option value="ACCRUAL" selected>Accrual</option>
-        <option value="CASH">Cash</option>
-      </select>
-    </div>
-    <div style="display:flex;align-items:center;gap:8px;">
-      <label>Currency</label>
-      <select id="reportCurrency" onchange="updateCurrency(this.value)" style="padding:6px 10px;border:1px solid var(--border);border-radius:7px;font-family:var(--mono);font-size:12px;background:var(--surface);color:var(--text);min-width:76px;">
-        <option value="SGD" selected>SGD</option>
-        <option value="USD">USD</option>
-        <option value="HKD">HKD</option>
-        <option value="MYR">MYR</option>
-        <option value="IDR">IDR</option>
-        <option value="PHP">PHP</option>
-        <option value="AUD">AUD</option>
-        <option value="GBP">GBP</option>
-        <option value="EUR">EUR</option>
-        <option value="JPY">JPY</option>
-        <option value="CNY">CNY</option>
-        <option value="INR">INR</option>
-        <option value="THB">THB</option>
-        <option value="VND">VND</option>
-      </select>
-    </div>
-    <button class="btn btn-primary btn-sm" onclick="applyDateFilter()" style="margin-left:auto;">Apply →</button>
+  <!-- Key Metrics Bar -->
+  <div class="summary-grid" id="keyMetricsBar">
+    <div class="summary-card"><div class="summary-label">Gross Margin</div><div class="summary-value blue" id="metGrossMargin">—</div><div style="font-size:11px;color:var(--muted);margin-top:3px;">Gross Profit / Revenue</div></div>
+    <div class="summary-card"><div class="summary-label">EBITDA Margin</div><div class="summary-value blue" id="metEbitdaMargin">—</div><div style="font-size:11px;color:var(--muted);margin-top:3px;">EBITDA / Revenue</div></div>
+    <div class="summary-card"><div class="summary-label">Cash Burn</div><div class="summary-value red" id="metCashBurn">—</div><div style="font-size:11px;color:var(--muted);margin-top:3px;">Avg monthly net cash out</div></div>
+    <div class="summary-card"><div class="summary-label">Runway</div><div class="summary-value green" id="metRunway">—</div><div style="font-size:11px;color:var(--muted);margin-top:3px;">Cash / monthly burn</div></div>
   </div>
 
-  <!-- Currency badge -->
-  <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
-    <span style="font-size:12px;color:var(--muted);">All amounts in</span>
-    <span class="badge" style="background:var(--accent2-light);color:var(--accent2);font-family:var(--mono);font-size:11px;" id="currencyBadge">SGD</span>
-    <span class="currency-label" style="display:none;">SGD</span>
-  </div>
+  <!-- Hidden inputs kept for compatibility with existing JS -->
+  <input type="hidden" id="dateFrom">
+  <input type="hidden" id="dateTo">
+  <input type="hidden" id="dateBS">
+  <input type="hidden" id="reportBasis" value="ACCRUAL">
+  <input type="hidden" id="reportCurrency" value="SGD">
+  <span id="currencyBadge" style="display:none;">SGD</span>
+  <span class="currency-label" style="display:none;">SGD</span>
+  <span id="sumRevenue" style="display:none;"></span>
+  <span id="sumExpenses" style="display:none;"></span>
+  <span id="sumNet" style="display:none;"></span>
+  <span id="sumCF" style="display:none;"></span>
+  <span id="sumAccounts" style="display:none;"></span>
 
-  <!-- Summary cards -->
-  <div class="summary-grid">
-    <div class="summary-card"><div class="summary-label">Total Revenue</div><div class="summary-value green" id="sumRevenue">—</div><div style="font-size:11px;color:var(--muted);margin-top:3px;">From P&amp;L</div></div>
-    <div class="summary-card"><div class="summary-label">Total Expenses</div><div class="summary-value red" id="sumExpenses">—</div><div style="font-size:11px;color:var(--muted);margin-top:3px;">From P&amp;L</div></div>
-    <div class="summary-card"><div class="summary-label">Net Profit / Loss</div><div class="summary-value" id="sumNet">—</div><div style="font-size:11px;color:var(--muted);margin-top:3px;">Revenue minus expenses</div></div>
-    <div class="summary-card"><div class="summary-label">Operating Cash Flow</div><div class="summary-value blue" id="sumCF">—</div><div style="font-size:11px;color:var(--muted);margin-top:3px;">Direct method</div></div>
-    <div class="summary-card"><div class="summary-label">COA Accounts</div><div class="summary-value" id="sumAccounts">—</div><div style="font-size:11px;color:var(--muted);margin-top:3px;">Active accounts</div></div>
-  </div>
 
   <!-- Tabs -->
   <div class="tabs">
     <button class="tab active" onclick="switchTab('pl',this)">Profit &amp; Loss</button>
     <button class="tab" onclick="switchTab('bs',this)">Balance Sheet</button>
-    <button class="tab" onclick="switchTab('coa',this)">Chart of Accounts</button>
     <button class="tab" onclick="switchTab('map',this)">COA Mapping</button>
     <button class="tab" onclick="switchTab('rpl',this)">✦ Restated P&amp;L</button>
     <button class="tab" onclick="switchTab('rbs',this)">✦ Restated BS</button>
@@ -514,179 +473,28 @@
 
   <!-- P&L Tab -->
   <div id="tab-pl" class="table-card">
-    <div class="table-header"><div><h3>Profit &amp; Loss</h3><div class="table-meta" id="plMeta"></div></div><button class="btn btn-secondary btn-sm" onclick="exportSingleCSV('pl')">Export CSV</button></div>
+    <div class="table-header"><div><h3>Profit &amp; Loss <span style="font-size:11px;font-weight:400;color:var(--muted);margin-left:6px;">Raw report — as per Account Name column</span></h3><div class="table-meta" id="plMeta"></div></div><button class="btn btn-secondary btn-sm" onclick="exportSingleCSV('pl')">⬇ Export CSV</button></div>
     <div id="plContent"></div>
   </div>
 
   <!-- Balance Sheet Tab -->
   <div id="tab-bs" class="table-card" style="display:none;">
-    <div class="table-header"><div><h3>Balance Sheet</h3><div class="table-meta" id="bsMeta"></div></div><button class="btn btn-secondary btn-sm" onclick="exportSingleCSV('bs')">Export CSV</button></div>
+    <div class="table-header"><div><h3>Balance Sheet <span style="font-size:11px;font-weight:400;color:var(--muted);margin-left:6px;">Raw report — as per Account Name column</span></h3><div class="table-meta" id="bsMeta"></div></div><button class="btn btn-secondary btn-sm" onclick="exportSingleCSV('bs')">⬇ Export CSV</button></div>
     <div id="bsContent"></div>
   </div>
 
-  <!-- COA Mapping Tab (in dashboard) -->
-  <div id="tab-map" style="display:none;">
-
-    <!-- Header -->
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
+  <!-- COA Mapping Tab -->
+  <div id="tab-map" class="table-card" style="display:none;">
+    <div class="table-header">
       <div>
-        <div style="font-size:16px;font-weight:600;">COA Mapping</div>
-        <div style="font-size:12px;color:var(--muted);">Map your Xero accounts to your standard Chart of Accounts. P&amp;L and Balance Sheet are mapped separately.</div>
+        <h3>COA Mapping</h3>
+        <div class="table-meta">Account Name (from uploaded template) mapped to SaaS Standard COA</div>
       </div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;">
-        <button class="btn btn-primary btn-sm" onclick="autoMapAccounts()">✨ Auto-Map</button>
-        <button class="btn btn-secondary btn-sm" onclick="toggleBulkPanel()">☰ Bulk Map</button>
-        <button class="btn btn-secondary btn-sm" onclick="downloadCOATemplate()">⬇ Template</button>
-        <label class="btn btn-secondary btn-sm" style="cursor:pointer;margin:0;">
-          📂 Import CSV
-          <input type="file" accept=".csv" id="coaUploadInput" onchange="uploadCOAMapping(this)" style="display:none;">
-        </label>
-        <label class="btn btn-secondary btn-sm" style="cursor:pointer;margin:0;">
-          📋 Master COA
-          <input type="file" accept=".csv" id="masterCOAInput" onchange="uploadMasterCOA(this)" style="display:none;">
-        </label>
-        <button class="btn btn-secondary btn-sm" onclick="exportSingleCSV('map')">⬇ Export</button>
-      </div>
+      <button class="btn btn-secondary btn-sm" onclick="exportCOAMappingCSV()">⬇ Export CSV</button>
     </div>
-
-    <!-- STEP 1: Sector selector -->
-    <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px 20px;margin-bottom:16px;">
-      <div style="font-size:13px;font-weight:600;margin-bottom:12px;">
-        Step 1 — Select your business sector
-        <span style="font-weight:400;color:var(--muted);margin-left:8px;font-size:12px;">This loads the standard COA categories into the dropdowns below</span>
-      </div>
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;" id="sectorGrid" class="sector-grid-container"></div>
-      <div id="sectorConfirmed" style="display:none;margin-top:12px;padding:8px 14px;background:var(--accent-light);border-radius:8px;font-size:12px;color:var(--accent);font-weight:600;">
-        ✓ Sector: <span id="sectorName"></span> — Category dropdowns are now active below.
-      </div>
+    <div id="coaMappingContent">
+      <p style="padding:20px;color:var(--muted);font-size:13px;">Upload P&amp;L and Balance Sheet templates to see the COA mapping here.</p>
     </div>
-
-    <!-- Status messages -->
-    <div id="coaUploadStatus" style="display:none;margin-bottom:10px;padding:8px 14px;background:var(--accent-light);border-radius:8px;color:var(--accent);font-weight:600;font-size:12px;"></div>
-    <div id="masterCOAStatus" style="display:none;margin-bottom:10px;padding:8px 14px;background:var(--accent2-light);border-radius:8px;color:var(--accent2);font-weight:600;font-size:12px;"></div>
-
-    <!-- Bulk Map Panel (hidden by default) -->
-    <div id="bulkMapPanel" style="display:none;background:var(--surface);border:1px solid var(--accent);border-radius:12px;padding:18px 20px;margin-bottom:16px;box-shadow:0 0 0 3px rgba(37,99,235,0.06);">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px;">
-        <div>
-          <div style="font-size:14px;font-weight:700;margin-bottom:2px;">☰ Bulk Mapping</div>
-          <div style="font-size:12px;color:var(--muted);">Select accounts from the table below, then apply a section and category to all of them at once.</div>
-        </div>
-        <button onclick="toggleBulkPanel()" style="padding:5px 10px;border:1px solid var(--border);border-radius:6px;cursor:pointer;background:var(--bg);font-size:12px;">✕ Close</button>
-      </div>
-
-      <!-- Bulk controls row -->
-      <div style="display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap;padding:14px 16px;background:var(--bg);border-radius:8px;margin-bottom:12px;">
-        <div style="flex:1;min-width:140px;">
-          <label style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.4px;display:block;margin-bottom:5px;">Apply to</label>
-          <select id="bulkTarget" style="width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;background:var(--surface);">
-            <option value="pl">P&L accounts</option>
-            <option value="bs">BS accounts</option>
-          </select>
-        </div>
-        <div style="flex:1;min-width:160px;">
-          <label style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.4px;display:block;margin-bottom:5px;">Section</label>
-          <select id="bulkSection" onchange="refreshBulkCatOpts()" style="width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;background:var(--surface);">
-            <option value="">— Keep existing —</option>
-            <!-- Options populated dynamically by refreshBulkSectionOpts() -->
-          </select>
-        </div>
-        <div style="flex:2;min-width:200px;">
-          <label style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.4px;display:block;margin-bottom:5px;">Category</label>
-          <select id="bulkCategory" style="width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;background:var(--surface);">
-            <option value="">— Keep existing —</option>
-          </select>
-        </div>
-        <div style="min-width:120px;">
-          <label style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.4px;display:block;margin-bottom:5px;">Department</label>
-          <input type="text" id="bulkDept" placeholder="e.g. R&D, G&A…" style="width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;font-family:var(--sans);">
-        </div>
-        <button onclick="applyBulkMap()" style="padding:8px 18px;background:var(--accent);color:white;border:none;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;">
-          Apply to selected →
-        </button>
-      </div>
-
-      <!-- Account checklist -->
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;flex-wrap:wrap;gap:8px;">
-        <div style="font-size:12px;font-weight:600;">Select accounts to bulk-map:</div>
-        <div style="display:flex;gap:8px;">
-          <button onclick="bulkSelectAll()" style="padding:4px 10px;border:1px solid var(--border);border-radius:5px;font-size:11px;cursor:pointer;background:var(--bg);">Select all</button>
-          <button onclick="bulkSelectUnmapped()" style="padding:4px 10px;border:1px solid var(--border);border-radius:5px;font-size:11px;cursor:pointer;background:var(--bg);">Unmapped only</button>
-          <button onclick="bulkSelectNone()" style="padding:4px 10px;border:1px solid var(--border);border-radius:5px;font-size:11px;cursor:pointer;background:var(--bg);">Deselect all</button>
-        </div>
-      </div>
-      <div id="bulkAccountList" style="max-height:280px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;background:var(--surface);"></div>
-      <div id="bulkStatus" style="margin-top:10px;font-size:12px;color:var(--muted);"></div>
-    </div>
-
-    <!-- STEP 2: Progress bars -->
-    <div id="mappingProgressBar" class="mapping-progress" style="margin-bottom:16px;"></div>
-
-    <!-- STEP 2: P&L Mapping — collapsible -->
-    <div class="table-card" style="margin-bottom:16px;">
-      <div class="table-header" style="background:var(--accent-light);cursor:pointer;user-select:none;" onclick="toggleSection('plMapping','plMapToggle')">
-        <div>
-          <h3>📊 P&amp;L Account Mapping</h3>
-          <div class="table-meta" id="plMapMeta">Map income and expense accounts</div>
-        </div>
-        <div style="display:flex;align-items:center;gap:10px;">
-          <span id="plMapBadge" class="badge badge-unmapped">Incomplete</span>
-          <span id="plMapToggle" style="font-size:20px;color:var(--muted);line-height:1;">▾</span>
-        </div>
-      </div>
-      <!-- Inline bulk bar for P&L -->
-      <div id="plInlineBulk" style="display:none;padding:10px 16px;background:#eff6ff;border-bottom:1px solid #bfdbfe;display:none;align-items:center;gap:10px;flex-wrap:wrap;">
-        <span id="plBulkCount" style="font-size:12px;font-weight:600;color:var(--accent);white-space:nowrap;">0 selected</span>
-        <select id="plBulkSection" onchange="onPlBulkSectionChange()" style="padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;min-width:180px;">
-          <option value="">— Set Section —</option>
-        </select>
-        <select id="plBulkCategory" style="padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;min-width:200px;">
-          <option value="">— Set Category —</option>
-        </select>
-        <input type="text" id="plBulkDept" placeholder="Department (optional)" style="padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;width:160px;">
-        <button onclick="applyInlineBulk('pl')" style="padding:6px 14px;background:var(--accent);color:white;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;">Apply to selected</button>
-        <button onclick="clearTableSelection('pl')" style="padding:6px 10px;background:var(--bg);border:1px solid var(--border);border-radius:6px;font-size:12px;cursor:pointer;">✕</button>
-      </div>
-      <div id="plMapping">
-        <div id="mapContentPL"></div>
-      </div>
-    </div>
-
-    <!-- Balance Sheet Mapping — collapsible -->
-    <div class="table-card">
-      <div class="table-header" style="background:var(--accent2-light);cursor:pointer;user-select:none;" onclick="toggleSection('bsMapping','bsMapToggle')">
-        <div>
-          <h3>🏦 Balance Sheet Account Mapping</h3>
-          <div class="table-meta" id="bsMapMeta">Map asset, liability, and equity accounts</div>
-        </div>
-        <div style="display:flex;align-items:center;gap:10px;">
-          <span id="bsMapBadge" class="badge badge-unmapped">Incomplete</span>
-          <span id="bsMapToggle" style="font-size:20px;color:var(--muted);line-height:1;">▾</span>
-        </div>
-      </div>
-      <!-- Inline bulk bar for BS -->
-      <div id="bsInlineBulk" style="display:none;padding:10px 16px;background:#f0f9ff;border-bottom:1px solid #bae6fd;display:none;align-items:center;gap:10px;flex-wrap:wrap;">
-        <span id="bsBulkCount" style="font-size:12px;font-weight:600;color:var(--accent2);white-space:nowrap;">0 selected</span>
-        <select id="bsBulkSection" onchange="onBsBulkSectionChange()" style="padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;min-width:180px;">
-          <option value="">— Set Section —</option>
-          <option value="Current Assets">🏦 Current Assets</option>
-          <option value="Non-Current Assets">🏗️ Non-Current Assets</option>
-          <option value="Current Liabilities">📋 Current Liabilities</option>
-          <option value="Non-Current Liabilities">📋 Non-Current Liabilities</option>
-          <option value="Equity">💎 Equity</option>
-        </select>
-        <select id="bsBulkCategory" style="padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;min-width:200px;">
-          <option value="">— Set Category —</option>
-        </select>
-        <input type="text" id="bsBulkDept" placeholder="Department (optional)" style="padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;width:160px;">
-        <button onclick="applyInlineBulk('bs')" style="padding:6px 14px;background:var(--accent2);color:white;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;">Apply to selected</button>
-        <button onclick="clearTableSelection('bs')" style="padding:6px 10px;background:var(--bg);border:1px solid var(--border);border-radius:6px;font-size:12px;cursor:pointer;">✕</button>
-      </div>
-      <div id="bsMapping">
-        <div id="mapContentBS"></div>
-      </div>
-    </div>
-
   </div>
 
     <!-- Restated P&L Tab -->
@@ -698,7 +506,7 @@
           <button id="rplViewSingle" onclick="setRplView('single')" style="padding:4px 10px;border-radius:4px;border:none;font-size:11px;font-weight:600;cursor:pointer;background:var(--accent);color:white;">Current Period</button>
           <button id="rplViewTimeseries" onclick="setRplView('timeseries')" style="padding:4px 10px;border-radius:4px;border:none;font-size:11px;font-weight:500;cursor:pointer;background:transparent;color:var(--muted);">Multi-Month</button>
         </div>
-        <button class="btn btn-secondary btn-sm" onclick="exportSingleCSV('rpl')">⬇ Export CSV</button>
+        <button class="btn btn-primary btn-sm" onclick="exportSingleCSV('rpl')" title="Download Restated P&L as CSV">⬇ Download Restated P&L</button>
       </div>
     </div>
     <div id="rplContent"></div>
@@ -714,7 +522,7 @@
           <button id="rbsViewSingle" onclick="setRbsView('single')" style="padding:4px 10px;border-radius:4px;border:none;font-size:11px;font-weight:600;cursor:pointer;background:var(--accent);color:white;">Current Period</button>
           <button id="rbsViewTimeseries" onclick="setRbsView('timeseries')" style="padding:4px 10px;border-radius:4px;border:none;font-size:11px;font-weight:500;cursor:pointer;background:transparent;color:var(--muted);">Multi-Month</button>
         </div>
-        <button class="btn btn-secondary btn-sm" onclick="exportSingleCSV('rbs')">⬇ Export CSV</button>
+        <button class="btn btn-primary btn-sm" onclick="exportSingleCSV('rbs')" title="Download Restated BS as CSV">⬇ Download Restated BS</button>
       </div>
     </div>
     <div id="rbsContent"></div>
@@ -764,11 +572,7 @@
 
 
 
-  <!-- COA Tab -->
-  <div id="tab-coa" class="table-card" style="display:none;">
-    <div class="table-header"><div><h3>Chart of Accounts</h3><div class="table-meta" id="coaMeta"></div></div><button class="btn btn-secondary btn-sm" onclick="exportSingleCSV('coa')">Export CSV</button></div>
-    <div id="coaContent"></div>
-  </div>
+<!-- COA tab removed -->
 
 
 </div>
@@ -1983,346 +1787,68 @@ function getSectorBSCats(){
   return cats;
 }
 
-function renderMapping(){
-  // Always refresh the sector grid when this tab is opened
-  initSectors();
-  // Restore active state if sector already selected
-  if(selectedSector){
-    document.querySelectorAll('#sector-'+selectedSector).forEach(function(card){card.classList.add('active');});
-    document.querySelectorAll('#sectorConfirmed').forEach(function(el){el.style.display='block';});
-    document.querySelectorAll('#sectorName').forEach(function(el){el.textContent=SECTORS[selectedSector]?SECTORS[selectedSector].name:'';});
-  }
-  const accounts=getAccountsList();
-  const noAccMsg='<p style="padding:20px;color:var(--muted);font-size:13px;">No accounts loaded yet. Connect to Xero or upload a CSV first.</p>';
-  if(!accounts.length){
-    document.getElementById('mapContentPL').innerHTML=noAccMsg;
-    document.getElementById('mapContentBS').innerHTML=noAccMsg;
-    updateMappingProgressBar();
+function renderMapping(){ renderCOAMappingTab(); } // legacy alias
+
+function renderCOAMappingTab(){
+  var el=document.getElementById('coaMappingContent');
+  if(!el) return;
+
+  var plEntries=Object.entries(csvMultiMonthPL);
+  var bsEntries=Object.entries(csvMultiMonthBS);
+
+  if(!plEntries.length && !bsEntries.length){
+    el.innerHTML='<p style="padding:20px;color:var(--muted);font-size:13px;">No data — upload P&amp;L and Balance Sheet templates in the setup screen first.</p>';
     return;
   }
 
-  // ── Only include accounts that appear in the actual loaded reports ──
-  // Collect account names from P&L report rows
-  const plAccountNames=new Set();
-  if(plReports.length&&plReports[0].Rows)
-    plReports[0].Rows.forEach(function(sec){
-      if(sec.Rows)sec.Rows.forEach(function(row){
-        if(row.RowType==='Row'&&row.Cells){
-          var nm=row.Cells[0]?.Value||'';
-          if(nm&&!PL_SKIP.has(nm)) plAccountNames.add(nm);
-        }
-      });
-    });
-
-  // Collect account names from BS report rows
-  // Skip Xero computed summary rows and auto-handled rows (Net Assets, CYE etc.)
-  // Use global BS_SKIP + CYE_NAMES constants
-  const bsAccountNames=new Set();
-  if(bsReports.length&&bsReports[0].Rows)
-    bsReports[0].Rows.forEach(function(sec){
-      if(sec.Rows)sec.Rows.forEach(function(row){
-        if(row.RowType==='Row'&&row.Cells){
-          var nm=row.Cells[0]?.Value||'';
-          if(nm&&!BS_SKIP.has(nm)) bsAccountNames.add(nm);
-        }
-      });
-    });
-
-  // BS type guard — these Xero types must never appear in P&L
-  const alwaysBsTypes=new Set(['BANK','CREDITCARD','EQUITY','CURRLIAB','LIABILITY','TERMLIAB',
-    'CURRENT','FIXED','NONCURRENT','PREPAYMENT','PAYABLE','RECEIVABLE']);
-
-  // Filter accounts to ONLY those visible in the loaded reports AND exist in COA
-  // This excludes summary/total rows like "Net Income", "Total Assets" etc.
-  const coaNames=new Set(coaData.filter(function(a){return a.Status==='ACTIVE';}).map(function(a){return a.Name;}));
-  const hasCOA=coaNames.size>0;
-
-  // P&L: account name appears in P&L report AND is not a BS type
-  // If COA is loaded, also require the account to be a real COA account
-  const plAccounts=accounts.filter(function(a){
-    if(alwaysBsTypes.has((a.type||'').toUpperCase())) return false;
-    if(!plAccountNames.has(a.name)&&!plAccountNames.has(a.id)) return false;
-    if(hasCOA&&!coaNames.has(a.name)) return false; // exclude summary rows
-    return true;
-  });
-
-  // BS: account name appears in BS report
-  const bsAccounts=accounts.filter(function(a){
-    if(!bsAccountNames.has(a.name)&&!bsAccountNames.has(a.id)) return false;
-    if(hasCOA&&!coaNames.has(a.name)) return false; // exclude summary rows
-    return true;
-  });
-
-  // ── Build category dropdown options ──
-  // Use imported standard COA categories if available, otherwise free-text input
-  const hasCats=standardCOACategories.length>0;
-
-  // ── Build the category dropdown/input for a given account ──
-  function buildCatInput(key, cur, xeroType, sectionType){
-    // sectionType: 'pl' or 'bs' — determines which category list to show
-
-    // Master COA takes highest priority
-    if(masterCOA){
-      const groups=masterCOA.pl||[];
-      let opts='<option value="">— Select —</option>';
-      opts+=groups.map(function(g){return '<optgroup label="'+g.group+'">'+g.items.map(function(item){return '<option value="'+item+'"'+(cur===item?' selected':'')+'>'+item+'</option>';}).join('')+'</optgroup>';}).join('');
-      opts+='<option value="__custom__">✏️ Custom…</option>';
-      return buildSelectWithCustom(key, cur, opts);
-    }
-
-    // User-imported standard COA categories
-    if(hasCats){
-      let opts='<option value="">— Select —</option>'+standardCOACategories.map(function(cat){return '<option value="'+cat+'"'+(cur===cat?' selected':'')+'>'+cat+'</option>';}).join('');
-      opts+='<option value="__custom__">✏️ Custom…</option>';
-      return buildSelectWithCustom(key, cur, opts);
-    }
-
-    // Sector-based grouped dropdowns (P&L vs BS separated)
-    const catList=sectionType==='bs'?getSectorBSCats():getSectorPLCats();
-
-    if(catList.length>0){
-      // Build optgroup structure
-      const groups={};
-      catList.forEach(function(c){if(!groups[c.group])groups[c.group]=[];groups[c.group].push(c.item);});
-      let opts='<option value="">— Select category —</option>';
-      Object.keys(groups).forEach(function(g){
-        opts+='<optgroup label="'+g+'">';
-        groups[g].forEach(function(item){opts+='<option value="'+item+'"'+(cur===item?' selected':'')+'>'+item+'</option>';});
-        opts+='</optgroup>';
-      });
-      opts+='<option value="__custom__">✏️ Custom category…</option>';
-      return buildSelectWithCustom(key, cur, opts);
-    }
-
-    // No sector selected — free text
-    return '<input type="text" class="mapping-select" data-account-id="'+key+'"'
-      +' value="'+cur.replace(/"/g,'&quot;')+'"'
-      +' placeholder="Select sector or type category..."'
-      +' onchange="updateMapping(this)" oninput="updateMapping(this)"'
-      +' style="min-width:180px;">';
+  function buildSection(title, entries){
+    if(!entries.length) return '';
+    var rows=entries.map(function(pair){
+      var name=pair[0], acc=pair[1];
+      var coa=acc.coa||'—';
+      var type=acc.type||'—';
+      var mapped=coa&&coa!=='—';
+      return '<tr>'
+        +'<td style="padding:9px 16px;font-size:13px;">'+escHtml(name)+'</td>'
+        +'<td style="padding:9px 16px;font-size:12px;color:var(--muted);">'+escHtml(type)+'</td>'
+        +'<td style="padding:9px 16px;font-size:13px;">'
+          +(mapped?'<span style="color:var(--accent);font-weight:500;">'+escHtml(coa)+'</span>'
+                  :'<span style="color:var(--danger);font-size:11px;">⚠ Not mapped</span>')
+        +'</td>'
+      +'</tr>';
+    }).join('');
+    return '<tr style="background:var(--bg);"><td colspan="3" style="padding:8px 16px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted);">'+title+'</td></tr>'
+      + rows;
   }
 
-  // Dropdown with "Enter custom" option
-  function buildSelectWithCustom(key, cur, opts){
-    return '<div style="display:flex;gap:4px;align-items:center;">'
-      +'<select class="mapping-select" data-account-id="'+key+'" onchange="handleCatChange(this)" style="min-width:200px;">'+opts+'</select>'
-      +(cur&&cur!=='__custom__'?'<span style="font-size:10px;color:var(--accent);">✓</span>':'')
-      +'</div>';
-  }
+  var html='<table><thead><tr>'
+    +'<th style="width:35%">Account Name</th>'
+    +'<th style="width:20%">Account Type</th>'
+    +'<th>COA Mapping</th>'
+    +'</tr></thead><tbody>'
+    +buildSection('Profit & Loss Accounts', plEntries)
+    +buildSection('Balance Sheet Accounts', bsEntries)
+    +'</tbody></table>';
 
-  // ── Build P&L section options from sector structure ──────────────────────
-  function getPLSectionOptions(key){
-    var sec=selectedSector&&SECTORS[selectedSector]?SECTORS[selectedSector].pl:null;
-    var cur=plSections[key]||'';
-    if(sec){
-      // Build from actual sector groups: Revenue, COGS, each OpEx sub-group, Other
-      var opts='<option value="">— Pick section —</option>';
-      opts+='<option value="Revenue"'+(cur==='Revenue'?' selected':'')+'>💰 Revenue</option>';
-      opts+='<option value="COGS"'+(cur==='COGS'?' selected':'')+'>🏭 COGS</option>';
-      if(sec.opex){
-        Object.keys(sec.opex).forEach(function(g){
-          var val='OpEx — '+g;
-          opts+='<option value="'+val+'"'+(cur===val?' selected':'')+'>📊 OpEx — '+g+'</option>';
-        });
-      } else {
-        opts+='<option value="OpEx"'+(cur==='OpEx'?' selected':'')+'>📊 OpEx</option>';
-      }
-      opts+='<option value="Other"'+(cur==='Other'?' selected':'')+'>📎 Other / Non-Operating</option>';
-      return opts;
-    }
-    // No sector — generic options
-    return '<option value="">— Pick section —</option>'
-      +'<option value="Revenue"'+(cur==='Revenue'?' selected':'')+'>💰 Revenue</option>'
-      +'<option value="COGS"'+(cur==='COGS'?' selected':'')+'>🏭 COGS</option>'
-      +'<option value="OpEx — Sales & Marketing"'+(cur==='OpEx — Sales & Marketing'?' selected':'')+'>📊 OpEx — Sales & Marketing</option>'
-      +'<option value="OpEx — Research & Development"'+(cur==='OpEx — Research & Development'?' selected':'')+'>📊 OpEx — Research & Development</option>'
-      +'<option value="OpEx — General & Administrative"'+(cur==='OpEx — General & Administrative'?' selected':'')+'>📊 OpEx — General & Administrative</option>'
-      +'<option value="OpEx"'+(cur==='OpEx'?' selected':'')+'>📊 OpEx — Other</option>'
-      +'<option value="Other"'+(cur==='Other'?' selected':'')+'>📎 Other / Non-Operating</option>';
-  }
-
-  function getBSSectionOptions(key){
-    var cur=bsSections[key]||'';
-    return '<option value="">— Pick section —</option>'
-      +'<option value="Current Assets"'+(cur==='Current Assets'?' selected':'')+'>🏦 Current Assets</option>'
-      +'<option value="Non-Current Assets"'+(cur==='Non-Current Assets'?' selected':'')+'>🏗️ Non-Current Assets</option>'
-      +'<option value="Current Liabilities"'+(cur==='Current Liabilities'?' selected':'')+'>📋 Current Liabilities</option>'
-      +'<option value="Non-Current Liabilities"'+(cur==='Non-Current Liabilities'?' selected':'')+'>📋 Non-Current Liabilities</option>'
-      +'<option value="Equity"'+(cur==='Equity'?' selected':'')+'>💎 Equity</option>';
-  }
-
-  // ── Build ALL category options (used when no section is selected yet) ──────
-  function buildAllCatOpts(key, cur, reportSection){
-    var opts='<option value="">— Select category —</option>';
-    if(reportSection==='bs'){
-      var sec=selectedSector&&SECTORS[selectedSector]?SECTORS[selectedSector].bs:null;
-      if(sec){
-        var labelMap={'current_assets':'Current Assets','noncurrent_assets':'Non-Current Assets',
-          'current_liabilities':'Current Liabilities','noncurrent_liabilities':'Non-Current Liabilities','equity':'Equity'};
-        Object.keys(labelMap).forEach(function(k){
-          if(sec[k]&&sec[k].length){
-            opts+='<optgroup label="'+labelMap[k]+'">';
-            sec[k].forEach(function(item){opts+='<option value="'+item+'"'+(cur===item?' selected':'')+'>'+item+'</option>';});
-            opts+='</optgroup>';
-          }
-        });
-      }
-    } else {
-      var sec=selectedSector&&SECTORS[selectedSector]?SECTORS[selectedSector].pl:null;
-      if(sec){
-        if(sec.revenue&&sec.revenue.length){
-          opts+='<optgroup label="💰 Revenue">';
-          sec.revenue.forEach(function(item){opts+='<option value="'+item+'"'+(cur===item?' selected':'')+'>'+item+'</option>';});
-          opts+='</optgroup>';
-        }
-        if(sec.cogs&&sec.cogs.length){
-          opts+='<optgroup label="🏭 COGS">';
-          sec.cogs.forEach(function(item){opts+='<option value="'+item+'"'+(cur===item?' selected':'')+'>'+item+'</option>';});
-          opts+='</optgroup>';
-        }
-        if(sec.opex){
-          Object.keys(sec.opex).forEach(function(g){
-            opts+='<optgroup label="📊 OpEx — '+g+'">';
-            sec.opex[g].forEach(function(item){opts+='<option value="'+item+'"'+(cur===item?' selected':'')+'>'+item+'</option>';});
-            opts+='</optgroup>';
-          });
-        }
-        if(sec.other&&sec.other.length){
-          opts+='<optgroup label="📎 Other / Non-Operating">';
-          sec.other.forEach(function(item){opts+='<option value="'+item+'"'+(cur===item?' selected':'')+'>'+item+'</option>';});
-          opts+='</optgroup>';
-        }
-      }
-    }
-    opts+='<option value="__custom__">✏️ Enter custom category…</option>';
-    return opts;
-  }
-
-  // ── Get category options filtered by section ──────────────────────────────
-  function getCatOptsForSection(key, cur, sectionVal, reportSection){
-    if(reportSection==='bs'){
-      // BS: filter by BS section
-      var sec=selectedSector&&SECTORS[selectedSector]?SECTORS[selectedSector].bs:null;
-      var bsSectionMap={'Current Assets':'current_assets','Non-Current Assets':'noncurrent_assets',
-        'Current Liabilities':'current_liabilities','Non-Current Liabilities':'noncurrent_liabilities','Equity':'equity'};
-      var bsKey=bsSectionMap[sectionVal];
-      var items=sec&&bsKey?sec[bsKey]:null;
-      if(items){
-        var opts='<option value="">— Select category —</option>';
-        items.forEach(function(item){opts+='<option value="'+item+'"'+(cur===item?' selected':'')+'>'+item+'</option>';});
-        opts+='<option value="__custom__">✏️ Custom…</option>';
-        return opts;
-      }
-    } else {
-      // P&L: filter by P&L section
-      var plSec=selectedSector&&SECTORS[selectedSector]?SECTORS[selectedSector].pl:null;
-      if(plSec){
-        var items=null;
-        if(sectionVal==='Revenue') items=plSec.revenue;
-        else if(sectionVal==='COGS') items=plSec.cogs;
-        else if(sectionVal==='Other') items=plSec.other;
-        else if(sectionVal&&sectionVal.startsWith('OpEx — ')){
-          var grp=sectionVal.replace('OpEx — ','');
-          items=plSec.opex&&plSec.opex[grp]?plSec.opex[grp]:null;
-        } else if(sectionVal==='OpEx'&&plSec.opex){
-          // flat all opex
-          items=[];
-          Object.keys(plSec.opex).forEach(function(g){plSec.opex[g].forEach(function(i){items.push(i);});});
-        }
-        if(items){
-          var opts='<option value="">— Select category —</option>';
-          items.forEach(function(item){opts+='<option value="'+item+'"'+(cur===item?' selected':'')+'>'+item+'</option>';});
-          opts+='<option value="__custom__">✏️ Custom…</option>';
-          return opts;
-        }
-      }
-    }
-    // Fallback — no section selected or no sector: show all
-    return null; // caller will use buildAllCatOpts
-  }
-
-  function buildMappingTable(accs, section){
-    if(!accs.length) return '<p style="padding:16px;color:var(--muted);font-size:13px;">No accounts found for this section.</p>';
-    const mapped=accs.filter(function(a){return mappings[a.id]&&mappings[a.id]!=='[ Not mapped ]';}).length;
-    let html='<div style="padding:10px 18px;border-bottom:1px solid var(--border);font-size:12px;color:var(--muted);">'
-      +'<span class="badge badge-mapped">'+mapped+' Mapped</span> &nbsp;'
-      +'<span class="badge badge-unmapped">'+(accs.length-mapped)+' Unmapped</span>'
-      +'<span style="margin-left:8px;">of '+accs.length+' accounts</span>'
-      +(selectedSector?'':' &nbsp;<span style="color:var(--amber);">← Select a sector above to enable structured dropdowns</span>')
-      +'</div>';
-    var secId=section==='pl'?'plInlineBulk':'bsInlineBulk';
-    html+='<table><thead><tr>'
-      +'<th style="width:36px;padding:9px 8px 9px 16px;"><input type="checkbox" class="tbl-hdr-chk" data-section="'+section+'" style="width:14px;height:14px;cursor:pointer;"></th>'
-      +'<th>Code</th><th>Account Name</th><th>Xero Type</th>'
-      +'<th style="min-width:160px;">'+(section==='pl'?'P&L Section':'BS Section')+'</th>'
-      +'<th style="min-width:200px;">Standard COA Category</th>'
-      +'<th>Department</th>'
-      +'<th>Status</th>'
-      +'</tr></thead><tbody>';
-
-    accs.forEach(function(a){
-      const key=a.id;
-      const cur=mappings[key]||'';
-      const dept=departments[key]||'';
-      const isMapped=cur&&cur!=='[ Not mapped ]';
-      const secVal=section==='pl'?(plSections[key]||''):(bsSections[key]||'');
-
-      // Section dropdown
-      const secOpts=section==='pl'?getPLSectionOptions(key):getBSSectionOptions(key);
-      const secAttr=section==='pl'?'data-plsec-id':'data-bssec-id';
-      const secChange=section==='pl'?'updatePLSection(this)':'updateBSSection(this)';
-      const secInput='<select '+secAttr+'="'+key+'" onchange="'+secChange+'" '
-        +'style="width:100%;padding:5px 7px;border:1px solid var(--border);border-radius:6px;font-size:12px;">'+secOpts+'</select>';
-
-      // Category column: always a dropdown
-      // If section selected → filtered items for that section
-      // If no section → all sector categories grouped
-      // Always includes "✏️ Enter custom…" at the bottom
-      const filteredOpts=getCatOptsForSection(key, cur, secVal, section);
-      const allOpts=filteredOpts||buildAllCatOpts(key, cur, section);
-      const catInput='<div style="display:flex;gap:4px;align-items:center;" id="catcell-'+key+'">'
-        +'<select class="mapping-select" data-account-id="'+key+'" onchange="handleCatChange(this)" style="min-width:190px;">'+allOpts+'</select>'
-        +(isMapped?'<span style="font-size:10px;color:var(--accent);" title="Mapped">✓</span>':'')
-        +'</div>';
-
-      const deptInput='<input type="text" data-dept-id="'+key+'"'
-        +' value="'+dept.replace(/"/g,'&quot;')+'"'
-        +' placeholder="e.g. Sales, R&D..."'
-        +' onchange="updateDept(this)"'
-        +' style="width:110px;padding:5px 7px;border:1px solid var(--border);border-radius:6px;font-size:12px;">';
-
-      html+='<tr data-acc-id="'+key+'" data-section="'+section+'">'
-        +'<td style="padding:8px 8px 8px 16px;"><input type="checkbox" class="tbl-row-chk" data-id="'+key+'" data-section="'+section+'" style="width:14px;height:14px;cursor:pointer;"></td>'
-        +'<td><span style="font-family:var(--mono);font-size:11px;color:var(--muted)">'+(a.code||'—')+'</span></td>'
-        +'<td><strong>'+a.name+'</strong></td>'
-        +'<td>'+getTypeBadge(a.type||'')+'</td>'
-        +'<td>'+secInput+'</td>'
-        +'<td>'+catInput+'</td>'
-        +'<td>'+deptInput+'</td>'
-        +'<td>'+(isMapped?'<span class="badge badge-mapped">Mapped</span>':'<span class="badge badge-unmapped">Unmapped</span>')+'</td>'
-        +'</tr>';
-    });
-    html+='</tbody></table>';
-    return html;
-  }
-
-  document.getElementById('mapContentPL').innerHTML=buildMappingTable(plAccounts,'pl');
-  document.getElementById('mapContentBS').innerHTML=buildMappingTable(bsAccounts,'bs');
-
-  // Update progress
-  const plMapped=plAccounts.filter(a=>mappings[a.id]&&mappings[a.id]!=='[ Not mapped ]').length;
-  const bsMapped=bsAccounts.filter(a=>mappings[a.id]&&mappings[a.id]!=='[ Not mapped ]').length;
-  const plBadge=document.getElementById('plMapBadge');
-  if(plBadge){const d=plMapped===plAccounts.length&&plAccounts.length>0;plBadge.textContent=d?'Complete ✓':'Incomplete ('+plMapped+'/'+plAccounts.length+')';plBadge.className=d?'badge badge-mapped':'badge badge-unmapped';}
-  const bsBadge=document.getElementById('bsMapBadge');
-  if(bsBadge){const d=bsMapped===bsAccounts.length&&bsAccounts.length>0;bsBadge.textContent=d?'Complete ✓':'Incomplete ('+bsMapped+'/'+bsAccounts.length+')';bsBadge.className=d?'badge badge-mapped':'badge badge-unmapped';}
-  const plMeta=document.getElementById('plMapMeta');if(plMeta)plMeta.textContent=plMapped+' of '+plAccounts.length+' P&L accounts mapped';
-  const bsMeta=document.getElementById('bsMapMeta');if(bsMeta)bsMeta.textContent=bsMapped+' of '+bsAccounts.length+' BS accounts mapped';
-  updateMappingProgressBar();
+  el.innerHTML=html;
 }
 
-// Department storage
-let departments={};
+function escHtml(s){
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function exportCOAMappingCSV(){
+  var lines=['"Account Name","Account Type","COA Mapping","Statement"'];
+  Object.entries(csvMultiMonthPL).forEach(function(pair){
+    lines.push('"'+pair[0]+'","'+(pair[1].type||'')+'","'+(pair[1].coa||'')+'","P&L"');
+  });
+  Object.entries(csvMultiMonthBS).forEach(function(pair){
+    lines.push('"'+pair[0]+'","'+(pair[1].type||'')+'","'+(pair[1].coa||'')+'","BS"');
+  });
+  dlCSV(lines.join('\n'),'COA_Mapping_Export.csv');
+  showMsg('COA Mapping exported.','success');
+}
+
 
 function updateDept(input){
   const key=input.getAttribute('data-dept-id');
@@ -3390,16 +2916,70 @@ function renderReport(reports,contentId,metaId,metaText,isPL){
 }
 
 function renderPL(){
-  const from=document.getElementById('dateFrom')?.value||(new Date().getFullYear()+'-01-01');
-  const to=document.getElementById('dateTo')?.value||new Date().toISOString().split('T')[0];
-  const basis=document.getElementById('reportBasis')?.value||'ACCRUAL';
-  renderReport(plReports,'plContent','plMeta','Period: '+from+' to '+to+' · '+basis+' · '+reportCurrency+' · Source: '+dataSources.pl,true);
+  var el=document.getElementById('plContent');
+  var metaEl=document.getElementById('plMeta');
+  var entries=Object.entries(csvMultiMonthPL);
+  if(!entries.length){
+    // Fallback to Xero report format
+    renderReport(plReports,'plContent','plMeta','Source: '+dataSources.pl,true);
+    return;
+  }
+  // Group by Account Type from the uploaded template
+  var groups={};
+  entries.forEach(function(pair){
+    var name=pair[0], acc=pair[1];
+    var grp=acc.type||'Other';
+    if(!groups[grp]) groups[grp]=[];
+    var total=Object.values(acc.months||{}).reduce(function(s,v){return s+v;},0);
+    groups[grp].push({name:name,total:total});
+  });
+  var html='<table><thead><tr><th>Account Name</th><th style="text-align:right">Amount</th></tr></thead><tbody>';
+  Object.entries(groups).forEach(function(pair){
+    var grp=pair[0], items=pair[1];
+    html+='<tr class="section-row"><td colspan="2" style="padding:8px 14px">'+escHtml(grp)+'</td></tr>';
+    var subtotal=0;
+    items.forEach(function(item){
+      subtotal+=item.total;
+      html+='<tr><td style="padding-left:28px">'+escHtml(item.name)+'</td><td class="amount '+(item.total<0?'neg':'pos')+'">'+fmtMoney(item.total)+'</td></tr>';
+    });
+    html+='<tr class="subtotal-row"><td style="padding-left:14px"><strong>Total '+escHtml(grp)+'</strong></td><td class="amount"><strong>'+fmtMoney(subtotal)+'</strong></td></tr>';
+  });
+  html+='</tbody></table>';
+  el.innerHTML=html;
+  if(metaEl) metaEl.textContent='Raw P&L · '+entries.length+' accounts · Source: '+dataSources.pl;
 }
 
 function renderBS(){
-  const asAt=document.getElementById('dateBS')?.value||new Date().toISOString().split('T')[0];
-  const basis=document.getElementById('reportBasis')?.value||'ACCRUAL';
-  renderReport(bsReports,'bsContent','bsMeta','As at: '+asAt+' · '+basis+' · '+reportCurrency+' · Source: '+dataSources.bs,false);
+  var el=document.getElementById('bsContent');
+  var metaEl=document.getElementById('bsMeta');
+  var entries=Object.entries(csvMultiMonthBS);
+  if(!entries.length){
+    renderReport(bsReports,'bsContent','bsMeta','Source: '+dataSources.bs,false);
+    return;
+  }
+  // Group by Account Type
+  var groups={};
+  entries.forEach(function(pair){
+    var name=pair[0], acc=pair[1];
+    var grp=acc.type||'Other';
+    if(!groups[grp]) groups[grp]=[];
+    var total=Object.values(acc.months||{}).reduce(function(s,v){return s+v;},0);
+    groups[grp].push({name:name,total:total});
+  });
+  var html='<table><thead><tr><th>Account Name</th><th style="text-align:right">Amount</th></tr></thead><tbody>';
+  Object.entries(groups).forEach(function(pair){
+    var grp=pair[0], items=pair[1];
+    html+='<tr class="section-row"><td colspan="2" style="padding:8px 14px">'+escHtml(grp)+'</td></tr>';
+    var subtotal=0;
+    items.forEach(function(item){
+      subtotal+=item.total;
+      html+='<tr><td style="padding-left:28px">'+escHtml(item.name)+'</td><td class="amount '+(item.total<0?'neg':'pos')+'">'+fmtMoney(item.total)+'</td></tr>';
+    });
+    html+='<tr class="subtotal-row"><td style="padding-left:14px"><strong>Total '+escHtml(grp)+'</strong></td><td class="amount"><strong>'+fmtMoney(subtotal)+'</strong></td></tr>';
+  });
+  html+='</tbody></table>';
+  el.innerHTML=html;
+  if(metaEl) metaEl.textContent='Raw Balance Sheet · '+entries.length+' accounts · Source: '+dataSources.bs;
 }
 
 // ── Restated P&L ─────────────────────────────────────────────────────────────
@@ -3942,227 +3522,198 @@ function getXeroType(name){
   return acc?acc.Type:'';
 }
 
-// ── Cash Flow (Indirect Method — two-period BS) ───────────────────────────────
+// ── Cash Flow — Indirect Method ──────────────────────────────────────────────
+// Derives cash flow from: Restated P&L + current & prior BS COA-mapped data
+// Per spec: Net Profit → Add-backs → Working Capital → Investing → Financing
 function renderCashFlow(){
-  const cfEl=document.getElementById('cfContent');
+  var cfEl=document.getElementById('cfContent');
+  if(!cfEl) return;
 
-  if(!plReports.length&&!bsReports.length){
-    cfEl.innerHTML='<div class="warn-box" style="margin:16px;">Load P&L and Balance Sheet data to generate the Cash Flow statement.</div>';
+  var plData=Object.entries(csvMultiMonthPL);  // [{name, {type, coa, months}}]
+  var bsData=Object.entries(csvMultiMonthBS);
+
+  if(!plData.length && !bsData.length){
+    cfEl.innerHTML='<div class="warn-box" style="margin:16px;">⚠️ Upload P&L and Balance Sheet templates to generate the Cash Flow statement.</div>';
     return;
   }
 
-  const hasPrior=priorBsReports.length>0;
-  const currentBS=extractBSAccounts(bsReports);
-  const priorBS=hasPrior?extractBSAccounts(priorBsReports):{};
+  // ── Helper: sum all months for an account ────────────────────────────────────
+  function sumMonths(acc){ return Object.values(acc.months||{}).reduce(function(s,v){return s+v;},0); }
 
-  // ── STEP 1: Net Profit & Depreciation from P&L ──────────────────────────────
-  // ── Net Profit: use the value already computed by renderPL (sumNet) ──────────
-  // This ensures cash flow always matches the P&L displayed on screen
-  var netProfit=0, depreciation=0;
-  var sumNetEl=document.getElementById('sumNet');
-  if(sumNetEl&&sumNetEl.textContent&&sumNetEl.textContent!=='—'){
-    netProfit=parseFloat(sumNetEl.textContent.replace(/,/g,''))||0;
-  } else if(plReports.length&&plReports[0].Rows){
-    // Fallback: compute from raw P&L rows
-    var rev=0,exp=0;
-    plReports[0].Rows.forEach(function(section){
-      if(!section.Rows)return;
-      section.Rows.forEach(function(row){
-        if(row.RowType==='Row'&&row.Cells){
-          var nm=row.Cells[0]?.Value||'';
-          var amt=parseFloat(String(row.Cells[1]?.Value||'0').replace(/,/g,''))||0;
-          if(/depreciation|amortis/i.test(nm)) depreciation+=Math.abs(amt);
-          if(section.Title&&/income|revenue/i.test(section.Title)) rev+=amt;
-          if(section.Title&&/expense|cost|overhead|operating/i.test(section.Title)) exp+=Math.abs(amt);
-        }
-      });
-    });
-    netProfit=rev-exp;
-  }
-  // Depreciation from P&L rows (always needed for add-back)
-  if(plReports.length&&plReports[0].Rows){
-    plReports[0].Rows.forEach(function(section){
-      if(!section.Rows)return;
-      section.Rows.forEach(function(row){
-        if(row.RowType==='Row'&&row.Cells){
-          var nm=row.Cells[0]?.Value||'';
-          var amt=parseFloat(String(row.Cells[1]?.Value||'0').replace(/,/g,''))||0;
-          if(/depreciation|amortis/i.test(nm)) depreciation+=Math.abs(amt);
-        }
-      });
-    });
+  // ── Classify BS accounts by COA Mapping or Account Type tag ──────────────────
+  // Tags: Current Asset, Non-Current Asset, Current Liability, Non-Current Liability, Equity
+  function bsTag(acc){
+    var t=(acc.coa||acc.type||'').toLowerCase();
+    if(/current asset/i.test(t) && !/non.current/i.test(t))  return 'CA';
+    if(/non.current asset/i.test(t))   return 'NCA';
+    if(/current liabilit/i.test(t) && !/non.current/i.test(t)) return 'CL';
+    if(/non.current liabilit/i.test(t)) return 'NCL';
+    if(/equity/i.test(t))               return 'EQ';
+    if(/cash|bank/i.test(t))            return 'CASH';
+    return 'OTHER';
   }
 
-  // ── STEP 2: Classify all BS accounts by Xero type ───────────────────────────
-  // Map Xero type -> section tag (O=Operating, I=Investing, F=Financing)
-  // and directionality (ASSET = increase is cash outflow; LIAB = increase is cash inflow)
-  const TYPE_MAP={
-    'CURRENT':      {tag:'O',dir:'ASSET'},
-    'CURRLIAB':     {tag:'O',dir:'LIAB'},
-    'INVENTORY':    {tag:'O',dir:'ASSET'},
-    'RECEIVABLE':   {tag:'O',dir:'ASSET'},
-    'PAYABLE':      {tag:'O',dir:'LIAB'},
-    'PREPAYMENT':   {tag:'O',dir:'ASSET'},
-    'NONCURRENT':   {tag:'I',dir:'ASSET'},
-    'FIXED':        {tag:'I',dir:'ASSET'},
-    'DEPRECIATN':   {tag:'O',dir:'NONCASH'}, // add-back
-    'EQUITY':       {tag:'F',dir:'LIAB'},
-    'TERMLIAB':     {tag:'F',dir:'LIAB'},
-    'OTHERINCOME':  {tag:'O',dir:'INCOME'},
-    'OVERHEADS':    {tag:'O',dir:'INCOME'},
-    'DIRECTCOSTS':  {tag:'O',dir:'INCOME'},
-    'REVENUE':      {tag:'O',dir:'INCOME'},
-    'BANK':         {tag:'CASH',dir:'ASSET'}, // cash itself — used for reconciliation
-  };
+  // ── STEP 1: Net Profit from P&L ──────────────────────────────────────────────
+  var totalRev=0, totalExp=0, depreciation=0, sbc=0, otherNonCash=0;
+  var unmapped=[];
 
-  // Operating working capital buckets
-  const opItems=[];    // {name, change, dir, type, section}
-  const invItems=[];
-  const finItems=[];
-  var openingCash=0, closingCash=0;
+  plData.forEach(function(pair){
+    var name=pair[0], acc=pair[1];
+    var coa=acc.coa||acc.type||'';
+    var amt=sumMonths(acc);
+    var coaL=coa.toLowerCase();
 
-  // Walk current BS accounts
-  Object.keys(currentBS).forEach(function(name){
-    const curr=currentBS[name];
-    const prior=hasPrior?(priorBS[name]||0):0;
-    const change=curr-prior; // positive = increase
-    const xType=(getXeroType(name)||'').toUpperCase();
-    const mapping=TYPE_MAP[xType];
+    if(/revenue|income|sales/i.test(coaL)) totalRev+=amt;
+    else if(/expense|cost|opex|cogs|overhead/i.test(coaL)) totalExp+=Math.abs(amt);
+    else if(!coa) unmapped.push(name);
 
-    if(!mapping) return; // unknown type — skip
-
-    if(mapping.tag==='CASH'){
-      closingCash+=curr;
-      openingCash+=prior;
-      return;
-    }
-    if(mapping.tag==='O'&&mapping.dir!=='INCOME'&&mapping.dir!=='NONCASH'){
-      // Cash impact: asset increase = outflow (-), liability increase = inflow (+)
-      const cashImpact=mapping.dir==='ASSET'?-change:change;
-      if(change!==0||!hasPrior) opItems.push({name,curr,prior,change,cashImpact,dir:mapping.dir,type:xType});
-    }
-    if(mapping.tag==='I'){
-      const cashImpact=-change; // asset increase = cash outflow
-      if(change!==0||!hasPrior) invItems.push({name,curr,prior,change,cashImpact,dir:mapping.dir,type:xType});
-    }
-    if(mapping.tag==='F'){
-      // Exclude Retained Earnings — this is an accumulated P&L balance, not a cash flow item
-      if(/retained earning|accumulated profit|accumulated loss|retained profit|current year earning/i.test(name)) return;
-      const cashImpact=mapping.dir==='LIAB'?change:-change;
-      if(change!==0||!hasPrior) finItems.push({name,curr,prior,change,cashImpact,dir:mapping.dir,type:xType});
-    }
+    // Non-cash add-backs
+    if(/depreciation|amortis/i.test(name)||/depreciation|amortis/i.test(coa)) depreciation+=Math.abs(amt);
+    if(/stock.based|share.based|sbc/i.test(name)||/stock.based|share.based/i.test(coa)) sbc+=Math.abs(amt);
+    if(/non.cash/i.test(coa)) otherNonCash+=Math.abs(amt);
   });
 
-  // No prior BS — use end-period balances as reference proxy
-  // Show ALL non-zero BS accounts so the statement is fully populated
-  if(!hasPrior){
-    Object.keys(currentBS).forEach(function(name){
-      const curr=currentBS[name];
-      if(curr===0) return; // skip zero-balance accounts
-      const xType=(getXeroType(name)||'').toUpperCase();
-      const mapping=TYPE_MAP[xType];
-      if(!mapping||mapping.tag==='CASH'||mapping.dir==='INCOME'||mapping.dir==='NONCASH') return;
+  var netProfit=totalRev-totalExp;
 
-      // For HR Easily: CURRLIAB accounts are stored as POSITIVE in Xero
-      // Asset accounts: positive balance = cash tied up (outflow proxy)
-      // Liability accounts: positive balance = cash received (inflow proxy)
-      const cashImpact=mapping.dir==='ASSET'?-Math.abs(curr):Math.abs(curr);
+  // ── STEP 2: Working Capital Adjustments from BS ───────────────────────────────
+  var wcItems=[];    // Operating: Current Assets & Liabilities
+  var invItems=[];   // Investing: Non-Current Assets
+  var finItems=[];   // Financing: Non-Current Liabilities & Equity
+  var closingCash=0;
+  var bsUnmapped=[];
 
-      if(mapping.tag==='O') opItems.push({name,curr,prior:0,change:curr,cashImpact,dir:mapping.dir,type:xType});
-      if(mapping.tag==='I') invItems.push({name,curr,prior:0,change:curr,cashImpact:-Math.abs(curr),dir:mapping.dir,type:xType});
-      if(mapping.tag==='F'){
-        if(/retained earning|accumulated profit|accumulated loss|retained profit|current year earning/i.test(name)) return;
-        finItems.push({name,curr,prior:0,change:curr,cashImpact,dir:mapping.dir,type:xType});
-      }
-    });
-    // Cash from BANK section
-    Object.keys(currentBS).forEach(function(name){
-      const xType=(getXeroType(name)||'').toUpperCase();
-      if(xType==='BANK') closingCash+=currentBS[name];
-    });
-  }
+  bsData.forEach(function(pair){
+    var name=pair[0], acc=pair[1];
+    var tag=bsTag(acc);
+    var bal=sumMonths(acc);  // period-end balance (proxy for change when no prior BS)
+    if(!bal) return;
 
-  // ── STEP 3: Compute totals ──────────────────────────────────────────────────
-  const totalWCImpact=opItems.reduce(function(s,i){return s+i.cashImpact;},0);
-  const operatingCF=netProfit+depreciation+totalWCImpact;
-  const investingCF=invItems.reduce(function(s,i){return s+i.cashImpact;},0);
-  const financingCF=finItems.reduce(function(s,i){return s+i.cashImpact;},0);
-  const netChangeCash=operatingCF+investingCF+financingCF;
-  const calcClosingCash=openingCash+netChangeCash;
+    if(tag==='CASH'){ closingCash+=bal; return; }
 
-  document.getElementById('sumCF').textContent=fmtMoney(operatingCF);
-  document.getElementById('sumCF').className='summary-value '+(operatingCF>=0?'blue':'red');
+    // Working capital: CA increase = cash out (-), CL increase = cash in (+)
+    if(tag==='CA')  wcItems.push({name:name,coa:acc.coa||acc.type,bal:bal,impact:-bal,dir:'Current Asset'});
+    if(tag==='CL')  wcItems.push({name:name,coa:acc.coa||acc.type,bal:bal,impact:+bal,dir:'Current Liability'});
+    // Investing: NCA increase = cash out (capex)
+    if(tag==='NCA') invItems.push({name:name,coa:acc.coa||acc.type,bal:bal,impact:-Math.abs(bal),dir:'Non-Current Asset'});
+    // Financing: NCL & Equity changes
+    if(tag==='NCL'){
+      // Flag intercompany / external financing separately
+      var isInterco=/interco|inter.compan|related part/i.test(name)||/interco|inter.compan/i.test(acc.coa||'');
+      finItems.push({name:name,coa:acc.coa||acc.type,bal:bal,impact:+bal,dir:'Non-Current Liability',flag:isInterco?'⚠ Intercompany — verify counterparty':''});
+    }
+    if(tag==='EQ'){
+      if(/retained earning|accumulated/i.test(name)) return; // skip — flows from P&L
+      finItems.push({name:name,coa:acc.coa||acc.type,bal:bal,impact:+bal,dir:'Equity'});
+    }
+    if(tag==='OTHER') bsUnmapped.push(name);
+  });
+
+  // Exclude cash accounts from working capital
+  wcItems=wcItems.filter(function(i){return !/cash|bank/i.test(i.name);});
+
+  // ── STEP 3: Totals ─────────────────────────────────────────────────────────
+  var nonCash=depreciation+sbc+otherNonCash;
+  var wcTotal=wcItems.reduce(function(s,i){return s+i.impact;},0);
+  var operatingCF=netProfit+nonCash+wcTotal;
+  var investingCF=invItems.reduce(function(s,i){return s+i.impact;},0);
+  var financingCF=finItems.reduce(function(s,i){return s+i.impact;},0);
+  var netCashMovement=operatingCF+investingCF+financingCF;
+
+  // Update sumCF for key metrics
+  var sumCFEl=document.getElementById('sumCF');
+  if(sumCFEl){ sumCFEl.textContent=fmtMoney(operatingCF); sumCFEl.className='summary-value '+(operatingCF>=0?'blue':'red'); }
 
   // ── STEP 4: Render ──────────────────────────────────────────────────────────
-  function cfRow(label,val,indent,subheader){
-    if(subheader) return '<div class="cf-row" style="background:var(--bg);font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.4px;padding:7px 18px;"><span>'+label+'</span><span></span></div>';
-    const cls=indent?'cf-row indent':'cf-row';
-    const amtCls='amount '+(val===0?'':val>0?'pos':'neg');
-    return '<div class="'+cls+'"><span>'+label+'</span><span class="'+amtCls+'">'+(val===0?'—':fmtMoney(val))+'</span></div>';
+  function hdr(label){
+    return '<div style="background:var(--bg);padding:9px 18px;border-bottom:1px solid var(--border);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:var(--text);display:flex;justify-content:space-between;">'
+      +'<span>'+label+'</span><span style="color:var(--muted);">'+reportCurrency+'</span></div>';
   }
-  function cfItemRows(items){
-    return items.map(function(i){
-      const mv=hasPrior?' <span style="font-size:10px;color:var(--muted);">('+fmtMoney(i.prior)+' → '+fmtMoney(i.curr)+')</span>':'';
-      return cfRow(i.name+mv,i.cashImpact,true);
-    }).join('');
+  function row(label,cat,movement,amt,flag,indent){
+    var amtCls='font-family:var(--mono);font-size:13px;'+(amt>0?'color:var(--green);':amt<0?'color:var(--danger);':'color:var(--muted);');
+    return '<div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:8px;padding:'+(indent?'8px 18px 8px 36px':'8px 18px')+';border-bottom:1px solid var(--border);font-size:13px;align-items:center;">'
+      +'<span>'+escHtml(label)+(flag?'<span style="margin-left:6px;font-size:10px;color:var(--amber);">'+flag+'</span>':'')+'</span>'
+      +'<span style="font-size:11px;color:var(--muted);">'+escHtml(cat)+'</span>'
+      +'<span style="font-size:11px;color:var(--muted);">'+movement+'</span>'
+      +'<span style="'+amtCls+'text-align:right;">'+fmtMoney(amt)+'</span>'
+      +'</div>';
+  }
+  function subtotal(label,amt){
+    var amtCls='font-family:var(--mono);font-size:13px;font-weight:700;'+(amt>0?'color:var(--green);':amt<0?'color:var(--danger);':'');
+    return '<div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:8px;padding:10px 18px;background:var(--accent-light);border-bottom:1px solid var(--border);font-weight:700;font-size:13px;align-items:center;">'
+      +'<span>'+label+'</span><span></span><span></span>'
+      +'<span style="'+amtCls+'text-align:right;">'+fmtMoney(amt)+'</span></div>';
+  }
+  function colHdr(){
+    return '<div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:8px;padding:7px 18px;background:var(--bg);border-bottom:1px solid var(--border);font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.4px;color:var(--muted);">'
+      +'<span>Account / Item</span><span>Category Tag</span><span>Movement</span><span style="text-align:right;">Amount</span></div>';
   }
 
-  // Update prior BS status display
-  const priorStatusEl=document.getElementById('priorBsStatus');
-  if(priorStatusEl){
-    if(hasPrior){
-      priorStatusEl.textContent='✓ Prior period loaded — '+(dataSources.priorBs||'manual upload')+' · '+Object.keys(priorBS).length+' accounts';
-      priorStatusEl.style.color='var(--accent)';
-    } else {
-      priorStatusEl.textContent='Not loaded — connect to Xero to auto-fetch, or expand Override manually above';
-      priorStatusEl.style.color='var(--amber)';
-    }
+  var html='<div style="overflow-x:auto;">';
+
+  // ── A. Operating Activities ──
+  html+=hdr('A. Operating Activities');
+  html+=colHdr();
+  html+=row('Net Profit / (Loss)','P&L Result','From P&L',netProfit,'',false);
+  if(depreciation)  html+=row('Depreciation & Amortization','Non-Cash Add-back','Add back',depreciation,'',true);
+  if(sbc)           html+=row('Stock-Based Compensation','Non-Cash Add-back','Add back',sbc,'',true);
+  if(otherNonCash)  html+=row('Other Non-Cash Items','Non-Cash Add-back','Add back',otherNonCash,'',true);
+  if(wcItems.length){
+    html+='<div style="padding:7px 18px;background:var(--bg);font-size:11px;color:var(--muted);font-weight:600;border-bottom:1px solid var(--border);">Working Capital Adjustments</div>';
+    wcItems.forEach(function(i){
+      var mv=i.dir==='Current Asset'?'↑ Asset (cash out)':'↑ Liability (cash in)';
+      html+=row(i.name,i.dir,mv,i.impact,'',true);
+    });
+  }
+  html+=subtotal('Net Cash from Operating Activities',operatingCF);
+
+  // ── B. Investing Activities ──
+  html+=hdr('B. Investing Activities');
+  html+=colHdr();
+  if(invItems.length){
+    invItems.forEach(function(i){ html+=row(i.name,i.dir,'Capex / Disposal',i.impact,'',true); });
+  } else {
+    html+=row('No non-current asset movements identified','—','—',0,'',false);
+  }
+  html+=subtotal('Net Cash from Investing Activities',investingCF);
+
+  // ── C. Financing Activities ──
+  html+=hdr('C. Financing Activities');
+  html+=colHdr();
+  if(finItems.length){
+    finItems.forEach(function(i){ html+=row(i.name,i.dir,i.dir==='Equity'?'Equity movement':'Debt / Financing',i.impact,i.flag||'',true); });
+  } else {
+    html+=row('No financing movements identified','—','—',0,'',false);
+  }
+  html+=subtotal('Net Cash from Financing Activities',financingCF);
+
+  // ── Summary ──
+  html+=hdr('Net Cash Movement & Closing Balance');
+  html+='<div style="padding:12px 18px;border-bottom:1px solid var(--border);display:grid;grid-template-columns:repeat(3,1fr);gap:12px;">';
+  function summaryCard(label,val,color){
+    return '<div style="background:var(--bg);border-radius:8px;padding:12px;">'
+      +'<div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.4px;color:var(--muted);margin-bottom:4px;">'+label+'</div>'
+      +'<div style="font-size:18px;font-weight:700;font-family:var(--mono);color:'+color+';">'+fmtMoney(val)+'</div>'
+      +'</div>';
+  }
+  html+=summaryCard('Net Cash Movement',netCashMovement,netCashMovement>=0?'var(--green)':'var(--danger)');
+  html+=summaryCard('Closing Cash Balance',closingCash,'var(--accent)');
+  html+=summaryCard('Operating Cash Flow',operatingCF,operatingCF>=0?'var(--green)':'var(--danger)');
+  html+='</div>';
+
+  // ── Unmapped accounts flag ──
+  var allUnmapped=unmapped.concat(bsUnmapped);
+  if(allUnmapped.length){
+    html+='<div style="margin:12px 18px;padding:12px 14px;background:var(--amber-light);border:1px solid #fde68a;border-radius:8px;font-size:12px;color:#92400e;">'
+      +'<strong>⚠ '+allUnmapped.length+' unmapped account(s) — excluded from cash flow. Review COA Mapping tab.</strong><br>'
+      +'<span style="color:#92400e;opacity:0.8;">'+allUnmapped.slice(0,8).join(' · ')+(allUnmapped.length>8?' · …and '+(allUnmapped.length-8)+' more':'')+'</span>'
+      +'</div>';
   }
 
-  const noPriorNote=!hasPrior?'<div class="warn-box" style="margin-bottom:12px;">⚠️ <strong>No prior period Balance Sheet loaded.</strong> Working capital changes are estimated using end-period balances only. Expand "Override manually" above or reconnect to Xero to auto-fetch.</div>':'';
-  const accuracyNote=hasPrior?'<div class="success-box" style="margin-bottom:12px;">✓ <strong>Two-period calculation active</strong> — working capital movements calculated from period-over-period changes. <span style="font-size:11px;color:var(--accent);">'+(dataSources.priorBs||'')+'</span></div>':'';
+  // ── Fallback note if no prior BS ──
+  html+='<div style="margin:10px 18px 16px;font-size:11px;color:var(--muted);">ℹ️ Cash flow derived from period-end balances. For period-over-period working capital changes, upload a prior period Balance Sheet via the Override panel in this tab.</div>';
 
-  cfEl.innerHTML=noPriorNote+accuracyNote
-
-    +'<div class="cf-section">'
-    +'<div class="cf-header"><span>A. Operating Activities</span><span style="font-family:var(--mono);font-size:12px;">'+reportCurrency+'</span></div>'
-    +cfRow('Net Income / (Loss)',netProfit,false)
-    +cfRow('Non-cash items',0,false,true)
-    +cfRow('Add back: Depreciation & Amortisation',depreciation,true)
-    +cfRow('Changes in Working Capital',0,false,true)
-    +cfItemRows(opItems.filter(function(i){return i.dir==='ASSET';}))
-    +cfItemRows(opItems.filter(function(i){return i.dir==='LIAB';}))
-    +'<div class="cf-row total"><span><strong>Net Cash from Operating Activities</strong></span><span class="amount '+(operatingCF>=0?'pos':'neg')+'"><strong>'+fmtMoney(operatingCF)+'</strong></span></div>'
-    +'</div>'
-
-    +'<div class="cf-section">'
-    +'<div class="cf-header"><span>B. Investing Activities</span><span style="font-family:var(--mono);font-size:12px;">SGD</span></div>'
-    +(invItems.length?cfItemRows(invItems):'<div class="cf-row indent" style="color:var(--muted);"><span>No investing accounts found — ensure Fixed/Non-Current accounts have Xero type FIXED or NONCURRENT</span><span>—</span></div>')
-    +'<div class="cf-row total"><span><strong>Net Cash from Investing Activities</strong></span><span class="amount '+(investingCF>=0?'pos':'neg')+'"><strong>'+fmtMoney(investingCF)+'</strong></span></div>'
-    +'</div>'
-
-    +'<div class="cf-section">'
-    +'<div class="cf-header"><span>C. Financing Activities</span><span style="font-family:var(--mono);font-size:12px;">SGD</span></div>'
-    +(finItems.length?cfItemRows(finItems):'<div class="cf-row indent" style="color:var(--muted);"><span>No financing accounts found — ensure loans/equity have Xero type TERMLIAB or EQUITY</span><span>—</span></div>')
-    +'<div class="cf-row total"><span><strong>Net Cash from Financing Activities</strong></span><span class="amount '+(financingCF>=0?'pos':'neg')+'"><strong>'+fmtMoney(financingCF)+'</strong></span></div>'
-    +'</div>'
-
-    +'<div class="cf-section">'
-    +cfRow('Net Change in Cash',netChangeCash,false)
-    +(hasPrior?cfRow('Opening Cash Balance',openingCash,false):'')
-    +(hasPrior?'<div class="cf-row total"><span><strong>Closing Cash Balance</strong></span><span class="amount '+(calcClosingCash>=0?'pos':'neg')+'"><strong>'+fmtMoney(calcClosingCash)+'</strong></span></div>':'')
-    +'<div class="cf-row total" style="font-size:14px;"><span><strong>NET CHANGE IN CASH</strong></span><span class="amount '+(netChangeCash>=0?'pos':'neg')+'" style="font-size:14px;"><strong>'+fmtMoney(netChangeCash)+'</strong></span></div>'
-    +'</div>'
-
-    +'<div style="margin-top:14px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:14px 18px;font-size:12px;">'
-    +'<div style="font-weight:600;margin-bottom:8px;">Reconciliation</div>'
-    +'<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;font-family:var(--mono);">'
-    +'<div style="background:var(--bg);padding:8px 12px;border-radius:6px;"><div style="font-size:10px;color:var(--muted);text-transform:uppercase;margin-bottom:2px;">Net Profit (P&L)</div><div style="font-weight:600;">'+fmtMoney(netProfit)+'</div></div>'
-    +'<div style="background:var(--bg);padding:8px 12px;border-radius:6px;"><div style="font-size:10px;color:var(--muted);text-transform:uppercase;margin-bottom:2px;">Depreciation (add-back)</div><div style="font-weight:600;">'+fmtMoney(depreciation)+'</div></div>'
-    +'<div style="background:var(--bg);padding:8px 12px;border-radius:6px;"><div style="font-size:10px;color:var(--muted);text-transform:uppercase;margin-bottom:2px;">Working Capital Impact</div><div style="font-weight:600;color:'+(totalWCImpact>=0?'var(--accent)':'var(--danger)')+';">'+fmtMoney(totalWCImpact)+'</div></div>'
-    +'<div style="background:var(--bg);padding:8px 12px;border-radius:6px;"><div style="font-size:10px;color:var(--muted);text-transform:uppercase;margin-bottom:2px;">Closing Cash (BS)</div><div style="font-weight:600;">'+fmtMoney(closingCash)+'</div></div>'
-    +(hasPrior?'<div style="background:'+(Math.abs(calcClosingCash-closingCash)<1?'var(--accent-light)':'var(--danger-light)')+'padding:8px 12px;border-radius:6px;"><div style="font-size:10px;color:var(--muted);text-transform:uppercase;margin-bottom:2px;">Check (Calc vs BS)</div><div style="font-weight:600;color:'+(Math.abs(calcClosingCash-closingCash)<1?'var(--accent)':'var(--danger)')+';">'+(Math.abs(calcClosingCash-closingCash)<1?'✓ Reconciles':fmtMoney(calcClosingCash-closingCash))+'</div></div>':'')
-    +'</div></div>';
+  html+='</div>';
+  cfEl.innerHTML=html;
 }
 
 
@@ -4252,6 +3803,17 @@ function renderMetrics(){
     {label:'Est. Monthly Burn',value:burnRate,fmt:'money',color:'amber',icon:'🔥',source:'Restated P&L'},
     {label:'Est. Runway',value:runway,fmt:'months',color:runway>=12?'green':runway>=6?'amber':'red',icon:'⏱',source:'Restated BS+P&L'},
   ];
+
+  // ── Update top key metrics bar ──────────────────────────────────────────────
+  function fmtPct(v){ return v===null||v===undefined ? '—' : v.toFixed(1)+'%'; }
+  function fmtMonths(v){ return v===null||v===undefined ? '—' : v.toFixed(1)+' mo'; }
+  var ebitda = pl.grossProfit - (pl.opex||0);
+  var ebitdaMarginPct = pl.revenue>0 ? (ebitda/pl.revenue)*100 : null;
+  var el;
+  el=document.getElementById('metGrossMargin');   if(el) el.textContent=fmtPct(grossMarginPct);
+  el=document.getElementById('metEbitdaMargin');  if(el) el.textContent=fmtPct(ebitdaMarginPct);
+  el=document.getElementById('metCashBurn');      if(el){ el.textContent=burnRate?fmtMoney(burnRate):'—'; el.className='summary-value '+(burnRate?'red':''); }
+  el=document.getElementById('metRunway');        if(el){ el.textContent=fmtMonths(runway); el.className='summary-value '+(runway>=12?'green':runway>=6?'blue':'red'); }
 
   const gridEl=document.getElementById('metricsAutoGrid');
   if(!hasMappings){
@@ -4482,14 +4044,19 @@ function buildTimeSeriesTable(multiMonthData, type){
 }
 
 function switchTab(name,btn){
-  ['pl','bs','coa','map','rpl','rbs','cf','metrics'].forEach(t=>document.getElementById('tab-'+t).style.display='none');
+  ['pl','bs','map','rpl','rbs','cf','metrics'].forEach(function(t){
+    var el=document.getElementById('tab-'+t);
+    if(el) el.style.display='none';
+  });
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
-  document.getElementById('tab-'+name).style.display='block';
+  var tabEl=document.getElementById('tab-'+name);
+  if(tabEl) tabEl.style.display='block';
   btn.classList.add('active');
-  if(name==='rpl')renderRestatedPL();
-  if(name==='rbs')renderRestatedBS();
-  if(name==='map')renderMapping();
-  if(name==='metrics')renderMetrics();
+  if(name==='rpl') renderRestatedPL();
+  if(name==='rbs') renderRestatedBS();
+  if(name==='map') renderCOAMappingTab();
+  if(name==='cf')  renderCashFlow();
+  if(name==='metrics') renderMetrics();
 }
 
 // ── Format ───────────────────────────────────────────────────────────────────
