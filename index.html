@@ -506,7 +506,7 @@
     <button class="tab" onclick="switchTab('map',this)">COA Mapping</button>
     <button class="tab" onclick="switchTab('rpl',this)">✦ Restated P&amp;L</button>
     <button class="tab" onclick="switchTab('rbs',this)">✦ Restated BS</button>
-    <button class="tab" onclick="switchTab('cf',this)">Cash Flow</button>
+    <button class="tab" onclick="switchTab('dcf',this)">Cash Flow</button>
   </div>
 
   <!-- P&L Tab -->
@@ -689,13 +689,13 @@
     <!-- Restated P&L Tab -->
   <di  <div id="tab-rpl" class="table-card" style="display:none;">
     <div class="table-header">
-      <div><h3>Restated Profit &amp; Loss</h3><div class="table-meta">Grouped by your sector standard COA</div></div>
+      <div><h3>Restated Profit &amp; Loss</h3><div class="table-meta" id="rplMeta">Structured time-series table · Sector standard COA</div></div>
       <div style="display:flex;gap:8px;align-items:center;">
         <div style="display:flex;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:2px;gap:2px;">
-          <button id="rplViewSingle" onclick="setRplView('single')" style="padding:4px 10px;border-radius:4px;border:none;font-size:11px;font-weight:600;cursor:pointer;background:var(--accent);color:white;">Single Period</button>
-          <button id="rplViewTimeseries" onclick="setRplView('timeseries')" style="padding:4px 10px;border-radius:4px;border:none;font-size:11px;font-weight:500;cursor:pointer;background:transparent;color:var(--muted);">Time Series</button>
+          <button id="rplViewSingle" onclick="setRplView('single')" style="padding:4px 10px;border-radius:4px;border:none;font-size:11px;font-weight:600;cursor:pointer;background:var(--accent);color:white;">Current Period</button>
+          <button id="rplViewTimeseries" onclick="setRplView('timeseries')" style="padding:4px 10px;border-radius:4px;border:none;font-size:11px;font-weight:500;cursor:pointer;background:transparent;color:var(--muted);">Multi-Month</button>
         </div>
-        <button class="btn btn-secondary btn-sm" onclick="exportSingleCSV('rpl')">Export CSV</button>
+        <button class="btn btn-secondary btn-sm" onclick="exportSingleCSV('rpl')">⬇ Export CSV</button>
       </div>
     </div>
     <div id="rplContent"></div>
@@ -705,13 +705,13 @@
   <!-- Restated Balance Sheet Tab -->
   <di  <div id="tab-rbs" class="table-card" style="display:none;">
     <div class="table-header">
-      <div><h3>Restated Balance Sheet</h3><div class="table-meta">Balance Sheet restated using your Standard COA mapping</div></div>
+      <div><h3>Restated Balance Sheet</h3><div class="table-meta">Structured time-series table · Sector standard COA</div></div>
       <div style="display:flex;gap:8px;align-items:center;">
         <div style="display:flex;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:2px;gap:2px;">
-          <button id="rbsViewSingle" onclick="setRbsView('single')" style="padding:4px 10px;border-radius:4px;border:none;font-size:11px;font-weight:600;cursor:pointer;background:var(--accent);color:white;">Single Period</button>
-          <button id="rbsViewTimeseries" onclick="setRbsView('timeseries')" style="padding:4px 10px;border-radius:4px;border:none;font-size:11px;font-weight:500;cursor:pointer;background:transparent;color:var(--muted);">Time Series</button>
+          <button id="rbsViewSingle" onclick="setRbsView('single')" style="padding:4px 10px;border-radius:4px;border:none;font-size:11px;font-weight:600;cursor:pointer;background:var(--accent);color:white;">Current Period</button>
+          <button id="rbsViewTimeseries" onclick="setRbsView('timeseries')" style="padding:4px 10px;border-radius:4px;border:none;font-size:11px;font-weight:500;cursor:pointer;background:transparent;color:var(--muted);">Multi-Month</button>
         </div>
-        <button class="btn btn-secondary btn-sm" onclick="exportSingleCSV('rbs')">Export CSV</button>
+        <button class="btn btn-secondary btn-sm" onclick="exportSingleCSV('rbs')">⬇ Export CSV</button>
       </div>
     </div>
     <div id="rbsContent"></div>
@@ -766,6 +766,35 @@
     <div class="table-header"><div><h3>Chart of Accounts</h3><div class="table-meta" id="coaMeta"></div></div><button class="btn btn-secondary btn-sm" onclick="exportSingleCSV('coa')">Export CSV</button></div>
     <div id="coaContent"></div>
   </div>
+
+  <!-- Direct Cash Flow Tab -->
+  <div id="tab-dcf" style="display:none;">
+    <div class="table-card">
+      <div class="table-header">
+        <div>
+          <h3>Cash Flow Statement — Direct Method</h3>
+          <div class="table-meta">Direct method · From Xero API or CSV upload · No mapping required</div>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-secondary btn-sm" onclick="exportSingleCSV('dcf')">Export CSV</button>
+        </div>
+      </div>
+      <!-- Upload / source bar -->
+      <div style="padding:14px 18px;border-bottom:1px solid var(--border);background:var(--bg);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+        <div>
+          <div style="font-size:13px;font-weight:600;margin-bottom:2px;">Data Source</div>
+          <div id="dcfSourceText" style="font-size:12px;color:var(--muted);">Auto-loaded from Xero when connected · Or upload a CSV below</div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="btn btn-secondary btn-sm" onclick="downloadDCFTemplate()">⬇ CSV Template</button>
+          <label class="btn btn-secondary btn-sm" style="cursor:pointer;margin:0;">⇧ Upload CSV<input type="file" accept=".csv" style="display:none;" onchange="loadDirectCFFromCSV(this)"></label>
+          <button class="btn btn-secondary btn-sm" onclick="fetchDirectCFFromXero()">↺ Reload from Xero</button>
+        </div>
+      </div>
+      <div id="dcfContent" style="padding:16px;min-height:80px;"></div>
+    </div>
+  </div>
+
 </div>
 </div><!-- /main -->
 
@@ -775,27 +804,28 @@
 // All G&A sections include: Bank Fees & Charges, Subscriptions, Other Office Expenses
 const SECTORS={
   saas:{
-    name:'SaaS',icon:'🔵',desc:'ARR composition, retention, unit economics, and headcount. 35 metrics covering the full SaaS scorecard.',
+    name:'SaaS',icon:'🔵',desc:'Standard SaaS COA — full P&L and BS structure per SaaS_COA_Post_Review.xlsx',
     metaCount:35,
     pl:{
-      revenue:['Subscription Revenue – Monthly','Subscription Revenue – Annual','Add-On / Seat Expansion Revenue','Professional Services Revenue','Setup / Onboarding Fees','Usage / Overage Revenue','Partner / Reseller Revenue','Revenue Contra – Refunds & Credits'],
-      cogs:['Cloud Hosting & Infrastructure','Third-Party APIs & Integrations','Customer Success – Salaries','Support Tools & Software','Amortization – Capitalized Software','Professional Services Delivery'],
+      revenue:['Subscription Revenue - SaaS','Professional Services Revenue','Hardware Revenue','Other Revenue','Less: Sales Discounts','Less: Returns & Refunds'],
+      cogs:['Hosting & Infrastructure (AWS / Azure / GCP)','AI / LLM API Costs (OpenAI, Anthropic, etc.)','Salaries & Wages - COGS','Statutory Contributions & Benefits - COGS','Contractors & Outsourced Services - COGS','Software Tools & Subscriptions - COGS','Payment Processing Fees','Amortization - Capitalized Software','Hardware COGS'],
       opex:{
-        'Sales & Marketing':['Salaries – Sales','Sales Commissions','Digital Marketing & Advertising','SEO / Content / PR','Events & Conferences','Sales Tools & CRM'],
-        'Research & Development':['Salaries – Engineering','Salaries – Product Management','Product & Design','Dev Tools & Subscriptions','R&D Contractors'],
-        'General & Administrative':['Salaries – G&A','Legal & Accounting','Audit & Tax Fees','Office & Facilities','Insurance','Stock-Based Compensation','Depreciation – PP&E','Bank Fees & Charges','Subscriptions','Other Office Expenses']
+        'Research & Development (R&D)':['Salaries & Wages - R&D','Statutory Contributions & Benefits - R&D','Contractors & Consultants - R&D','Software Tools & Subscriptions - R&D','AI / LLM Internal Development Costs','R&D Equipment & Hardware','Travel & Expenses - R&D','Training & Development - R&D'],
+        'Sales & Marketing (S&M)':['Salaries & Wages - S&M','Sales Commissions & Bonuses','Statutory Contributions & Benefits - S&M','Contractors & Consultants - S&M','Digital Advertising & Paid Media','Content & SEO','Events, Conferences & Sponsorships','Software Tools & Subscriptions - S&M','Travel & Expenses - S&M','Training & Development - S&M'],
+        'General & Administrative (G&A)':['Salaries & Wages - G&A','Statutory Contributions & Benefits - G&A','Legal Fees (External)','Audit & Tax Advisory Fees','Accounting & Corporate Secretarial Fees','Other Professional Services','Office Rent & Facilities','Utilities & Telecommunications','Office Supplies & Low-Value Assets','Insurance - General','Software Tools & Subscriptions - G&A','Recruiting & Hiring Costs','Staff Welfare & Entertainment','Travel & Expenses - G&A','Training & Development - G&A','Bad Debt Expense','Bank Charges & Fees','Miscellaneous G&A Expense']
       },
-      other:['Interest Income','Interest Expense','Gain / (Loss) on FX','Income Tax Expense']
+      other:['Interest Income','Interest Expense','Foreign Exchange Gain / (Loss)','Depreciation Expense','Amortization - Lease ROU Asset','Gain / (Loss) on Disposal of Assets','Stock-Based Compensation','Other Non-Operating Items','Income Tax Expense (Current & Deferred)']
     },
     bs:{
-      current_assets:['Bank','Accounts Receivable','Unbilled Revenue (Accrued AR)','Allowance for Doubtful Accounts','Prepaid Expenses','Short-Term Investments','Deferred Contract Costs'],
-      noncurrent_assets:['Capitalized Software – Internal Use','Accumulated Amortization – Capitalized SW','Accumulated Depreciation','Property & Equipment, Net','Right-of-Use Asset – Operating Leases','Goodwill','Intangible Assets – Acquired Technology','Security Deposits'],
-      current_liabilities:['Accounts Payable','Accrued Compensation','Accrued Expenses','Deferred Revenue – Current','Income Taxes Payable','Operating Lease Liability – Current'],
-      noncurrent_liabilities:['Deferred Revenue – Non-Current','Long-Term Debt','Operating Lease Liability – LT','Deferred Tax Liability'],
-      equity:['Common Stock','Additional Paid-In Capital','Retained Earnings / (Accumulated Deficit)','Accumulated Other Comprehensive Income']
+      current_assets:['Cash - Operating Account','Cash - Investment Account','Cash - Payroll Account','Cash - Foreign Currency Accounts','Petty Cash','Accounts Receivable','Less: Allowance for Doubtful Accounts','Prepaid Expenses - Insurance','Prepaid Expenses - Software & Licenses','Prepaid Expenses - Rent & Deposits','Prepaid Expenses - Other','Employee Advances & Loans','Other Receivables'],
+      noncurrent_assets:['Security Deposits','Property & Equipment','Less: Accumulated Depreciation - P&E','Capitalized Software Development Costs','Less: Accumulated Amortization - Software','Right-of-Use Asset (Operating Lease)','Intangible Assets - Other'],
+      current_liabilities:['Accounts Payable','Salary Payable','Accrued Expenses','Deferred Revenue','Credit Card Payable','GST / VAT Payable','Income Tax Payable','Short-Term Debt / Line of Credit','Current Portion of Long-Term Debt','Operating Lease Liability - Current'],
+      noncurrent_liabilities:['Long-Term Debt','Factoring Facility Payable','Operating Lease Liability - Non-Current','SAFE Notes Payable','Convertible Notes Payable'],
+      equity:['Common Stock','Preferred Stock','APIC - Common','APIC - Preferred','Stock-Based Compensation Reserve','Treasury Stock','Retained Earnings / (Accumulated Deficit)','Accumulated Other Comprehensive Income',"Owner's Distributions / Dividends"]
     },
-    metrics:[{name:'MRR',unit:'SGD'},{name:'ARR',unit:'SGD'},{name:'NRR',unit:'%'},{name:'GRR',unit:'%'},{name:'Logo Churn Rate',unit:'%'},{name:'Revenue Churn Rate',unit:'%'},{name:'CAC',unit:'SGD'},{name:'LTV',unit:'SGD'},{name:'LTV:CAC Ratio',unit:'x'},{name:'Payback Period',unit:'months'},{name:'Paying Customers',unit:''},{name:'New Customers',unit:''},{name:'Churned Customers',unit:''},{name:'Expansion Revenue',unit:'SGD'},{name:'Contraction Revenue',unit:'SGD'},{name:'Headcount',unit:'people'},{name:'R&D Headcount',unit:'people'},{name:'Sales Headcount',unit:'people'},{name:'Revenue per Employee',unit:'SGD'},{name:'Gross Margin',unit:'%'},{name:'EBITDA Margin',unit:'%'}]
+    metrics:[{name:'MRR',unit:'SGD'},{name:'ARR',unit:'SGD'},{name:'NRR',unit:'%'},{name:'GRR',unit:'%'},{name:'Logo Churn Rate',unit:'%'},{name:'CAC',unit:'SGD'},{name:'LTV',unit:'SGD'},{name:'LTV:CAC',unit:'x'},{name:'Payback Period',unit:'months'},{name:'Gross Margin',unit:'%'},{name:'EBITDA Margin',unit:'%'},{name:'Headcount',unit:'people'}]
   },
+
   marketplace:{
     name:'Marketplace',icon:'◇',desc:'GMV, take rate, liquidity, two-sided metrics. CM1 and CM2 contribution margins included.',
     metaCount:34,
@@ -932,7 +962,7 @@ let coaData=[], plReports=[], bsReports=[], priorBsReports=[], mappings={}, dire
 let csvPL=[], csvBS=[], csvMetrics=[];
 let dataMode='xero';
 let userMetrics=[];
-let dataSources={pl:'—',bs:'—',coa:'—',priorBs:'',timestamp:'—'};
+let dataSources={pl:'—',bs:'—',coa:'—',priorBs:'',dcf:'not loaded',timestamp:'—'};
 let reportCurrency='SGD'; // active currency for display
 
 // ── Global skip lists for Xero computed/summary rows ─────────────────────────
@@ -1833,6 +1863,11 @@ function completeMappingStep(){
 
 // ── Dashboard launch ──────────────────────────────────────────────────────────
 function launchDashboard(title,sub){
+  // Pre-load direct CF if CashSummary data already available
+  if(directCFData&&directCFRows.length===0){
+    directCFRows=parseCashSummaryReport(directCFData);
+    dataSources.dcf='Xero API (auto)';
+  }
   document.getElementById('statusDot').classList.add('on');
   document.getElementById('statusText').textContent='Loaded';
   document.getElementById('setupSection').style.display='none';
@@ -3277,204 +3312,293 @@ function renderBS(){
 // ── Restated P&L ─────────────────────────────────────────────────────────────
 // Groups by user-defined mappings only — no sector required
 function renderRestatedPL(){
-  const el=document.getElementById('rplContent');
+  var el=document.getElementById('rplContent');
   if(!plReports.length){el.innerHTML='<div class="warn-box" style="margin:16px;">⚠️ No P&L data loaded.</div>';return;}
 
-  const lineItems=[];
+  // ── Build ordered category list from sector definition ───────────────────
+  var sectorPL=selectedSector&&SECTORS[selectedSector]?SECTORS[selectedSector].pl:null;
+
+  // Build ordered row list from sector (preserves intended order)
+  var orderedRows=[]; // [{label, section, isSubtotal, isTotal, isSectionHeader, isMetric}]
+  var catToSection={}; // category → section key
+
+  if(sectorPL){
+    // Revenue
+    orderedRows.push({label:'REVENUE',isSectionHeader:true});
+    (sectorPL.revenue||[]).forEach(function(cat){orderedRows.push({label:cat,section:'rev'});catToSection[cat]='rev';});
+    orderedRows.push({label:'NET REVENUE',isSubtotal:true,key:'netRev',bg:'var(--accent-light)'});
+    // COGS
+    orderedRows.push({label:'COST OF REVENUE (COGS)',isSectionHeader:true});
+    (sectorPL.cogs||[]).forEach(function(cat){orderedRows.push({label:cat,section:'cogs'});catToSection[cat]='cogs';});
+    orderedRows.push({label:'TOTAL COST OF REVENUE',isSubtotal:true,key:'totalCogs',bg:'#fef9f0'});
+    orderedRows.push({label:'GROSS PROFIT',isSubtotal:true,key:'gp',bg:'var(--accent-light)',bold:true});
+    // OpEx
+    orderedRows.push({label:'OPERATING EXPENSES',isSectionHeader:true});
+    if(sectorPL.opex){
+      Object.keys(sectorPL.opex).forEach(function(grp){
+        orderedRows.push({label:'OPERATING EXPENSES — '+grp.toUpperCase(),isSectionHeader:true,sub:true});
+        (sectorPL.opex[grp]||[]).forEach(function(cat){orderedRows.push({label:cat,section:'opex',opexGrp:grp});catToSection[cat]='opex';catToSection[cat+'__grp']=grp;});
+        orderedRows.push({label:'TOTAL '+grp.toUpperCase(),isSubtotal:true,key:'grpTotal_'+grp,bg:'var(--bg)'});
+      });
+    }
+    orderedRows.push({label:'TOTAL OPERATING EXPENSES',isSubtotal:true,key:'totalOpex',bg:'#f4f5f7'});
+    orderedRows.push({label:'OPERATING INCOME (EBIT)',isSubtotal:true,key:'ebit',bg:'var(--accent2-light)',bold:true});
+    // Non-operating
+    orderedRows.push({label:'NON-OPERATING',isSectionHeader:true});
+    (sectorPL.other||[]).forEach(function(cat){orderedRows.push({label:cat,section:'other'});catToSection[cat]='other';});
+    orderedRows.push({label:'TOTAL NON-OPERATING',isSubtotal:true,key:'totalOther',bg:'var(--bg)'});
+    orderedRows.push({label:'NET INCOME / (LOSS)',isTotal:true,key:'net',bold:true});
+    // Derived metrics
+    orderedRows.push({label:'DERIVED METRICS',isSectionHeader:true});
+    orderedRows.push({label:'Gross Margin %',isMetric:true,key:'gm'});
+    orderedRows.push({label:'EBITDA Margin %',isMetric:true,key:'ebitdaMargin'});
+    orderedRows.push({label:'Cash Burn (monthly)',isMetric:true,key:'burn'});
+    orderedRows.push({label:'Runway (months)',isMetric:true,key:'runway'});
+  }
+
+  // ── Determine columns: single period or multi-month ───────────────────────
+  var useTimeSeries=rplView==='timeseries'&&Object.keys(csvMultiMonthPL).length>0;
+  var months=useTimeSeries?Object.keys(csvMultiMonthPL).sort():['current'];
+
+  // ── For each column/month, compute amounts ────────────────────────────────
+  function computeAmtsForPeriod(monthKey){
+    // Build catTotals for this period
+    var ct={};
+    if(monthKey==='current'){
+      // Use Xero P&L report (already processed in catTotals/catItems below)
+      return null; // signal to use the main computation
+    } else {
+      // csvMultiMonthPL[accountName].months[YYYY-MM]
+      Object.keys(csvMultiMonthPL).forEach(function(name){
+        var acc=csvMultiMonthPL[name];
+        var cat=acc.coa||mappings[name]||name;
+        var amt=acc.months[monthKey]||0;
+        ct[cat]=(ct[cat]||0)+amt;
+      });
+      return ct;
+    }
+  }
+
+  // ── Extract single-period data from Xero P&L ─────────────────────────────
+  var lineItems=[];
   plReports[0].Rows.forEach(function(section){
     if(!section.Rows)return;
     section.Rows.forEach(function(row){
       if(row.RowType==='Row'&&row.Cells){
-        const name=row.Cells[0]?.Value||'';
-        const amt=parseFloat(row.Cells[1]?.Value)||0;
-        // Skip Xero computed summary rows — not real accounts
-        if(PL_SKIP.has(name)) return;
-        if(name) lineItems.push({name,amt,section:section.Title||''});
+        var name=row.Cells[0]?.Value||'';
+        var amt=parseFloat(row.Cells[1]?.Value)||0;
+        if(name&&!PL_SKIP.has(name)) lineItems.push({name:name,amt:amt,section:section.Title||''});
       }
     });
   });
 
-  const catTotals={}, catItems={}, catSectionOverride={}, unmappedIncome=[], unmappedExpense=[];
+  var catTotals={},catItems={},catSectionOverride={},unmappedIncome=[],unmappedExpense=[];
   lineItems.forEach(function(item){
-    const account=coaData.find(function(a){return a.Name===item.name;})||{AccountID:item.name};
-    const key=account.AccountID||item.name;
-    const cat=mappings[key];
+    var account=coaData.find(function(a){return a.Name===item.name;})||{AccountID:item.name};
+    var key=account.AccountID||item.name;
+    var cat=mappings[key];
     if(!cat||cat==='[ Not mapped ]'){
-      if(item.amt>=0) unmappedIncome.push(item); else unmappedExpense.push(item);
+      if(item.amt>=0)unmappedIncome.push(item);else unmappedExpense.push(item);
     } else {
       catTotals[cat]=(catTotals[cat]||0)+item.amt;
-      if(!catItems[cat]) catItems[cat]=[];
+      if(!catItems[cat])catItems[cat]=[];
       catItems[cat].push(item);
+      var secOverride=plSections[key];
+      if(secOverride&&!catSectionOverride[cat])catSectionOverride[cat]=secOverride;
     }
   });
 
-  // Classify each category into Revenue / COGS / OpEx sub-group / Other
-  // Priority: 1) plSections override set by user in mapping tab
-  //           2) sector COA structure lookup
-  //           3) keyword fallback
-  const revCats={}, cogsCats={}, opexCats={}, otherCats={};
+  // Compute per-column totals using sector structure
+  function computeTotalsFromCatTotals(ct){
+    var rev=0,discounts=0,cogs=0,opexGrps={},opex=0,other=0,ebitda=0,net=0;
+    if(sectorPL){
+      (sectorPL.revenue||[]).forEach(function(cat){
+        var v=ct[cat]||0;
+        if(cat.toLowerCase().startsWith('less:'))discounts+=Math.abs(v);
+        else rev+=v;
+      });
+      (sectorPL.cogs||[]).forEach(function(cat){cogs+=Math.abs(ct[cat]||0);});
+      if(sectorPL.opex){
+        Object.keys(sectorPL.opex).forEach(function(grp){
+          opexGrps[grp]=0;
+          (sectorPL.opex[grp]||[]).forEach(function(cat){
+            var v=Math.abs(ct[cat]||0);
+            opexGrps[grp]+=v;opex+=v;
+          });
+        });
+      }
+      (sectorPL.other||[]).forEach(function(cat){other+=Math.abs(ct[cat]||0);});
+    } else {
+      Object.keys(ct).forEach(function(cat){
+        var v=ct[cat];
+        if(v>0)rev+=v;else other+=Math.abs(v);
+      });
+    }
+    var netRev=rev-discounts;
+    var gp=netRev-cogs;
+    ebitda=gp-opex;
+    net=ebitda-other;
+    var gm=netRev>0?((gp/netRev)*100):null;
+    var em=netRev>0?((ebitda/netRev)*100):null;
+    return {rev:rev,discounts:discounts,netRev:netRev,cogs:cogs,gp:gp,opexGrps:opexGrps,opex:opex,ebit:ebitda,totalOther:other,net:net,gm:gm,em:em};
+  }
 
-  const sectorPL=selectedSector&&SECTORS[selectedSector]?SECTORS[selectedSector].pl:null;
+  // Get cash balance from restated BS for runway
+  function getCashBalance(){
+    if(Object.keys(mappings).length>0){
+      var cashCats=['Bank','Cash - Operating Account','Cash & Cash Equivalents'];
+      for(var i=0;i<cashCats.length;i++){
+        // look in bsReports
+        if(bsReports.length&&bsReports[0].Rows){
+          var found=0;
+          bsReports[0].Rows.forEach(function(sec){if(sec.Rows)sec.Rows.forEach(function(row){if(row.RowType==='Row'&&row.Cells&&row.Cells[0]?.Value===cashCats[i])found+=parseFloat(row.Cells[1]?.Value||0)||0;});});
+          if(found!==0)return found;
+        }
+      }
+    }
+    return null;
+  }
 
-  // Build reverse lookup: category name → section from sector definition
-  const sectorCatSection={};
-  if(sectorPL){
-    (sectorPL.revenue||[]).forEach(function(i){sectorCatSection[i]='Revenue';});
-    (sectorPL.cogs||[]).forEach(function(i){sectorCatSection[i]='COGS';});
-    (sectorPL.other||[]).forEach(function(i){sectorCatSection[i]='Other';});
-    if(sectorPL.opex){
-      Object.keys(sectorPL.opex).forEach(function(g){
-        (sectorPL.opex[g]||[]).forEach(function(i){sectorCatSection[i]='OpEx — '+g;});
+  // Build per-column data
+  var colData=[];
+  if(!useTimeSeries){
+    var ct={};
+    Object.keys(catTotals).forEach(function(k){ct[k]=catTotals[k];});
+    unmappedIncome.forEach(function(i){ct[i.name]=(ct[i.name]||0)+i.amt;});
+    unmappedExpense.forEach(function(i){ct[i.name]=(ct[i.name]||0)+i.amt;});
+    colData.push({label:'Current Period',totals:computeTotalsFromCatTotals(ct),ct:ct});
+  } else {
+    months.forEach(function(m){
+      var ct=computeAmtsForPeriod(m)||catTotals;
+      var d=new Date(m+'-01');
+      var lbl=d.toLocaleDateString('en-SG',{month:'short',year:'2-digit'});
+      colData.push({label:lbl,totals:computeTotalsFromCatTotals(ct),ct:ct,month:m});
+    });
+  }
+
+  var cashBal=getCashBalance();
+
+  // ── Build HTML table ──────────────────────────────────────────────────────
+  var numCols=colData.length;
+  var colW=numCols>1?Math.max(90,Math.floor(580/numCols))+'px':'140px';
+
+  var html='<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;min-width:500px;">'
+    +'<thead><tr>'
+    +'<th style="padding:9px 16px;text-align:left;background:var(--bg);font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px solid var(--border);min-width:220px;">Category</th>';
+  colData.forEach(function(col){
+    html+='<th style="padding:9px 12px;text-align:right;background:var(--bg);font-size:11px;font-weight:600;color:var(--muted);border-bottom:1px solid var(--border);white-space:nowrap;min-width:'+colW+';">'+col.label+'</th>';
+  });
+  html+='</tr></thead><tbody>';
+
+  function amtCell(v,isRev,isMet){
+    if(v===null||v===undefined) return '<td style="padding:9px 12px;text-align:right;font-family:var(--mono);font-size:12px;color:var(--muted);">—</td>';
+    if(isMet) return '<td style="padding:9px 12px;text-align:right;font-family:var(--mono);font-size:12px;color:var(--ink-soft);">'+v+'</td>';
+    var pos=isRev?(v>=0):(v>=0);
+    return '<td style="padding:9px 12px;text-align:right;font-family:var(--mono);font-size:12px;color:'+(v<0?'var(--danger)':'var(--accent)')+';font-weight:600;">'+fmtMoney(v)+'</td>';
+  }
+
+  if(!sectorPL){
+    // Fallback: no sector, just show totals
+    html+='<tr><td colspan="'+(numCols+1)+'" style="padding:16px;color:var(--muted);">Select a sector in COA Mapping to see the structured P&L.</td></tr>';
+  } else {
+    orderedRows.forEach(function(row){
+      if(row.isSectionHeader){
+        var indent=row.sub?'padding-left:20px':'padding-left:14px';
+        html+='<tr style="background:'+(row.sub?'#f8f8f6':'var(--bg)')+';">'
+          +'<td colspan="'+(numCols+1)+'" style="'+indent+';padding-top:7px;padding-bottom:7px;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;">'+row.label+'</td></tr>';
+        return;
+      }
+      if(row.isSubtotal||row.isTotal){
+        var bg=row.bg||'var(--bg)';
+        if(row.isTotal)bg='#f0fdf4';
+        html+='<tr style="background:'+bg+';border-top:1px solid var(--border);">'
+          +'<td style="padding:9px 16px;font-weight:700;font-size:13px;">'+row.label+'</td>';
+        colData.forEach(function(col){
+          var t=col.totals;
+          var v;
+          if(row.key==='netRev')v=t.netRev;
+          else if(row.key==='totalCogs')v=t.cogs;
+          else if(row.key==='gp')v=t.gp;
+          else if(row.key==='totalOpex')v=t.opex;
+          else if(row.key==='ebit')v=t.ebit;
+          else if(row.key==='totalOther')v=t.totalOther;
+          else if(row.key==='net')v=t.net;
+          else if(row.key&&row.key.startsWith('grpTotal_'))v=t.opexGrps[row.key.replace('grpTotal_','')]||0;
+          var isPos=v>=0;
+          html+='<td style="padding:9px 12px;text-align:right;font-family:var(--mono);font-size:12px;font-weight:700;color:'+(v<0?'var(--danger)':'var(--accent)')+';">'+fmtMoney(v)+'</td>';
+        });
+        html+='</tr>';
+        return;
+      }
+      if(row.isMetric){
+        html+='<tr style="border-bottom:1px solid var(--border);">'
+          +'<td style="padding:9px 16px 9px 20px;font-style:italic;font-size:12px;color:var(--muted);">'+row.label+'</td>';
+        colData.forEach(function(col){
+          var t=col.totals;
+          var v=null,str='—';
+          if(row.key==='gm')v=t.gm;
+          else if(row.key==='ebitdaMargin')v=t.netRev>0?((t.ebit/t.netRev)*100):null;
+          else if(row.key==='burn')v=t.net<0?Math.abs(t.net/12):null;
+          else if(row.key==='runway'){
+            var burn=t.net<0?Math.abs(t.net/12):null;
+            v=burn&&cashBal?(cashBal/burn):null;
+          }
+          if(v!==null){
+            if(row.key==='gm'||row.key==='ebitdaMargin')str=v.toFixed(1)+'%';
+            else if(row.key==='burn')str=fmtMoney(v)+'/mo';
+            else if(row.key==='runway')str=v.toFixed(1)+' mo';
+          }
+          html+='<td style="padding:9px 12px;text-align:right;font-family:var(--mono);font-size:12px;color:var(--muted);">'+str+'</td>';
+        });
+        html+='</tr>';
+        return;
+      }
+      // Regular line item
+      html+='<tr style="border-bottom:1px solid var(--border);">'
+        +'<td style="padding:8px 16px 8px 28px;font-size:13px;">'+row.label+'</td>';
+      colData.forEach(function(col){
+        var v=col.ct[row.label]||0;
+        var isNeg=catToSection[row.label]==='cogs'||catToSection[row.label]==='opex'||catToSection[row.label]==='other';
+        html+='<td style="padding:8px 12px;text-align:right;font-family:var(--mono);font-size:12px;color:'+(v<0?'var(--danger)':v===0?'var(--muted)':'var(--accent)')+';">'+(v===0?'—':fmtMoney(isNeg?Math.abs(v):v))+'</td>';
+      });
+      html+='</tr>';
+    });
+
+    // Unmapped at bottom
+    if(unmappedIncome.length||unmappedExpense.length){
+      html+='<tr style="background:#fffbeb;"><td colspan="'+(numCols+1)+'" style="padding:7px 14px;font-size:11px;font-weight:700;color:#92400e;text-transform:uppercase;">⚠ UNMAPPED ITEMS ('+( unmappedIncome.length+unmappedExpense.length)+')</td></tr>';
+      unmappedIncome.concat(unmappedExpense).forEach(function(item){
+        html+='<tr style="background:#fffbeb;"><td style="padding:7px 16px 7px 28px;font-size:12px;color:#92400e;">'+item.name+'</td>';
+        colData.forEach(function(){html+='<td style="padding:7px 12px;text-align:right;font-family:var(--mono);font-size:11px;color:#92400e;">'+fmtMoney(item.amt)+'</td>';});
+        html+='</tr>';
       });
     }
   }
 
-  // Also build: accountId → plSection from user overrides in plSections
-  // and bucket by category: if any account in a category has a section override, use it
-  const catOverride={}; // cat → section string from user plSections
-  Object.keys(plSections).forEach(function(accId){
-    var sec=plSections[accId];
-    var cat=mappings[accId];
-    if(sec&&cat&&!catOverride[cat]) catOverride[cat]=sec;
-  });
+  html+='</tbody></table></div>';
 
-  Object.keys(catTotals).forEach(function(cat){
-    var total=catTotals[cat];
-    // 1. User override from plSections
-    var sec=catOverride[cat];
-    // 2. Sector COA structure
-    if(!sec) sec=sectorCatSection[cat];
-    // 3. Keyword fallback
-    if(!sec){
-      if(/revenue|income|sales|subscription|service.*fee/i.test(cat)) sec='Revenue';
-      else if(/cost of goods|cogs|cost of service|hosting|infrastructure|payment.*network|provision|fulfillment|freight|direct.*cost/i.test(cat)) sec='COGS';
-      else if(/interest|tax|fx|gain|loss|non.operat/i.test(cat)) sec='Other';
-      else sec='OpEx';
-    }
-    if(sec==='Revenue') revCats[cat]=total;
-    else if(sec==='COGS') cogsCats[cat]=total;
-    else if(sec==='Other') otherCats[cat]=total;
-    else opexCats[cat]=total; // covers 'OpEx', 'OpEx — X', any other string
-  });
-
-  var totalRev=0, totalCOGS=0, totalOpex=0, totalOther=0;
-  var html='<table><thead><tr><th>Standard COA Category</th><th>Xero Accounts</th><th style="text-align:right">Total</th></tr></thead><tbody>';
-
-  function renderRPLSection(title,cats,isRev){
-    if(!Object.keys(cats).length)return 0;
-    var sectionTotal=0;
-    html+='<tr class="section-row"><td colspan="3" style="padding:8px 14px">'+title+'</td></tr>';
-    Object.keys(cats).sort(function(a,b){return Math.abs(cats[b])-Math.abs(cats[a]);}).forEach(function(cat){
-      var total=cats[cat]; sectionTotal+=isRev?total:Math.abs(total);
-      var names=(catItems[cat]||[]).map(function(i){return i.name;}).join(', ');
-      html+='<tr><td style="padding-left:20px"><strong>'+cat+'</strong></td>'
-        +'<td style="font-size:11px;color:var(--muted)">'+names+'</td>'
-        +'<td class="amount '+(isRev?'pos':'neg')+'">'+(isRev?fmtMoney(total):fmtMoney(Math.abs(total)))+'</td></tr>';
-    });
-    html+='<tr class="subtotal-row"><td style="padding-left:14px" colspan="2"><strong>Total '+title+'</strong></td>'
-      +'<td class="amount '+(isRev?'pos':'neg')+'"><strong>'+fmtMoney(sectionTotal)+'</strong></td></tr>';
-    return sectionTotal;
-  }
-
-  totalRev=renderRPLSection('REVENUE',revCats,true);
-
-  // COGS
-  totalCOGS=renderRPLSection('COST OF GOODS SOLD (COGS)',cogsCats,false);
-  if(Object.keys(cogsCats).length){
-    var gp=totalRev-totalCOGS;
-    html+='<tr style="background:var(--accent-light);"><td colspan="2" style="padding:8px 14px 8px 20px;font-weight:700;">Gross Profit</td>'
-      +'<td class="amount '+(gp>=0?'pos':'neg')+'" style="font-weight:700;">'+fmtMoney(gp)+'</td></tr>';
-  }
-
-  // OpEx — break into sub-groups
-  var opexByGroup={};
-  Object.keys(opexCats).forEach(function(cat){
-    var g=cat.indexOf(' — ')>0?cat.split(' — ')[1]:'General';
-    var label=cat.indexOf(' — ')>0?cat.split(' — ').slice(2).join(' — ')||g:cat;
-    if(!opexByGroup[g])opexByGroup[g]={};
-    opexByGroup[g][label]=opexCats[cat];
-  });
-  if(Object.keys(opexCats).length){
-    html+='<tr class="section-row"><td colspan="3" style="padding:8px 14px">OPERATING EXPENSES (OPEX)</td></tr>';
-    Object.keys(opexByGroup).forEach(function(grp){
-      if(Object.keys(opexByGroup).length>1)
-        html+='<tr style="background:#f8f8f6;"><td colspan="3" style="padding:5px 14px 5px 20px;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;">'+grp+'</td></tr>';
-      Object.keys(opexByGroup[grp]).forEach(function(cat){
-        var origCat=Object.keys(opexCats).find(function(k){return k===cat||k.endsWith(' — '+cat)||k.endsWith(cat);});
-        var total=opexByGroup[grp][cat]; totalOpex+=Math.abs(total);
-        var names=(catItems[origCat||cat]||[]).map(function(i){return i.name;}).join(', ');
-        html+='<tr><td style="padding-left:28px"><strong>'+cat+'</strong></td>'
-          +'<td style="font-size:11px;color:var(--muted)">'+names+'</td>'
-          +'<td class="amount neg">'+fmtMoney(Math.abs(total))+'</td></tr>';
-      });
-    });
-    html+='<tr class="subtotal-row"><td style="padding-left:14px" colspan="2"><strong>Total OpEx</strong></td>'
-      +'<td class="amount neg"><strong>'+fmtMoney(totalOpex)+'</strong></td></tr>';
-    var ebitda=totalRev-totalCOGS-totalOpex;
-    html+='<tr style="background:var(--accent2-light);"><td colspan="2" style="padding:8px 14px 8px 20px;font-weight:700;">EBITDA</td>'
-      +'<td class="amount '+(ebitda>=0?'pos':'neg')+'" style="font-weight:700;">'+fmtMoney(ebitda)+'</td></tr>';
-  }
-
-  totalOther=renderRPLSection('OTHER / NON-OPERATING',otherCats,false);
-  var totalExp=totalCOGS+totalOpex+totalOther;
-
-  // ── Unmapped accounts — always shown with totals ──
-  var unmappedIncTotal=0, unmappedExpTotal=0;
-  if(unmappedIncome.length){
-    html+='<tr class="unmapped-section-row"><td colspan="3" style="padding:8px 14px">⚠ UNMAPPED INCOME</td></tr>';
-    unmappedIncome.forEach(function(item){
-      unmappedIncTotal+=item.amt;
-      html+='<tr style="background:#fffbeb;"><td style="padding-left:20px;color:#92400e;">'+item.name+'</td>'
-        +'<td style="font-size:11px;color:#92400e;">'+item.section+'</td>'
-        +'<td class="amount pos">'+fmtMoney(item.amt)+'</td></tr>';
-    });
-    html+='<tr style="background:#fef3c7;font-weight:600;"><td style="padding-left:14px;color:#92400e;" colspan="2">Total Unmapped Income</td>'
-      +'<td class="amount pos" style="color:#92400e;">'+fmtMoney(unmappedIncTotal)+'</td></tr>';
-  }
-  if(unmappedExpense.length){
-    html+='<tr class="unmapped-section-row"><td colspan="3" style="padding:8px 14px">⚠ UNMAPPED EXPENSES</td></tr>';
-    unmappedExpense.forEach(function(item){
-      unmappedExpTotal+=Math.abs(item.amt);
-      html+='<tr style="background:#fffbeb;"><td style="padding-left:20px;color:#92400e;">'+item.name+'</td>'
-        +'<td style="font-size:11px;color:#92400e;">'+item.section+'</td>'
-        +'<td class="amount neg">'+fmtMoney(Math.abs(item.amt))+'</td></tr>';
-    });
-    html+='<tr style="background:#fef3c7;font-weight:600;"><td style="padding-left:14px;color:#92400e;" colspan="2">Total Unmapped Expenses</td>'
-      +'<td class="amount neg" style="color:#92400e;">'+fmtMoney(unmappedExpTotal)+'</td></tr>';
-  }
-
-  // Net profit includes unmapped items so the total is always correct
-  var net=totalRev+unmappedIncTotal-(totalExp+unmappedExpTotal);
-  html+='<tr class="total-row"><td colspan="2"><strong>NET PROFIT / (LOSS)</strong></td>'
-    +'<td class="amount '+(net>=0?'pos':'neg')+'"><strong>'+fmtMoney(net)+'</strong></td></tr>';
-  html+='</tbody></table>';
-
-  // ── Update sumNet so Cash Flow uses the same net as Restated P&L ──────────
-  if(Object.keys(catTotals).length>0){
+  // Update sumNet
+  if(colData.length>0&&Object.keys(catTotals).length>0){
     var sumNetEl=document.getElementById('sumNet');
     if(sumNetEl){
-      sumNetEl.textContent=fmtMoney(net);
-      sumNetEl.className='summary-value '+(net>=0?'green':'red');
+      var n=colData[0].totals.net;
+      sumNetEl.textContent=fmtMoney(n);
+      sumNetEl.className='summary-value '+(n>=0?'green':'red');
     }
   }
 
-  // ── Time-series view: if csvMultiMonthPL has data, build a time-series table ──
-  if(rplView==='timeseries'&&Object.keys(csvMultiMonthPL).length>0){
-    el.innerHTML=buildTimeSeriesTable(csvMultiMonthPL,'pl');
-    return;
-  }
-
-  // Summary banner at top showing mapping progress
+  // Mapping banner
   var mappedCount=Object.keys(catTotals).length;
   var unmappedCount=unmappedIncome.length+unmappedExpense.length;
-  var total=mappedCount+unmappedCount;
-  var bannerColor=unmappedCount===0?'var(--green-light)':'#fffbeb';
-  var bannerBorder=unmappedCount===0?'#a7f3d0':'#fde68a';
-  var bannerText=unmappedCount===0?'✓ All accounts mapped':'⚠️ '+unmappedCount+' of '+total+' accounts not yet mapped — shown at the bottom. Go to COA Mapping to assign them.';
-  var bannerTextColor=unmappedCount===0?'#065f46':'#92400e';
-  var banner='<div style="background:'+bannerColor+';border:1px solid '+bannerBorder+';border-radius:8px;padding:10px 14px;margin:14px 16px;font-size:12px;color:'+bannerTextColor+';font-weight:500;">'+bannerText+'</div>';
+  var totalAcc=mappedCount+unmappedCount;
+  var bc=unmappedCount===0?'var(--green-light)':'#fffbeb';
+  var bb=unmappedCount===0?'#a7f3d0':'#fde68a';
+  var bt=unmappedCount===0?'✓ All accounts mapped':'⚠️ '+unmappedCount+' of '+totalAcc+' accounts not yet mapped';
+  var btc=unmappedCount===0?'#065f46':'#92400e';
+  var banner='<div style="background:'+bc+';border:1px solid '+bb+';border-radius:8px;padding:10px 14px;margin:14px 16px;font-size:12px;color:'+btc+';font-weight:500;">'+bt+'</div>';
   el.innerHTML=banner+html;
 }
+
 
 // ── Restated Balance Sheet ────────────────────────────────────────────────────
 // Groups by user-defined mappings only — no sector required
@@ -4314,6 +4438,193 @@ function fmtMoney(val){
   return n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
 }
 
+// ── Direct Cash Flow (from Xero CashSummary or CSV) ─────────────────────────
+// State: raw direct CF rows loaded from Xero or CSV
+let directCFRows = []; // [{section, label, amount}]
+
+function renderDirectCF(){
+  var el=document.getElementById('dcfContent');
+  if(!el) return;
+
+  // Try to use directCFData (from Xero CashSummary auto-fetch)
+  if(directCFData&&directCFRows.length===0){
+    directCFRows=parseCashSummaryReport(directCFData);
+  }
+
+  if(!directCFRows.length){
+    el.innerHTML='<div style="padding:20px;">'
+      +'<div class="warn-box" style="margin-bottom:16px;">No direct cash flow data loaded yet.</div>'
+      +'<div style="font-size:13px;color:var(--muted);line-height:1.8;">'
+      +'<strong>To load data:</strong><br>'
+      +'• <strong>Xero:</strong> Click <em>↺ Reload from Xero</em> — requires Xero connection<br>'
+      +'• <strong>CSV:</strong> Click <em>⬇ CSV Template</em> to download the template, fill it in, then <em>⇧ Upload CSV</em>'
+      +'</div></div>';
+    return;
+  }
+
+  // Render the statement
+  var currency=reportCurrency||'SGD';
+  var html='<table style="width:100%;border-collapse:collapse;">'
+    +'<thead><tr>'
+    +'<th style="padding:9px 16px;text-align:left;background:var(--bg);font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px solid var(--border);">Description</th>'
+    +'<th style="padding:9px 16px;text-align:right;background:var(--bg);font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px solid var(--border);">'+currency+'</th>'
+    +'</tr></thead><tbody>';
+
+  var currentSection='';
+  directCFRows.forEach(function(row){
+    if(row.section&&row.section!==currentSection){
+      currentSection=row.section;
+      html+='<tr class="section-row"><td colspan="2" style="padding:8px 16px;">'+row.section+'</td></tr>';
+    }
+    if(row.isTotal){
+      html+='<tr class="total-row"><td style="padding:10px 16px;"><strong>'+row.label+'</strong></td>'
+        +'<td class="amount '+(row.amount>=0?'pos':'neg')+'" style="font-weight:700;">'+fmtMoney(row.amount)+'</td></tr>';
+    } else if(row.isSubtotal){
+      html+='<tr class="subtotal-row"><td style="padding:9px 16px;"><strong>'+row.label+'</strong></td>'
+        +'<td class="amount '+(row.amount>=0?'pos':'neg')+'"><strong>'+fmtMoney(row.amount)+'</strong></td></tr>';
+    } else {
+      html+='<tr style="border-bottom:1px solid var(--border);"><td style="padding:9px 16px 9px 28px;">'+row.label+'</td>'
+        +'<td class="amount '+(row.amount>=0?'pos':'neg')+'">'+fmtMoney(row.amount)+'</td></tr>';
+    }
+  });
+
+  html+='</tbody></table>';
+  el.innerHTML=html;
+
+  // Update source text
+  var srcEl=document.getElementById('dcfSourceText');
+  if(srcEl) srcEl.textContent=directCFRows.length+' line items loaded · '+dataSources.dcf;
+}
+
+function parseCashSummaryReport(report){
+  var rows=[];
+  if(!report||!report.Rows) return rows;
+  var currentSection='';
+  report.Rows.forEach(function(section){
+    if(!section.Rows) return;
+    if(section.Title) currentSection=section.Title;
+    section.Rows.forEach(function(row){
+      if(row.RowType==='Row'&&row.Cells&&row.Cells.length>=2){
+        var label=row.Cells[0]?.Value||'';
+        var amt=parseFloat(String(row.Cells[1]?.Value||'0').replace(/,/g,''))||0;
+        if(label) rows.push({section:currentSection,label:label,amount:amt,isTotal:false,isSubtotal:false});
+      }
+      if(row.RowType==='SummaryRow'&&row.Cells&&row.Cells.length>=2){
+        var label=row.Cells[0]?.Value||'';
+        var amt=parseFloat(String(row.Cells[1]?.Value||'0').replace(/,/g,''))||0;
+        if(label) rows.push({section:currentSection,label:label,amount:amt,isTotal:false,isSubtotal:true});
+      }
+    });
+  });
+  // Add grand total if present
+  var totalRow=report.Rows.find(function(r){return r.RowType==='SummaryRow';});
+  if(totalRow&&totalRow.Cells){
+    var label=totalRow.Cells[0]?.Value||'Net Cash';
+    var amt=parseFloat(String(totalRow.Cells[1]?.Value||'0').replace(/,/g,''))||0;
+    rows.push({section:'',label:label,amount:amt,isTotal:true,isSubtotal:false});
+  }
+  return rows;
+}
+
+async function fetchDirectCFFromXero(){
+  var token=sessionStorage.getItem('xero_access_token');
+  var tid=sessionStorage.getItem('xero_tenant_id');
+  if(!token||!tid){showMsg('Not connected to Xero. Please connect first.','error');return;}
+  var from=document.getElementById('dateFrom')?.value||new Date().getFullYear()+'-01-01';
+  var to=document.getElementById('dateTo')?.value||new Date().toISOString().split('T')[0];
+  var basis=document.getElementById('reportBasis')?.value||'ACCRUAL';
+  var btn=event.target;
+  btn.textContent='Loading...';btn.disabled=true;
+  try{
+    var res=await fetch(WORKER_URL+'/xero?path=/Reports/CashSummary?fromDate='+from+'%26toDate='+to+'%26reportBasis='+basis+'&tenantId='+tid,
+      {headers:{'Authorization':'Bearer '+token}});
+    var data=await res.json();
+    if(data.Reports&&data.Reports.length){
+      directCFData=data.Reports[0];
+      directCFRows=parseCashSummaryReport(directCFData);
+      dataSources.dcf='Xero API · '+from+' to '+to+' · '+basis;
+      showMsg('Direct cash flow loaded from Xero — '+directCFRows.length+' line items.','success');
+      renderDirectCF();
+    } else {
+      showMsg('No CashSummary data returned from Xero. This report requires Xero Payroll or cash basis accounting.','error');
+    }
+  }catch(e){
+    showMsg('Could not fetch cash flow from Xero: '+e.message,'error');
+  }finally{
+    btn.textContent='↺ Reload from Xero';btn.disabled=false;
+  }
+}
+
+function loadDirectCFFromCSV(input){
+  var file=input.files[0];
+  if(!file)return;
+  var reader=new FileReader();
+  reader.onload=function(e){
+    try{
+      var lines=e.target.result.split(/\r?\n/).filter(function(l){return l.trim();});
+      if(lines.length<2){showMsg('CSV needs header + data rows.','error');return;}
+      var headers=splitCSVLine(lines[0]).map(function(h){return h.trim().replace(/"/g,'').toLowerCase();});
+      var sectionIdx=headers.findIndex(function(h){return h.includes('section')||h.includes('activity');});
+      var labelIdx=headers.findIndex(function(h){return h.includes('label')||h.includes('description')||h.includes('line');});
+      var amtIdx=headers.findIndex(function(h){return h.includes('amount')||h.includes('value');});
+      var typeIdx=headers.findIndex(function(h){return h.includes('type')||h.includes('row');});
+      if(labelIdx<0||amtIdx<0){showMsg('CSV needs at least "Label" and "Amount" columns.','error');return;}
+
+      directCFRows=[];
+      var currentSection='';
+      lines.slice(1).forEach(function(line){
+        var cols=splitCSVLine(line).map(function(v){return v.trim().replace(/"/g,'');});
+        var section=sectionIdx>=0?(cols[sectionIdx]||''):'';
+        var label=cols[labelIdx]||'';
+        var amt=parseFloat((cols[amtIdx]||'0').replace(/,/g,''))||0;
+        var rowType=typeIdx>=0?(cols[typeIdx]||'').toLowerCase():'';
+        if(!label) return;
+        if(section&&section!==currentSection) currentSection=section;
+        directCFRows.push({
+          section:currentSection,
+          label:label,
+          amount:amt,
+          isTotal:rowType.includes('total')||rowType.includes('net'),
+          isSubtotal:rowType.includes('sub')||rowType.includes('summary')
+        });
+      });
+      dataSources.dcf='CSV upload · '+file.name;
+      showMsg('Direct cash flow loaded — '+directCFRows.length+' rows.','success');
+      renderDirectCF();
+      input.value='';
+    }catch(err){
+      showMsg('Error reading CSV: '+err.message,'error');
+    }
+  };
+  reader.readAsText(file);
+}
+
+function downloadDCFTemplate(){
+  var from=document.getElementById('dateFrom')?.value||'YYYY-MM';
+  var to=document.getElementById('dateTo')?.value||'YYYY-MM';
+  var lines=[
+    'Section,Label,Amount,Row Type',
+    'A. Operating Activities,Receipts from customers,0,row',
+    'A. Operating Activities,Payments to suppliers,-0,row',
+    'A. Operating Activities,Payments to employees,-0,row',
+    'A. Operating Activities,GST / Tax paid,-0,row',
+    'A. Operating Activities,Other operating receipts,0,row',
+    'A. Operating Activities,Net Cash from Operating Activities,0,subtotal',
+    'B. Investing Activities,Purchase of fixed assets,-0,row',
+    'B. Investing Activities,Proceeds from asset sales,0,row',
+    'B. Investing Activities,Net Cash from Investing Activities,0,subtotal',
+    'C. Financing Activities,Proceeds from borrowings,0,row',
+    'C. Financing Activities,Repayment of loans,-0,row',
+    'C. Financing Activities,Capital contributions,0,row',
+    'C. Financing Activities,Net Cash from Financing Activities,0,subtotal',
+    'Net Change in Cash,NET CHANGE IN CASH,0,total',
+    'Net Change in Cash,Opening Cash Balance,0,row',
+    'Net Change in Cash,Closing Cash Balance,0,row'
+  ];
+  dlCSV(lines.join('\n'), 'CashFlow_Direct_Template_'+from+'_'+to+'.csv');
+  showMsg('Direct cash flow template downloaded. Fill in amounts and upload.','success');
+}
+
 // ── Export ───────────────────────────────────────────────────────────────────
 function exportSingleCSV(type){
   const date=new Date().toISOString().split('T')[0];
@@ -4528,3 +4839,38 @@ window.addEventListener('load',()=>{
 </script>
 </body>
 </html>
+
+  <!-- Direct Cash Flow Tab -->
+  <div id="tab-dcf" style="display:none;">
+    <div class="table-card">
+      <div class="table-header">
+        <div>
+          <h3>Cash Flow Statement — Direct Method</h3>
+          <div class="table-meta">From Xero CashSummary report or uploaded CSV — no mapping required</div>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-secondary btn-sm" onclick="exportSingleCSV('dcf')">Export CSV</button>
+        </div>
+      </div>
+
+      <!-- Data source panel -->
+      <div style="padding:14px 18px;border-bottom:1px solid var(--border);background:var(--bg);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+        <div>
+          <div style="font-size:13px;font-weight:600;margin-bottom:2px;">Data Source</div>
+          <div id="dcfSourceText" style="font-size:12px;color:var(--muted);">
+            Auto-loaded from Xero when connected · Or upload a CSV below
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+          <button class="btn btn-secondary btn-sm" onclick="downloadDCFTemplate()">⬇ CSV Template</button>
+          <label class="btn btn-secondary btn-sm" style="cursor:pointer;margin:0;">
+            ⇧ Upload CSV
+            <input type="file" accept=".csv" style="display:none;" onchange="loadDirectCFFromCSV(this)">
+          </label>
+          <button class="btn btn-secondary btn-sm" onclick="fetchDirectCFFromXero()">↺ Reload from Xero</button>
+        </div>
+      </div>
+
+      <div id="dcfContent" style="padding:16px;"></div>
+    </div>
+  </div>
