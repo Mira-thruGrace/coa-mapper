@@ -2930,7 +2930,7 @@ function getCsvMonths(){
     months.push(cur.toISOString().slice(0,7)); // YYYY-MM
     cur.setMonth(cur.getMonth()+1);
   }
-  return months;
+  return months.reverse(); // most recent month first, oldest last
 }
 
 function onCsvDateChange(){
