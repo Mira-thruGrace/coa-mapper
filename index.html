@@ -468,7 +468,7 @@
     <button class="tab" onclick="switchTab('map',this)">COA Mapping</button>
     <button class="tab" onclick="switchTab('rpl',this)">✦ Restated P&amp;L</button>
     <button class="tab" onclick="switchTab('rbs',this)">✦ Restated BS</button>
-    <button class="tab" onclick="switchTab('cf',this)">Cash Flow</button>
+    
   </div>
 
   <!-- P&L Tab -->
@@ -477,6 +477,23 @@
       <div><h3>Profit &amp; Loss <span style="font-size:11px;font-weight:400;color:var(--muted);margin-left:6px;">Raw report — as per Account Name column</span></h3><div class="table-meta" id="plMeta"></div></div>
       <div style="display:flex;gap:8px;align-items:center;">
         <button class="btn btn-secondary btn-sm" onclick="exportSingleCSV('pl')">⬇ Export CSV</button>
+      </div>
+    </div>
+    <!-- P&L Charts -->
+    <div id="plCharts" style="display:none;padding:20px 20px 8px;border-bottom:1px solid var(--border);">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+        <div style="background:var(--bg);border-radius:10px;padding:16px;">
+          <div style="font-size:12px;font-weight:600;color:var(--text);margin-bottom:12px;">Revenue vs Gross Profit vs Net Income</div>
+          <canvas id="chartRevGpNi" height="180"></canvas>
+        </div>
+        <div style="background:var(--bg);border-radius:10px;padding:16px;">
+          <div style="font-size:12px;font-weight:600;color:var(--text);margin-bottom:12px;">Gross Margin % &amp; Net Margin %</div>
+          <canvas id="chartMargins" height="180"></canvas>
+        </div>
+      </div>
+      <div style="margin-top:16px;background:var(--bg);border-radius:10px;padding:16px;">
+        <div style="font-size:12px;font-weight:600;color:var(--text);margin-bottom:12px;">Expense Breakdown by Category</div>
+        <canvas id="chartExpenses" height="120"></canvas>
       </div>
     </div>
     <div id="plContent"></div>
@@ -532,7 +549,7 @@
   </div>
 
   <!-- Cash Flow Tab -->
-  <div id="tab-cf" style="display:none;">
+  <div id="tab-cf" style="display:none;visibility:hidden;pointer-events:none;">
     <div class="table-card" style="margin-bottom:16px;">
       <div class="table-header">
         <div><h3>Cash Flow Statement</h3><div class="table-meta">Indirect method — requires two Balance Sheet periods for accuracy</div></div>
@@ -2940,62 +2957,119 @@ function renderPL(){
   var entries=Object.entries(csvMultiMonthPL);
   if(!entries.length){ renderReport(plReports,'plContent','plMeta','Source: '+dataSources.pl,true); return; }
 
-  if(plRawView==='timeseries'){
-    el.innerHTML=buildRawTimeSeries(csvMultiMonthPL,'pl');
-    if(metaEl) metaEl.textContent='P&L · Multi-Month · '+dataSources.pl;
-    return;
-  }
+  // Collect all months sorted oldest → newest
+  var allM=[];
+  entries.forEach(function(p){ Object.keys(p[1].months||{}).forEach(function(m){ if(allM.indexOf(m)<0) allM.push(m); }); });
+  allM.sort();
+  var fmtM=function(m){ return new Date(m+'-02').toLocaleDateString('en-SG',{month:'short',year:'2-digit'}); };
 
-  // ── Totals view: sum ALL months per account, group by Account Type ──
-  // Section order: Revenue → Cost of Sales → Expense
-  var sectionOrder=['Revenue','Cost of Sales','Expense'];
-  var groups={};
-  entries.forEach(function(pair){
-    var name=pair[0], acc=pair[1];
-    var grp=acc.type||'Other';
-    if(!groups[grp]) groups[grp]=[];
-    var total=Object.keys(acc.months||{}).reduce(function(s,m){ return s+(acc.months[m]||0); },0);
-    groups[grp].push({name:name, total:total});
-  });
-
-  var html='<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;">'
-    +'<thead><tr>'
-    +'<th style="padding:9px 16px;text-align:left;background:var(--bg);font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;border-bottom:1px solid var(--border);">Account Name</th>'
-    +'<th style="padding:9px 16px;text-align:right;background:var(--bg);font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;border-bottom:1px solid var(--border);">Total (Jun 25 – Apr 26)</th>'
-    +'</tr></thead><tbody>';
-
-  // Track section totals for Net Profit = Revenue - Cost of Sales - Expense
-  var totalRevenue=0, totalCostOfSales=0, totalExpense=0;
-  var rendered={};
-  sectionOrder.concat(Object.keys(groups).filter(function(g){return sectionOrder.indexOf(g)===-1;})).forEach(function(grp){
-    if(rendered[grp]||!groups[grp]) return;
-    rendered[grp]=true;
-    var items=groups[grp], subtotal=0;
-    html+='<tr style="background:var(--bg);"><td colspan="2" style="padding:8px 16px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted);">'+escHtml(grp)+'</td></tr>';
-    items.forEach(function(item){
-      subtotal+=item.total;
-      html+='<tr style="border-bottom:1px solid var(--border);">'
-        +'<td style="padding:8px 16px 8px 28px;font-size:13px;">'+escHtml(item.name)+'</td>'
-        +'<td style="padding:8px 16px;text-align:right;font-family:var(--mono);font-size:13px;color:'+(item.total<0?'var(--danger)':'var(--text)')+';">'+fmtMoney(item.total)+'</td>'
-        +'</tr>';
+  // Compute per-month P&L metrics
+  function monthMetrics(m){
+    var rev=0,cos=0,exp=0;
+    entries.forEach(function(p){
+      var t=p[1].type||'', v=p[1].months[m]||0;
+      if(/revenue/i.test(t)) rev+=v;
+      else if(/cost of sales/i.test(t)) cos+=Math.abs(v);
+      else if(/expense/i.test(t)) exp+=Math.abs(v);
     });
-    if(/revenue/i.test(grp)) totalRevenue+=subtotal;
-    else if(/cost of sales/i.test(grp)) totalCostOfSales+=Math.abs(subtotal);
-    else totalExpense+=Math.abs(subtotal);
-    html+='<tr style="background:var(--accent-light);font-weight:700;">'
-      +'<td style="padding:8px 16px;font-size:13px;">Total '+escHtml(grp)+'</td>'
-      +'<td style="padding:8px 16px;text-align:right;font-family:var(--mono);font-size:13px;font-weight:700;">'+fmtMoney(subtotal)+'</td>'
-      +'</tr>';
+    var gp=rev-cos;
+    var ni=gp-exp;
+    return {rev:rev,cos:cos,exp:exp,gp:gp,ni:ni,
+            gm:rev>0?(gp/rev*100):0, nm:rev>0?(ni/rev*100):0};
+  }
+  var metrics=allM.map(function(m){return {m:m,label:fmtM(m),d:monthMetrics(m)};});
+
+  // Render charts
+  var chartsEl=document.getElementById('plCharts');
+  if(chartsEl) chartsEl.style.display='block';
+
+  loadChartJS(function(){
+    // Chart 1: Revenue / Gross Profit / Net Income bars
+    var ctx1=document.getElementById('chartRevGpNi');
+    if(ctx1){
+      if(ctx1._chartInstance) ctx1._chartInstance.destroy();
+      ctx1._chartInstance=new Chart(ctx1,{
+        type:'bar',
+        data:{
+          labels:metrics.map(function(m){return m.label;}),
+          datasets:[
+            {label:'Revenue',data:metrics.map(function(m){return m.d.rev;}),
+             backgroundColor:'rgba(37,99,235,0.7)',borderRadius:3,borderSkipped:false},
+            {label:'Gross Profit',data:metrics.map(function(m){return m.d.gp;}),
+             backgroundColor:'rgba(16,185,129,0.7)',borderRadius:3,borderSkipped:false},
+            {label:'Net Income',data:metrics.map(function(m){return m.d.ni;}),
+             backgroundColor:metrics.map(function(m){return m.d.ni>=0?'rgba(5,150,105,0.8)':'rgba(239,68,68,0.7)';}),
+             borderRadius:3,borderSkipped:false}
+          ]
+        },
+        options:{
+          responsive:true,plugins:{legend:{labels:{font:{size:11}}}},
+          scales:{y:{ticks:{callback:function(v){return fmtMoney(v);}},grid:{color:'rgba(0,0,0,0.05)'}},
+                  x:{grid:{display:false}}}
+        }
+      });
+    }
+
+    // Chart 2: Gross Margin % and Net Margin % lines
+    var ctx2=document.getElementById('chartMargins');
+    if(ctx2){
+      if(ctx2._chartInstance) ctx2._chartInstance.destroy();
+      ctx2._chartInstance=new Chart(ctx2,{
+        type:'line',
+        data:{
+          labels:metrics.map(function(m){return m.label;}),
+          datasets:[
+            {label:'Gross Margin %',data:metrics.map(function(m){return parseFloat(m.d.gm.toFixed(1));}),
+             borderColor:'#2563eb',backgroundColor:'rgba(37,99,235,0.1)',
+             tension:0.3,fill:true,pointRadius:4,pointBackgroundColor:'#2563eb'},
+            {label:'Net Margin %',data:metrics.map(function(m){return parseFloat(m.d.nm.toFixed(1));}),
+             borderColor:'#10b981',backgroundColor:'rgba(16,185,129,0.08)',
+             tension:0.3,fill:true,pointRadius:4,
+             pointBackgroundColor:metrics.map(function(m){return m.d.nm>=0?'#10b981':'#ef4444';})}
+          ]
+        },
+        options:{
+          responsive:true,plugins:{legend:{labels:{font:{size:11}}}},
+          scales:{y:{ticks:{callback:function(v){return v.toFixed(1)+'%';}},grid:{color:'rgba(0,0,0,0.05)'}},
+                  x:{grid:{display:false}}}
+        }
+      });
+    }
+
+    // Chart 3: Expense breakdown stacked bar
+    var ctx3=document.getElementById('chartExpenses');
+    if(ctx3){
+      if(ctx3._chartInstance) ctx3._chartInstance.destroy();
+      // Collect all expense account names
+      var expAccounts=[];
+      entries.forEach(function(p){ if(/cost of sales|expense/i.test(p[1].type||'')) expAccounts.push(p[0]); });
+      var palette=['#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6','#06b6d4','#ec4899','#84cc16','#f97316','#6366f1'];
+      var datasets=expAccounts.slice(0,10).map(function(name,idx){
+        return {
+          label:name.length>30?name.substring(0,30)+'…':name,
+          data:allM.map(function(m){ return Math.abs(csvMultiMonthPL[name]&&csvMultiMonthPL[name].months[m]||0); }),
+          backgroundColor:palette[idx%palette.length],
+          borderRadius:2, stack:'expenses'
+        };
+      });
+      ctx3._chartInstance=new Chart(ctx3,{
+        type:'bar',
+        data:{labels:metrics.map(function(m){return m.label;}), datasets:datasets},
+        options:{
+          responsive:true,
+          plugins:{legend:{position:'right',labels:{font:{size:10},boxWidth:10}}},
+          scales:{
+            y:{stacked:true,ticks:{callback:function(v){return fmtMoney(v);}},grid:{color:'rgba(0,0,0,0.05)'}},
+            x:{stacked:true,grid:{display:false}}
+          }
+        }
+      });
+    }
   });
 
-  var netProfit=totalRevenue-totalCostOfSales-totalExpense;
-  html+='<tr style="background:#f0fdf4;font-weight:700;border-top:2px solid var(--border);">'
-    +'<td style="padding:10px 16px;font-size:14px;">NET PROFIT / (LOSS)</td>'
-    +'<td style="padding:10px 16px;text-align:right;font-family:var(--mono);font-size:14px;font-weight:700;color:'+(netProfit>=0?'var(--green)':'var(--danger)')+';">'+fmtMoney(netProfit)+'</td>'
-    +'</tr>';
-  html+='</tbody></table></div>';
-  el.innerHTML=html;
-  if(metaEl) metaEl.textContent='P&L · '+entries.length+' accounts · Totals Jun 25–Apr 26 · Source: '+dataSources.pl;
+  // ── Build multi-month table ──────────────────────────────────────────────
+  el.innerHTML=buildRawTimeSeries(csvMultiMonthPL,'pl');
+  if(metaEl) metaEl.textContent='P&L · Multi-Month · Source: '+dataSources.pl;
 }
 
 function renderBS(){
@@ -4351,7 +4425,7 @@ function buildRawTimeSeries(multiMonthData, type){
 }
 
 function switchTab(name,btn){
-  ['pl','bs','map','rpl','rbs','cf','metrics'].forEach(function(t){
+  ['pl','bs','map','rpl','rbs','metrics'].forEach(function(t){
     var el=document.getElementById('tab-'+t);
     if(el) el.style.display='none';
   });
