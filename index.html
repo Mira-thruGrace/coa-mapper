@@ -542,33 +542,10 @@
         </div>
       </div>
 
-      <!-- Prior period BS status panel -->
-      <div style="padding:12px 18px;border-bottom:1px solid var(--border);background:var(--bg);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
-        <div>
-          <div style="font-size:13px;font-weight:600;margin-bottom:2px;">Prior Period Balance Sheet</div>
-          <div id="priorBsStatus" style="font-size:12px;color:var(--muted);">
-            Loaded automatically when you connect to Xero (as at day before period start)
-          </div>
-        </div>
-        <!-- Manual override fallback -->
-        <details style="font-size:12px;">
-          <summary style="cursor:pointer;color:var(--accent2);font-weight:500;">Override manually</summary>
-          <div style="margin-top:10px;display:flex;gap:10px;align-items:flex-start;flex-wrap:wrap;">
-            <div>
-              <label style="font-size:11px;font-weight:600;color:var(--muted);display:block;margin-bottom:4px;">Paste Xero JSON</label>
-              <textarea id="priorBsInput" rows="2" placeholder='{"Reports":[...]}' style="font-size:11px;width:280px;"></textarea>
-              <button class="btn btn-secondary btn-sm" onclick="loadPriorBS()" style="margin-top:6px;">Load →</button>
-            </div>
-            <div>
-              <label style="font-size:11px;font-weight:600;color:var(--muted);display:block;margin-bottom:4px;">Or upload CSV (Account, Amount)</label>
-              <input type="file" accept=".csv" onchange="loadPriorBSFromCSV(this)" style="font-size:11px;">
-            </div>
-          </div>
-        </details>
-      </div>
+      <div id="priorBsStatus" style="display:none;"></div>
 
       <div id="bsDiagnostic" style="display:none;margin:12px 16px;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px;font-family:var(--mono);font-size:11px;max-height:300px;overflow-y:auto;white-space:pre;"></div>
-      <div id="cfContent" style="padding:16px;"></div>
+      <div id="cfContent" style="padding:16px;min-height:200px;"></div>
     </div>
   </div>
 
@@ -3995,7 +3972,13 @@ function renderCashFlow(){
   }
 
   html+='</tbody></table></div>';
-  cfEl.innerHTML=html;
+
+  // Debug info (shows if table rendered correctly)
+  var debugInfo='<div style="margin:8px 16px 0;font-size:11px;color:var(--muted);">Showing '+periods.length+' periods · '
+    +cfMonths[0]+' → '+cfMonths[cfMonths.length-1]
+    +' · WC accounts: '+wcNames.length+' · BS accounts: '+bsData.length+'</div>';
+
+  cfEl.innerHTML=debugInfo+html;
 }
 
 function getRestatedPLData(quarter){
@@ -4320,13 +4303,39 @@ function buildRawTimeSeries(multiMonthData, type){
     });
 
     // Subtotal row for this section
+    var secSub={};
+    allMonths.forEach(function(m){
+      secSub[m]=items.reduce(function(s,item){ return s+(item.months[m]||0); },0);
+    });
     html+='<tr style="background:var(--accent-light);font-weight:700;">'
       +'<td style="padding:8px 16px;font-size:13px;font-weight:700;position:sticky;left:0;background:var(--accent-light);">Total '+escHtml(grp)+'</td>';
     allMonths.forEach(function(m){
-      var sub=items.reduce(function(s,item){ return s+(item.months[m]||0); },0);
+      var sub=secSub[m];
       html+='<td style="padding:8px 10px;text-align:right;font-family:var(--mono);font-size:12px;font-weight:700;white-space:nowrap;color:'+(sub<0?'var(--danger)':'var(--accent)')+';">'+(sub!==0?fmtMoney(sub):'—')+'</td>';
     });
     html+='</tr>';
+
+    // For BS: insert TOTAL ASSETS inline after the last asset section
+    if(type==='bs'){
+      var assetSecs3=['Bank','Current Assets','Non-Current Assets'];
+      var isAsset3=assetSecs3.indexOf(grp)!==-1;
+      if(isAsset3){
+        var myIdx3=assetSecs3.indexOf(grp);
+        var hasLaterAsset3=assetSecs3.slice(myIdx3+1).some(function(k){return groups[k]&&groups[k].length>0;});
+        if(!hasLaterAsset3){
+          // Compute total assets across all asset sections
+          html+='<tr style="background:#1e3a5f;font-weight:700;border-top:2px solid var(--border);">'
+            +'<td style="padding:10px 16px;font-size:13px;font-weight:700;color:white;position:sticky;left:0;background:#1e3a5f;">TOTAL ASSETS</td>';
+          allMonths.forEach(function(m){
+            var tot=assetSecs3.reduce(function(s,k){
+              return s+(groups[k]?groups[k].reduce(function(s2,item){return s2+(item.months[m]||0);},0):0);
+            },0);
+            html+='<td style="padding:10px 10px;text-align:right;font-family:var(--mono);font-size:12px;font-weight:700;white-space:nowrap;color:white;">'+fmtMoney(tot)+'</td>';
+          });
+          html+='</tr><tr><td colspan="'+(allMonths.length+1)+'" style="padding:3px 0;"></td></tr>';
+        }
+      }
+    }
   });
 
 
@@ -4362,15 +4371,7 @@ function buildRawTimeSeries(multiMonthData, type){
       return grpList.reduce(function(s,g){ return s+(groups[g]?(groups[g].reduce(function(s2,item){return s2+(item.months[m]||0);},0)):0); },0);
     }
     var grandStyle2='background:#1e3a5f;font-weight:700;border-top:2px solid var(--border);';
-    // TOTAL ASSETS
-    html+='<tr style="'+grandStyle2+'">'
-      +'<td style="padding:10px 16px;font-size:13px;font-weight:700;color:white;position:sticky;left:0;background:#1e3a5f;">TOTAL ASSETS</td>';
-    allMonths.forEach(function(m){
-      var v=bsMonthTotal(assetGrps,m);
-      html+='<td style="padding:10px 10px;text-align:right;font-family:var(--mono);font-size:12px;font-weight:700;white-space:nowrap;color:white;">'+fmtMoney(v)+'</td>';
-    });
-    html+='</tr>';
-    // TOTAL LIABILITIES & EQUITY
+    // TOTAL LIABILITIES & EQUITY (TOTAL ASSETS is already inserted inline above)
     html+='<tr style="background:#2d5a8e;font-weight:700;">'
       +'<td style="padding:10px 16px;font-size:13px;font-weight:700;color:white;position:sticky;left:0;background:#2d5a8e;">TOTAL LIABILITIES &amp; EQUITY</td>';
     allMonths.forEach(function(m){
