@@ -506,7 +506,7 @@
     <button class="tab" onclick="switchTab('map',this)">COA Mapping</button>
     <button class="tab" onclick="switchTab('rpl',this)">✦ Restated P&amp;L</button>
     <button class="tab" onclick="switchTab('rbs',this)">✦ Restated BS</button>
-    <button class="tab" onclick="switchTab('dcf',this)">Cash Flow</button>
+    <button class="tab" onclick="switchTab('cf',this)">Cash Flow</button>
   </div>
 
   <!-- P&L Tab -->
@@ -767,33 +767,6 @@
     <div id="coaContent"></div>
   </div>
 
-  <!-- Direct Cash Flow Tab -->
-  <div id="tab-dcf" style="display:none;">
-    <div class="table-card">
-      <div class="table-header">
-        <div>
-          <h3>Cash Flow Statement — Direct Method</h3>
-          <div class="table-meta">Direct method · From Xero API or CSV upload · No mapping required</div>
-        </div>
-        <div style="display:flex;gap:8px;">
-          <button class="btn btn-secondary btn-sm" onclick="exportSingleCSV('dcf')">Export CSV</button>
-        </div>
-      </div>
-      <!-- Upload / source bar -->
-      <div style="padding:14px 18px;border-bottom:1px solid var(--border);background:var(--bg);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
-        <div>
-          <div style="font-size:13px;font-weight:600;margin-bottom:2px;">Data Source</div>
-          <div id="dcfSourceText" style="font-size:12px;color:var(--muted);">Auto-loaded from Xero when connected · Or upload a CSV below</div>
-        </div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;">
-          <button class="btn btn-secondary btn-sm" onclick="downloadDCFTemplate()">⬇ CSV Template</button>
-          <label class="btn btn-secondary btn-sm" style="cursor:pointer;margin:0;">⇧ Upload CSV<input type="file" accept=".csv" style="display:none;" onchange="loadDirectCFFromCSV(this)"></label>
-          <button class="btn btn-secondary btn-sm" onclick="fetchDirectCFFromXero()">↺ Reload from Xero</button>
-        </div>
-      </div>
-      <div id="dcfContent" style="padding:16px;min-height:80px;"></div>
-    </div>
-  </div>
 
 </div>
 </div><!-- /main -->
@@ -962,7 +935,7 @@ let coaData=[], plReports=[], bsReports=[], priorBsReports=[], mappings={}, dire
 let csvPL=[], csvBS=[], csvMetrics=[];
 let dataMode='xero';
 let userMetrics=[];
-let dataSources={pl:'—',bs:'—',coa:'—',priorBs:'',dcf:'not loaded',timestamp:'—'};
+let dataSources={pl:'—',bs:'—',coa:'—',priorBs:'',timestamp:'—'};
 let reportCurrency='SGD'; // active currency for display
 
 // ── Global skip lists for Xero computed/summary rows ─────────────────────────
@@ -1863,11 +1836,7 @@ function completeMappingStep(){
 
 // ── Dashboard launch ──────────────────────────────────────────────────────────
 function launchDashboard(title,sub){
-  // Pre-load direct CF if CashSummary data already available
-  if(directCFData&&directCFRows.length===0){
-    directCFRows=parseCashSummaryReport(directCFData);
-    dataSources.dcf='Xero API (auto)';
-  }
+
   document.getElementById('statusDot').classList.add('on');
   document.getElementById('statusText').textContent='Loaded';
   document.getElementById('setupSection').style.display='none';
@@ -4438,192 +4407,6 @@ function fmtMoney(val){
   return n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
 }
 
-// ── Direct Cash Flow (from Xero CashSummary or CSV) ─────────────────────────
-// State: raw direct CF rows loaded from Xero or CSV
-let directCFRows = []; // [{section, label, amount}]
-
-function renderDirectCF(){
-  var el=document.getElementById('dcfContent');
-  if(!el) return;
-
-  // Try to use directCFData (from Xero CashSummary auto-fetch)
-  if(directCFData&&directCFRows.length===0){
-    directCFRows=parseCashSummaryReport(directCFData);
-  }
-
-  if(!directCFRows.length){
-    el.innerHTML='<div style="padding:20px;">'
-      +'<div class="warn-box" style="margin-bottom:16px;">No direct cash flow data loaded yet.</div>'
-      +'<div style="font-size:13px;color:var(--muted);line-height:1.8;">'
-      +'<strong>To load data:</strong><br>'
-      +'• <strong>Xero:</strong> Click <em>↺ Reload from Xero</em> — requires Xero connection<br>'
-      +'• <strong>CSV:</strong> Click <em>⬇ CSV Template</em> to download the template, fill it in, then <em>⇧ Upload CSV</em>'
-      +'</div></div>';
-    return;
-  }
-
-  // Render the statement
-  var currency=reportCurrency||'SGD';
-  var html='<table style="width:100%;border-collapse:collapse;">'
-    +'<thead><tr>'
-    +'<th style="padding:9px 16px;text-align:left;background:var(--bg);font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px solid var(--border);">Description</th>'
-    +'<th style="padding:9px 16px;text-align:right;background:var(--bg);font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px solid var(--border);">'+currency+'</th>'
-    +'</tr></thead><tbody>';
-
-  var currentSection='';
-  directCFRows.forEach(function(row){
-    if(row.section&&row.section!==currentSection){
-      currentSection=row.section;
-      html+='<tr class="section-row"><td colspan="2" style="padding:8px 16px;">'+row.section+'</td></tr>';
-    }
-    if(row.isTotal){
-      html+='<tr class="total-row"><td style="padding:10px 16px;"><strong>'+row.label+'</strong></td>'
-        +'<td class="amount '+(row.amount>=0?'pos':'neg')+'" style="font-weight:700;">'+fmtMoney(row.amount)+'</td></tr>';
-    } else if(row.isSubtotal){
-      html+='<tr class="subtotal-row"><td style="padding:9px 16px;"><strong>'+row.label+'</strong></td>'
-        +'<td class="amount '+(row.amount>=0?'pos':'neg')+'"><strong>'+fmtMoney(row.amount)+'</strong></td></tr>';
-    } else {
-      html+='<tr style="border-bottom:1px solid var(--border);"><td style="padding:9px 16px 9px 28px;">'+row.label+'</td>'
-        +'<td class="amount '+(row.amount>=0?'pos':'neg')+'">'+fmtMoney(row.amount)+'</td></tr>';
-    }
-  });
-
-  html+='</tbody></table>';
-  el.innerHTML=html;
-
-  // Update source text
-  var srcEl=document.getElementById('dcfSourceText');
-  if(srcEl) srcEl.textContent=directCFRows.length+' line items loaded · '+dataSources.dcf;
-}
-
-function parseCashSummaryReport(report){
-  var rows=[];
-  if(!report||!report.Rows) return rows;
-  var currentSection='';
-  report.Rows.forEach(function(section){
-    if(!section.Rows) return;
-    if(section.Title) currentSection=section.Title;
-    section.Rows.forEach(function(row){
-      if(row.RowType==='Row'&&row.Cells&&row.Cells.length>=2){
-        var label=row.Cells[0]?.Value||'';
-        var amt=parseFloat(String(row.Cells[1]?.Value||'0').replace(/,/g,''))||0;
-        if(label) rows.push({section:currentSection,label:label,amount:amt,isTotal:false,isSubtotal:false});
-      }
-      if(row.RowType==='SummaryRow'&&row.Cells&&row.Cells.length>=2){
-        var label=row.Cells[0]?.Value||'';
-        var amt=parseFloat(String(row.Cells[1]?.Value||'0').replace(/,/g,''))||0;
-        if(label) rows.push({section:currentSection,label:label,amount:amt,isTotal:false,isSubtotal:true});
-      }
-    });
-  });
-  // Add grand total if present
-  var totalRow=report.Rows.find(function(r){return r.RowType==='SummaryRow';});
-  if(totalRow&&totalRow.Cells){
-    var label=totalRow.Cells[0]?.Value||'Net Cash';
-    var amt=parseFloat(String(totalRow.Cells[1]?.Value||'0').replace(/,/g,''))||0;
-    rows.push({section:'',label:label,amount:amt,isTotal:true,isSubtotal:false});
-  }
-  return rows;
-}
-
-async function fetchDirectCFFromXero(){
-  var token=sessionStorage.getItem('xero_access_token');
-  var tid=sessionStorage.getItem('xero_tenant_id');
-  if(!token||!tid){showMsg('Not connected to Xero. Please connect first.','error');return;}
-  var from=document.getElementById('dateFrom')?.value||new Date().getFullYear()+'-01-01';
-  var to=document.getElementById('dateTo')?.value||new Date().toISOString().split('T')[0];
-  var basis=document.getElementById('reportBasis')?.value||'ACCRUAL';
-  var btn=event.target;
-  btn.textContent='Loading...';btn.disabled=true;
-  try{
-    var res=await fetch(WORKER_URL+'/xero?path=/Reports/CashSummary?fromDate='+from+'%26toDate='+to+'%26reportBasis='+basis+'&tenantId='+tid,
-      {headers:{'Authorization':'Bearer '+token}});
-    var data=await res.json();
-    if(data.Reports&&data.Reports.length){
-      directCFData=data.Reports[0];
-      directCFRows=parseCashSummaryReport(directCFData);
-      dataSources.dcf='Xero API · '+from+' to '+to+' · '+basis;
-      showMsg('Direct cash flow loaded from Xero — '+directCFRows.length+' line items.','success');
-      renderDirectCF();
-    } else {
-      showMsg('No CashSummary data returned from Xero. This report requires Xero Payroll or cash basis accounting.','error');
-    }
-  }catch(e){
-    showMsg('Could not fetch cash flow from Xero: '+e.message,'error');
-  }finally{
-    btn.textContent='↺ Reload from Xero';btn.disabled=false;
-  }
-}
-
-function loadDirectCFFromCSV(input){
-  var file=input.files[0];
-  if(!file)return;
-  var reader=new FileReader();
-  reader.onload=function(e){
-    try{
-      var lines=e.target.result.split(/\r?\n/).filter(function(l){return l.trim();});
-      if(lines.length<2){showMsg('CSV needs header + data rows.','error');return;}
-      var headers=splitCSVLine(lines[0]).map(function(h){return h.trim().replace(/"/g,'').toLowerCase();});
-      var sectionIdx=headers.findIndex(function(h){return h.includes('section')||h.includes('activity');});
-      var labelIdx=headers.findIndex(function(h){return h.includes('label')||h.includes('description')||h.includes('line');});
-      var amtIdx=headers.findIndex(function(h){return h.includes('amount')||h.includes('value');});
-      var typeIdx=headers.findIndex(function(h){return h.includes('type')||h.includes('row');});
-      if(labelIdx<0||amtIdx<0){showMsg('CSV needs at least "Label" and "Amount" columns.','error');return;}
-
-      directCFRows=[];
-      var currentSection='';
-      lines.slice(1).forEach(function(line){
-        var cols=splitCSVLine(line).map(function(v){return v.trim().replace(/"/g,'');});
-        var section=sectionIdx>=0?(cols[sectionIdx]||''):'';
-        var label=cols[labelIdx]||'';
-        var amt=parseFloat((cols[amtIdx]||'0').replace(/,/g,''))||0;
-        var rowType=typeIdx>=0?(cols[typeIdx]||'').toLowerCase():'';
-        if(!label) return;
-        if(section&&section!==currentSection) currentSection=section;
-        directCFRows.push({
-          section:currentSection,
-          label:label,
-          amount:amt,
-          isTotal:rowType.includes('total')||rowType.includes('net'),
-          isSubtotal:rowType.includes('sub')||rowType.includes('summary')
-        });
-      });
-      dataSources.dcf='CSV upload · '+file.name;
-      showMsg('Direct cash flow loaded — '+directCFRows.length+' rows.','success');
-      renderDirectCF();
-      input.value='';
-    }catch(err){
-      showMsg('Error reading CSV: '+err.message,'error');
-    }
-  };
-  reader.readAsText(file);
-}
-
-function downloadDCFTemplate(){
-  var from=document.getElementById('dateFrom')?.value||'YYYY-MM';
-  var to=document.getElementById('dateTo')?.value||'YYYY-MM';
-  var lines=[
-    'Section,Label,Amount,Row Type',
-    'A. Operating Activities,Receipts from customers,0,row',
-    'A. Operating Activities,Payments to suppliers,-0,row',
-    'A. Operating Activities,Payments to employees,-0,row',
-    'A. Operating Activities,GST / Tax paid,-0,row',
-    'A. Operating Activities,Other operating receipts,0,row',
-    'A. Operating Activities,Net Cash from Operating Activities,0,subtotal',
-    'B. Investing Activities,Purchase of fixed assets,-0,row',
-    'B. Investing Activities,Proceeds from asset sales,0,row',
-    'B. Investing Activities,Net Cash from Investing Activities,0,subtotal',
-    'C. Financing Activities,Proceeds from borrowings,0,row',
-    'C. Financing Activities,Repayment of loans,-0,row',
-    'C. Financing Activities,Capital contributions,0,row',
-    'C. Financing Activities,Net Cash from Financing Activities,0,subtotal',
-    'Net Change in Cash,NET CHANGE IN CASH,0,total',
-    'Net Change in Cash,Opening Cash Balance,0,row',
-    'Net Change in Cash,Closing Cash Balance,0,row'
-  ];
-  dlCSV(lines.join('\n'), 'CashFlow_Direct_Template_'+from+'_'+to+'.csv');
-  showMsg('Direct cash flow template downloaded. Fill in amounts and upload.','success');
-}
 
 // ── Export ───────────────────────────────────────────────────────────────────
 function exportSingleCSV(type){
@@ -4839,38 +4622,3 @@ window.addEventListener('load',()=>{
 </script>
 </body>
 </html>
-
-  <!-- Direct Cash Flow Tab -->
-  <div id="tab-dcf" style="display:none;">
-    <div class="table-card">
-      <div class="table-header">
-        <div>
-          <h3>Cash Flow Statement — Direct Method</h3>
-          <div class="table-meta">From Xero CashSummary report or uploaded CSV — no mapping required</div>
-        </div>
-        <div style="display:flex;gap:8px;">
-          <button class="btn btn-secondary btn-sm" onclick="exportSingleCSV('dcf')">Export CSV</button>
-        </div>
-      </div>
-
-      <!-- Data source panel -->
-      <div style="padding:14px 18px;border-bottom:1px solid var(--border);background:var(--bg);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
-        <div>
-          <div style="font-size:13px;font-weight:600;margin-bottom:2px;">Data Source</div>
-          <div id="dcfSourceText" style="font-size:12px;color:var(--muted);">
-            Auto-loaded from Xero when connected · Or upload a CSV below
-          </div>
-        </div>
-        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-          <button class="btn btn-secondary btn-sm" onclick="downloadDCFTemplate()">⬇ CSV Template</button>
-          <label class="btn btn-secondary btn-sm" style="cursor:pointer;margin:0;">
-            ⇧ Upload CSV
-            <input type="file" accept=".csv" style="display:none;" onchange="loadDirectCFFromCSV(this)">
-          </label>
-          <button class="btn btn-secondary btn-sm" onclick="fetchDirectCFFromXero()">↺ Reload from Xero</button>
-        </div>
-      </div>
-
-      <div id="dcfContent" style="padding:16px;"></div>
-    </div>
-  </div>
