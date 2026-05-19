@@ -1443,19 +1443,29 @@ function csvToRows(rows,type){
 
 async function launchFromCSV(){
   document.getElementById('csvUploadErrors').style.display='none';
-  const plFile=document.getElementById('plFileInput').files[0];
-  const bsFile=document.getElementById('bsFileInput').files[0];
-  // Operating Metrics removed
-  if(!plFile){showMsg('Please upload a P&L template (required).','error');return;}
-  if(!bsFile){showMsg('Please upload a Balance Sheet template (required).','error');return;}
-  try{
-    if(plFile){const rows=await parseCSVFile(plFile,'pl','plCSVStatus');if(rows.length)plReports=[{Rows:csvToRows(rows,'pl')}];}
-    if(bsFile){const rows=await parseCSVFile(bsFile,'bs','bsCSVStatus');if(rows.length)bsReports=[{Rows:csvToRows(rows,'bs')}];}
-  
-    dataSources.timestamp=new Date().toLocaleString();
-    dataMode='csv';
-    launchDashboard('Financial Reports','Data loaded from CSV upload');
-  }catch(e){showMsg('CSV upload failed: '+e,'error');}
+  if(!Object.keys(csvMultiMonthPL).length){showMsg('Please upload a P&L template (required).','error');return;}
+  if(!Object.keys(csvMultiMonthBS).length){showMsg('Please upload a Balance Sheet template (required).','error');return;}
+
+  function buildReportRows(csvData){
+    var groups={};
+    Object.entries(csvData).forEach(function([name,acc]){
+      var cat=acc.coa||acc.type||'Other';
+      if(!groups[cat]) groups[cat]=[];
+      var total=Object.values(acc.months||{}).reduce(function(s,v){return s+v;},0);
+      groups[cat].push({RowType:'Row',Cells:[{Value:name},{Value:String(total)}]});
+    });
+    return Object.entries(groups).map(function([title,rows]){
+      return {RowType:'Section',Title:title,Rows:rows};
+    });
+  }
+
+  plReports=[{Rows:buildReportRows(csvMultiMonthPL)}];
+  bsReports=[{Rows:buildReportRows(csvMultiMonthBS)}];
+  dataSources.pl=csvPLFileName;
+  dataSources.bs=csvBSFileName;
+  dataSources.timestamp=new Date().toLocaleString();
+  dataMode='csv';
+  launchDashboard('Financial Reports','Data loaded from CSV upload');
 }
 
 function uploadMetricsCSV(input){
@@ -2918,6 +2928,8 @@ function clearTableSelection(section){
 // Stores multi-month data: {accountName: {type, coa, months: {YYYY-MM: amt}}}
 let csvMultiMonthPL = {};
 let csvMultiMonthBS = {};
+let csvPLFileName = "";
+let csvBSFileName = "";
 
 function getCsvMonths(){
   var start=document.getElementById('csvStartMonth').value;
@@ -3141,8 +3153,8 @@ function onCsvFileUpload(input, type){
         });
         data[name]={type:acctType,coa:coa,months:months};
       });
-      if(type==='pl') csvMultiMonthPL=data;
-      else csvMultiMonthBS=data;
+      if(type==='pl'){csvMultiMonthPL=data;csvPLFileName=file.name;}
+      else{csvMultiMonthBS=data;csvBSFileName=file.name;}
       var accountCount=Object.keys(data).length;
       var monthCount=monthCols.length;
       if(statusEl) statusEl.textContent='✓ Loaded '+accountCount+' accounts × '+monthCount+' months';
@@ -3152,7 +3164,6 @@ function onCsvFileUpload(input, type){
     }
   };
   reader.readAsText(file);
-  input.value='';
 }
 
 function downloadCOATemplate(){
