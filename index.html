@@ -371,9 +371,11 @@
       <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:18px 20px;margin-bottom:14px;">
         <div style="font-size:13px;font-weight:700;margin-bottom:4px;">Step 2 — Download &amp; fill the template</div>
         <div style="font-size:12px;color:var(--muted);margin-bottom:12px;">
-          Templates are pre-filled with all <strong>SaaS Standard COA accounts</strong> (P&L: accounts 4000–9900 · BS: accounts 1000–3600).<br>
-          Columns: <strong>Account Name</strong> · <strong>Account #</strong> · <strong>Standard COA Category</strong> · <strong>COA Sub-Type</strong> · one column per month.<br>
-          Fill in monthly amounts — add custom rows at the bottom for any additional accounts.
+          Downloads a <strong>.csv</strong> with 3 pre-filled example rows + 47 blank rows to fill in, plus month columns.<br>
+          <strong>Col A — Account Name:</strong> Your account name (e.g. AWS Hosting, Engineer Salaries)<br>
+          <strong>Col B — Account Type:</strong> Category (e.g. Revenue, COGS, OpEx, Current Asset…)<br>
+          <strong>Col C — COA Mapping:</strong> Map to a SaaS Standard COA account — reference list included at the bottom of the file<br>
+          <strong>Col D+ — Months:</strong> Enter amounts for each period
         </div>
         <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:8px;">
           <button class="btn btn-primary btn-sm" id="csvDownloadPL" onclick="downloadCombinedTemplate('pl')" disabled>⬇ P&amp;L Template</button>
@@ -3063,40 +3065,54 @@ var SAAS_BS_COA=[
   {acct:'3600',name:"Owner's Distributions / Dividends",type:'Equity'},
 ];
 
+
+
 function downloadCombinedTemplate(type){
   var months=getCsvMonths();
   if(!months.length){showMsg('Set start and end month first.','error');return;}
 
-  var coaList=type==='pl'?SAAS_PL_COA:SAAS_BS_COA;
+  var isPL=type==='pl';
 
-  // Build header
-  var headerArr=['Account Name','Account #','Standard COA Category (Acct# - Name)','COA Sub-Type'].concat(months);
-  var lines=[headerArr.map(function(h){return '"'+h+'"';}).join(',')];
+  // 3 example rows only — user fills the rest
+  var examples=isPL
+    ? [['Subscription Revenue','Revenue','4000 - Subscription Revenue - SaaS'],
+       ['AWS / Cloud Hosting','COGS','5000 - Hosting & Infrastructure (AWS / Azure / GCP)'],
+       ['Engineer Salaries','OpEx','6000 - Salaries & Wages - R&D']]
+    : [['Business Checking Account','Current Asset','1000 - Cash - Operating Account'],
+       ['Accounts Receivable','Current Asset','1100 - Accounts Receivable'],
+       ['Accounts Payable','Current Liability','2000 - Accounts Payable']];
 
-  // Add one row per COA line with the account pre-filled
-  coaList.forEach(function(r){
-    var coaLabel=r.acct+' - '+r.name;
-    var cells=['"'+r.name+'"','"'+r.acct+'"','"'+coaLabel+'"','"'+r.type+'"'];
+  // Header: Account Name | Account Type | COA Mapping | month1 | month2 ...
+  var header=['"Account Name"','"Account Type"','"COA Mapping"'].concat(months.map(function(m){return '"'+m+'"';}));
+  var lines=[header.join(',')];
+
+  // 3 example rows (italic note handled by user — just pre-fill values)
+  examples.forEach(function(r){
+    var cells=r.map(function(v){return '"'+v+'"';});
     months.forEach(function(){cells.push('');});
     lines.push(cells.join(','));
   });
 
-  // Add 10 blank rows for custom/additional accounts
-  for(var i=0;i<10;i++){
-    var empty=['"[Enter account name]','','',''];
+  // 47 blank rows for user data
+  for(var i=0;i<47;i++){
+    var empty=['"[Account Name]"','"[Account Type]"','"[COA Mapping]"'];
     months.forEach(function(){empty.push('');});
     lines.push(empty.join(','));
   }
 
-  // Add a legend note at the bottom
+  // COA reference block at bottom
   lines.push('');
-  lines.push('"INSTRUCTIONS: The Standard COA Category column is pre-filled with SaaS Standard COA accounts. Map each row to the correct account. Add custom rows at the bottom if needed."');
-  lines.push('"COA Reference: P&L uses accounts 4000-9900 | Balance Sheet uses accounts 1000-3600"');
+  var coaList=isPL?SAAS_PL_COA:SAAS_BS_COA;
+  lines.push('"--- SaaS Standard COA Reference ('+(isPL?'P&L: 4000-9900':'BS: 1000-3600')+') — copy values into COA Mapping column above ---"');
+  lines.push('"Acct #","Account Name","Type"');
+  coaList.forEach(function(r){
+    lines.push('"'+r.acct+'","'+r.name+'","'+r.type+'"');
+  });
 
   var csv=lines.join('\n');
-  var filename='SaaS_'+(type==='pl'?'PL':'BS')+'_Template_'+months[0]+'_to_'+months[months.length-1]+'.csv';
+  var filename='SaaS_'+(isPL?'PL':'BS')+'_Template_'+months[0]+'_to_'+months[months.length-1]+'.csv';
   dlCSV(csv,filename);
-  showMsg('✓ SaaS '+type.toUpperCase()+' template downloaded — accounts pre-filled from standard COA. Fill in monthly amounts and upload in Step 3.','success');
+  showMsg('✓ '+(isPL?'P&L':'Balance Sheet')+' CSV template downloaded — 3 examples pre-filled, COA reference included at the bottom.','success');
 }
 
 function onCsvFileUpload(input, type){
@@ -3109,23 +3125,15 @@ function onCsvFileUpload(input, type){
       var lines=e.target.result.split(/\r?\n/).filter(function(l){return l.trim();});
       if(lines.length<2){showMsg('Template must have a header row and data.','error');return;}
       var headers=splitCSVLine(lines[0]).map(function(h){return h.trim().replace(/"/g,'');});
-      // Support both old format (3 cols: Name,Type,COA) and new SaaS format (4 cols: Name,Acct#,COA,SubType)
-      var nameIdx=0, coaIdx, typeIdx, monthStart;
-      var isNewFormat=(headers[1]==='Account #'||headers[2].indexOf('Standard COA')===0);
-      if(isNewFormat){
-        // New: Account Name | Account # | Standard COA Category | COA Sub-Type | months...
-        coaIdx=2; typeIdx=3; monthStart=4;
-      } else {
-        // Old: Account Name | Type | Standard COA Category | months...
-        typeIdx=1; coaIdx=2; monthStart=3;
-      }
+      // Columns: Account Name (0) | Account Type (1) | COA Mapping (2) | months (3+)
+      var nameIdx=0, typeIdx=1, coaIdx=2, monthStart=3;
       var monthCols=headers.slice(monthStart);
-
       var data={};
       lines.slice(1).forEach(function(line){
         var cols=splitCSVLine(line).map(function(v){return v.trim().replace(/"/g,'');});
         var name=cols[nameIdx]||'';
-        if(!name||name.startsWith('[Enter')||name.startsWith('INSTRUCTIONS'))return;
+        // Skip blank rows, placeholder rows, and the reference block at the bottom
+        if(!name||name.startsWith('[Account')||name.startsWith('---')||name==='Acct #')return;
         var acctType=cols[typeIdx]||'';
         var coa=cols[coaIdx]||'';
         var months={};
@@ -3135,10 +3143,8 @@ function onCsvFileUpload(input, type){
         });
         data[name]={type:acctType,coa:coa,months:months};
       });
-
       if(type==='pl') csvMultiMonthPL=data;
       else csvMultiMonthBS=data;
-
       var accountCount=Object.keys(data).length;
       var monthCount=monthCols.length;
       if(statusEl) statusEl.textContent='✓ Loaded '+accountCount+' accounts × '+monthCount+' months';
