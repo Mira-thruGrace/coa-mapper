@@ -3998,7 +3998,15 @@ function setPreset(preset,e){
   let from,to,bs=today.toISOString().split('T')[0];
   if(preset==='ytd'){from=y+'-01-01';to=today.toISOString().split('T')[0];}
   else if(preset==='thismonth'){from=y+'-'+String(today.getMonth()+1).padStart(2,'0')+'-01';to=today.toISOString().split('T')[0];bs=to;}
-  else if(preset==='lastmonth'){const lm=new Date(y,today.getMonth()-1,1);const lme=new Date(y,today.getMonth(),0);from=lm.toISOString().split('T')[0];to=lme.toISOString().split('T')[0];bs=to;}
+  else if(preset==='lastmonth'){
+    // Use explicit month arithmetic to avoid UTC/local timezone offset issues
+    var lmYear=today.getMonth()===0?y-1:y;
+    var lmMonth=today.getMonth()===0?12:today.getMonth(); // 1-based last month
+    var lmDays=new Date(lmYear,lmMonth,0).getDate(); // last day of last month
+    from=lmYear+'-'+String(lmMonth).padStart(2,'0')+'-01';
+    to=lmYear+'-'+String(lmMonth).padStart(2,'0')+'-'+String(lmDays).padStart(2,'0');
+    bs=to;
+  }
   else if(preset==='q1'){from=y+'-01-01';to=y+'-03-31';bs=to;}
   else if(preset==='q2'){from=y+'-04-01';to=y+'-06-30';bs=to;}
   else if(preset==='q3'){from=y+'-07-01';to=y+'-09-30';bs=to;}
