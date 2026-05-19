@@ -3736,249 +3736,215 @@ function getXeroType(name){
 // Per spec: Net Profit → Add-backs → Working Capital → Investing → Financing
 // ── Cash Flow: Indirect Method, multi-month (Dec 2025–Apr 2026) ──────────────
 function renderCashFlow(){
-  var cfEl=document.getElementById('cfContent');
-  if(!cfEl) return;
+  var el=document.getElementById('cfContent');
+  if(!el) return;
 
   var plData=Object.entries(csvMultiMonthPL);
   var bsData=Object.entries(csvMultiMonthBS);
 
-  if(!plData.length||!bsData.length){
-    cfEl.innerHTML='<div style="margin:16px;padding:12px 14px;background:var(--amber-light);border:1px solid #fde68a;border-radius:8px;font-size:13px;color:#92400e;">⚠ Upload both P&L and Balance Sheet templates to generate the Cash Flow statement.</div>';
+  if(!plData.length || !bsData.length){
+    el.innerHTML='<div style="padding:20px;color:#92400e;background:#fffbeb;margin:16px;border-radius:8px;border:1px solid #fde68a;">⚠ Both P&L and Balance Sheet templates must be uploaded to generate Cash Flow.</div>';
     return;
   }
 
-  // Collect all months from BS, sort, pick last 5
-  var allMonths=[];
-  bsData.forEach(function(p){ Object.keys(p[1].months||{}).forEach(function(m){ if(allMonths.indexOf(m)===-1) allMonths.push(m); }); });
-  allMonths.sort();
-  var cfMonths=allMonths.length>0?allMonths.slice(-5):[];
-  if(!cfMonths.length){
-    cfEl.innerHTML='<div style="margin:16px;padding:12px;background:var(--amber-light);border-radius:8px;color:#92400e;font-size:13px;">⚠ No monthly data found in Balance Sheet template.</div>';
+  // Collect months from BS, sorted oldest → newest, take last 5
+  var allM=[];
+  bsData.forEach(function(p){
+    Object.keys(p[1].months||{}).forEach(function(m){ if(allM.indexOf(m)<0) allM.push(m); });
+  });
+  allM.sort();
+  var months=allM.slice(-5);
+  if(!months.length){
+    el.innerHTML='<div style="padding:20px;color:#92400e;">⚠ No monthly data found.</div>';
     return;
   }
 
-  var fmtM=function(m){ return new Date(m+'-01').toLocaleDateString('en-SG',{month:'short',year:'2-digit'}); };
+  var fmtM=function(m){ return new Date(m+'-02').toLocaleDateString('en-SG',{month:'short',year:'2-digit'}); };
 
-  // Classify BS account type from template col B (acc.type)
-  function getTag(acc){
-    var t=acc.type||'';
-    if(t==='Bank') return 'CASH';
-    if(t==='Current Assets') return 'CA';
-    if(t==='Non-Current Assets') return 'NCA';
-    if(t==='Current Liabilities') return 'CL';
-    if(t==='Non-Current Liabilities') return 'NCL';
-    if(t==='Equity') return 'EQ';
-    return 'OTHER';
-  }
+  // Tag each BS account using col B (Account Type)
+  var tagOf={};
+  bsData.forEach(function(p){
+    var t=p[1].type||'';
+    tagOf[p[0]]= t==='Bank'?'CASH': t==='Current Assets'?'CA': t==='Non-Current Assets'?'NCA':
+                 t==='Current Liabilities'?'CL': t==='Non-Current Liabilities'?'NCL':
+                 t==='Equity'?'EQ':'OTHER';
+  });
 
-  // Net Profit per month: Revenue - Cost of Sales - Expense
-  function netProfitForMonth(m){
-    var rev=0,cos=0,exp=0;
+  // Balance per account per month
+  function bal(name,m){ var e=csvMultiMonthBS[name]; return e?(e.months[m]||0):0; }
+
+  // Net profit for a month from P&L
+  function netP(m){
+    var r=0,c=0,e=0;
     plData.forEach(function(p){
       var t=p[1].type||'', v=p[1].months[m]||0;
-      if(/revenue/i.test(t)) rev+=v;
-      else if(/cost of sales/i.test(t)) cos+=Math.abs(v);
-      else if(/expense/i.test(t)) exp+=Math.abs(v);
+      if(/revenue/i.test(t)) r+=v;
+      else if(/cost of sales/i.test(t)) c+=Math.abs(v);
+      else if(/expense/i.test(t)) e+=Math.abs(v);
     });
-    return rev-cos-exp;
+    return r-c-e;
   }
 
-  // D&A add-back per month
-  function dnaForMonth(m){
+  // D&A for a month
+  function dna(m){
     var d=0;
     plData.forEach(function(p){
-      var n=p[0], acc=p[1];
-      if(/depreciation|amortis/i.test(n)||/depreciation|amortis/i.test(acc.coa||''))
-        d+=Math.abs(acc.months[m]||0);
+      if(/depreciation|amortis/i.test(p[0])||/depreciation|amortis/i.test(p[1].coa||''))
+        d+=Math.abs(p[1].months[m]||0);
     });
     return d;
   }
 
-  // Compute one period's CF: openM = prior month balance, closeM = current month balance
-  function computePeriod(openM, closeM){
-    var np=netProfitForMonth(closeM);
-    var dna=dnaForMonth(closeM);
-    var wc=[], inv=[], fin=[], unmapped=[];
-    var openCash=0, closeCash=0;
+  // Build one column per month
+  // For period i: open = months[i-1] balance, close = months[i] balance
+  // For first period: open = 0 (start of period)
+  var cols=months.map(function(m,i){
+    var prev=i>0?months[i-1]:null;
+    var np=netP(m);
+    var dd=dna(m);
+    var wc={},inv={},fin={};
+    var openCash=0,closeCash=0;
 
     bsData.forEach(function(p){
-      var name=p[0], acc=p[1];
-      var tag=getTag(acc);
-      var open=acc.months[openM]||0;
-      var close=acc.months[closeM]||0;
-      // For first period (no prior), use close balance as the movement
-      var movement=(openM===closeM)?close:(close-open);
+      var name=p[0];
+      var tag=tagOf[name];
+      var close=bal(name,m);
+      var open=prev?bal(name,prev):0;
+      var mv=close-open;
 
       if(tag==='CASH'){ openCash+=open; closeCash+=close; return; }
-      if(tag==='OTHER'){ if(movement!==0) unmapped.push(name); return; }
-      if(movement===0) return;
+      if(tag==='OTHER'||mv===0) return;
 
-      // Indirect method impact rules
+      // Indirect method: impact on cash
       var impact=0;
-      if(tag==='CA')  impact=-movement;  // ↑ CA = cash out
-      if(tag==='CL')  impact=+movement;  // ↑ CL = cash in
-      if(tag==='NCA') impact=-movement;  // ↑ NCA = capex
-      if(tag==='NCL') impact=+movement;
+      if(tag==='CA')  impact=-mv;   // ↑ asset = cash used
+      if(tag==='CL')  impact=+mv;   // ↑ liability = cash received
+      if(tag==='NCA') impact=-mv;
+      if(tag==='NCL') impact=+mv;
       if(tag==='EQ'){
-        if(/retained earning|accumulated|current year/i.test(name)) return;
-        impact=+movement;
+        if(/retained|accumulated|current year/i.test(name)) return;
+        impact=+mv;
       }
 
-      var isInterco=/due to|due from|interco|parent|subsidiar/i.test(name);
-      var item={name:name,tag:tag,open:open,close:close,movement:movement,impact:impact,interco:isInterco};
-      if(tag==='CA'||tag==='CL') wc.push(item);
-      else if(tag==='NCA') inv.push(item);
-      else if(tag==='NCL'||tag==='EQ') fin.push(item);
+      var bucket=( tag==='CA'||tag==='CL')?wc : (tag==='NCA'?inv:fin);
+      bucket[name]=(bucket[name]||0)+impact;
     });
 
-    var wcTotal=wc.reduce(function(s,i){return s+i.impact;},0);
-    var opCF=np+dna+wcTotal;
-    var invCF=inv.reduce(function(s,i){return s+i.impact;},0);
-    var finCF=fin.reduce(function(s,i){return s+i.impact;},0);
-    return {np:np,dna:dna,wc:wc,inv:inv,fin:fin,
-            opCF:opCF,invCF:invCF,finCF:finCF,
-            netMov:opCF+invCF+finCF,
-            openCash:openCash,closeCash:closeCash,unmapped:unmapped};
-  }
+    var wcT=Object.values(wc).reduce(function(s,v){return s+v;},0);
+    var opCF=np+dd+wcT;
+    var invCF=Object.values(inv).reduce(function(s,v){return s+v;},0);
+    var finCF=Object.values(fin).reduce(function(s,v){return s+v;},0);
 
-  // Build period data
-  var periods=cfMonths.map(function(closeM,i){
-    var openM=i>0?cfMonths[i-1]:closeM; // first period: openM=closeM (no prior)
-    return {label:fmtM(closeM),openM:openM,closeM:closeM,d:computePeriod(openM,closeM)};
+    return {m:m,label:fmtM(m),np:np,dd:dd,wc:wc,inv:inv,fin:fin,
+            wcT:wcT,opCF:opCF,invCF:invCF,finCF:finCF,
+            netMov:opCF+invCF+finCF,openCash:openCash,closeCash:closeCash};
   });
 
-  // ── Collect all account names per section across all periods ──
-  function allNames(key){ var s={}; periods.forEach(function(p){ p.d[key].forEach(function(i){ s[i.name]=1; }); }); return Object.keys(s); }
-  var wcNames=allNames('wc'), invNames=allNames('inv'), finNames=allNames('fin');
+  // Collect all account names per section
+  function names(key){ var s={}; cols.forEach(function(c){ Object.keys(c[key]).forEach(function(n){s[n]=1;}); }); return Object.keys(s); }
+  var wcN=names('wc'), invN=names('inv'), finN=names('fin');
 
-  // ── Styles ──
-  var ncol=periods.length+1;
-  var th='padding:9px 10px;text-align:right;font-size:11px;font-weight:600;color:var(--muted);background:var(--bg);border-bottom:2px solid var(--border);white-space:nowrap;min-width:100px;';
-  var lbl='padding:8px 16px;font-size:13px;border-bottom:1px solid var(--border);';
-  var tag='display:inline-block;padding:1px 5px;border-radius:3px;font-size:10px;font-weight:600;margin-left:5px;background:var(--bg);color:var(--muted);border:1px solid var(--border);font-family:var(--mono);';
+  // ── Render ──
+  var nc=cols.length+1;
+  var S='padding:8px 16px;font-size:13px;border-bottom:1px solid var(--border);';
+  var tagSpan='display:inline-block;padding:1px 5px;border-radius:3px;font-size:10px;font-weight:600;margin-left:5px;background:var(--bg);color:var(--muted);border:1px solid var(--border);font-family:var(--mono);vertical-align:middle;';
 
-  function amt(v){
+  function cell(v){
     var c=v>0?'var(--green)':v<0?'var(--danger)':'var(--muted)';
-    return '<td style="padding:8px 10px;text-align:right;font-family:var(--mono);font-size:12px;color:'+c+';border-bottom:1px solid var(--border);min-width:100px;">'+(v!==0?fmtMoney(v):'—')+'</td>';
+    return '<td style="padding:7px 10px;text-align:right;font-family:var(--mono);font-size:12px;color:'+c+';border-bottom:1px solid var(--border);white-space:nowrap;">'+(v!==0?fmtMoney(v):'—')+'</td>';
   }
-  function amtBold(v,bg){
+  function bold(v,bg){
     var c=v>0?'var(--green)':v<0?'var(--danger)':'var(--muted)';
-    return '<td style="padding:9px 10px;text-align:right;font-family:var(--mono);font-size:13px;font-weight:700;color:'+c+';background:'+bg+';border-bottom:1px solid var(--border);min-width:100px;">'+fmtMoney(v)+'</td>';
+    return '<td style="padding:8px 10px;text-align:right;font-family:var(--mono);font-size:13px;font-weight:700;color:'+c+';background:'+bg+';border-bottom:1px solid var(--border);white-space:nowrap;">'+fmtMoney(v)+'</td>';
   }
-  function secHdr(label){
-    return '<tr><td colspan="'+ncol+'" style="padding:8px 16px;background:var(--bg);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:var(--text);border-bottom:1px solid var(--border);">'+label+'</td></tr>';
+  function sHdr(t){
+    return '<tr><td colspan="'+nc+'" style="padding:8px 16px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:white;background:#1e3a5f;border-bottom:1px solid var(--border);">'+t+'</td></tr>';
   }
 
-  var html='<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;">'
-    +'<thead><tr><th style="padding:9px 16px;text-align:left;background:var(--bg);font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;border-bottom:2px solid var(--border);min-width:260px;">Item</th>';
-  periods.forEach(function(p){ html+='<th style="'+th+'">'+p.label+'</th>'; });
-  html+='</tr></thead><tbody>';
+  var h='<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;min-width:600px;">'
+    +'<thead><tr><th style="padding:9px 16px;text-align:left;background:var(--bg);font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;border-bottom:2px solid var(--border);min-width:240px;">Item</th>';
+  cols.forEach(function(c){ h+='<th style="padding:9px 10px;text-align:right;background:var(--bg);font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;border-bottom:2px solid var(--border);white-space:nowrap;min-width:100px;">'+c.label+'</th>'; });
+  h+='</tr></thead><tbody>';
 
   // A. Operating
-  html+=secHdr('A. Operating Activities');
-  html+='<tr><td style="'+lbl+'padding-left:28px;">Net Profit / (Loss)<span style="'+tag+'">P&L</span></td>';
-  periods.forEach(function(p){ html+=amt(p.d.np); }); html+='</tr>';
+  h+=sHdr('A. Operating Activities');
+  h+='<tr><td style="'+S+'padding-left:24px;">Net Profit / (Loss) <span style="'+tagSpan+'">P&L</span></td>';
+  cols.forEach(function(c){ h+=cell(c.np); }); h+='</tr>';
+  h+='<tr><td style="'+S+'padding-left:24px;">Add: Depreciation &amp; Amortization <span style="'+tagSpan+'">Non-Cash</span></td>';
+  cols.forEach(function(c){ h+=cell(c.dd); }); h+='</tr>';
 
-  html+='<tr><td style="'+lbl+'padding-left:28px;">Add: Depreciation &amp; Amortization<span style="'+tag+'">Non-Cash</span></td>';
-  periods.forEach(function(p){ html+=amt(p.d.dna); }); html+='</tr>';
-
-  if(wcNames.length){
-    html+='<tr><td colspan="'+ncol+'" style="padding:6px 16px;background:var(--bg);font-size:11px;font-weight:600;color:var(--muted);border-bottom:1px solid var(--border);">Working Capital Changes</td></tr>';
-    wcNames.forEach(function(name){
-      var tag2=bsData.find(function(p){return p[0]===name;})||[null,{type:''}];
-      var t=getTag(tag2[1]);
-      var isInterco=/due to|due from|interco|parent|subsidiar/i.test(name);
-      html+='<tr><td style="'+lbl+'padding-left:36px;">'+escHtml(name)
-        +'<span style="'+tag+'">'+t+'</span>'
-        +(isInterco?'<span style="font-size:10px;color:var(--amber);margin-left:4px;">⚑ Interco</span>':'')
+  if(wcN.length){
+    h+='<tr><td colspan="'+nc+'" style="padding:5px 16px;font-size:11px;font-weight:600;color:var(--muted);background:var(--bg);border-bottom:1px solid var(--border);">Working Capital Adjustments</td></tr>';
+    wcN.forEach(function(name){
+      var tg=tagOf[name]||'?';
+      var ic=/due to|due from|interco|parent|subsidiar/i.test(name);
+      h+='<tr><td style="'+S+'padding-left:32px;">'+escHtml(name)
+        +' <span style="'+tagSpan+'">'+tg+'</span>'
+        +(ic?' <span style="font-size:10px;color:var(--amber);">⚑ Interco</span>':'')
         +'</td>';
-      periods.forEach(function(p){
-        var item=p.d.wc.find(function(i){return i.name===name;});
-        html+=amt(item?item.impact:0);
-      });
-      html+='</tr>';
+      cols.forEach(function(c){ h+=cell(c.wc[name]||0); });
+      h+='</tr>';
     });
   }
-
-  html+='<tr><td style="padding:9px 16px;font-size:13px;font-weight:700;background:var(--accent-light);border-bottom:1px solid var(--border);">Net Cash from Operating Activities</td>';
-  periods.forEach(function(p){ html+=amtBold(p.d.opCF,'var(--accent-light)'); }); html+='</tr>';
+  h+='<tr><td style="padding:9px 16px;font-size:13px;font-weight:700;background:var(--accent-light);border-bottom:1px solid var(--border);">Net Cash from Operating Activities</td>';
+  cols.forEach(function(c){ h+=bold(c.opCF,'var(--accent-light)'); }); h+='</tr>';
 
   // B. Investing
-  html+=secHdr('B. Investing Activities');
-  if(invNames.length){
-    invNames.forEach(function(name){
-      html+='<tr><td style="'+lbl+'padding-left:28px;">'+escHtml(name)+'<span style="'+tag+'">NCA</span></td>';
-      periods.forEach(function(p){
-        var item=p.d.inv.find(function(i){return i.name===name;});
-        html+=amt(item?item.impact:0);
-      });
-      html+='</tr>';
+  h+=sHdr('B. Investing Activities');
+  if(invN.length){
+    invN.forEach(function(name){
+      h+='<tr><td style="'+S+'padding-left:24px;">'+escHtml(name)+' <span style="'+tagSpan+'">NCA</span></td>';
+      cols.forEach(function(c){ h+=cell(c.inv[name]||0); });
+      h+='</tr>';
     });
   } else {
-    html+='<tr><td style="'+lbl+'padding-left:28px;color:var(--muted);">No non-current asset movements</td>';
-    periods.forEach(function(){ html+=amt(0); }); html+='</tr>';
+    h+='<tr><td style="'+S+'padding-left:24px;color:var(--muted);">No non-current asset movements</td>';
+    cols.forEach(function(){ h+=cell(0); }); h+='</tr>';
   }
-  html+='<tr><td style="padding:9px 16px;font-size:13px;font-weight:700;background:var(--accent-light);border-bottom:1px solid var(--border);">Net Cash from Investing Activities</td>';
-  periods.forEach(function(p){ html+=amtBold(p.d.invCF,'var(--accent-light)'); }); html+='</tr>';
+  h+='<tr><td style="padding:9px 16px;font-size:13px;font-weight:700;background:var(--accent-light);border-bottom:1px solid var(--border);">Net Cash from Investing Activities</td>';
+  cols.forEach(function(c){ h+=bold(c.invCF,'var(--accent-light)'); }); h+='</tr>';
 
   // C. Financing
-  html+=secHdr('C. Financing Activities');
-  if(finNames.length){
-    finNames.forEach(function(name){
-      var isInterco=/due to|due from|interco|parent|subsidiar/i.test(name);
-      html+='<tr><td style="'+lbl+'padding-left:28px;">'+escHtml(name)
-        +(isInterco?'<span style="font-size:10px;color:var(--amber);margin-left:4px;">⚑ Intercompany</span>':'')
+  h+=sHdr('C. Financing Activities');
+  if(finN.length){
+    finN.forEach(function(name){
+      var ic=/due to|due from|interco|parent|subsidiar/i.test(name);
+      h+='<tr><td style="'+S+'padding-left:24px;">'+escHtml(name)
+        +(ic?' <span style="font-size:10px;color:var(--amber);">⚑ Intercompany</span>':'')
         +'</td>';
-      periods.forEach(function(p){
-        var item=p.d.fin.find(function(i){return i.name===name;});
-        html+=amt(item?item.impact:0);
-      });
-      html+='</tr>';
+      cols.forEach(function(c){ h+=cell(c.fin[name]||0); });
+      h+='</tr>';
     });
   } else {
-    html+='<tr><td style="'+lbl+'padding-left:28px;color:var(--muted);">No financing movements</td>';
-    periods.forEach(function(){ html+=amt(0); }); html+='</tr>';
+    h+='<tr><td style="'+S+'padding-left:24px;color:var(--muted);">No financing movements</td>';
+    cols.forEach(function(){ h+=cell(0); }); h+='</tr>';
   }
-  html+='<tr><td style="padding:9px 16px;font-size:13px;font-weight:700;background:var(--accent-light);border-bottom:1px solid var(--border);">Net Cash from Financing Activities</td>';
-  periods.forEach(function(p){ html+=amtBold(p.d.finCF,'var(--accent-light)'); }); html+='</tr>';
+  h+='<tr><td style="padding:9px 16px;font-size:13px;font-weight:700;background:var(--accent-light);border-bottom:1px solid var(--border);">Net Cash from Financing Activities</td>';
+  cols.forEach(function(c){ h+=bold(c.finCF,'var(--accent-light)'); }); h+='</tr>';
 
   // Summary
-  html+=secHdr('Summary');
-  var summaryRows=[
-    {label:'NET CASH MOVEMENT',key:'netMov'},
+  h+=sHdr('Summary');
+  var rows2=[
+    {label:'Net Cash Movement',key:'netMov'},
     {label:'Opening Cash Balance',key:'openCash'},
     {label:'Closing Cash Balance',key:'closeCash'}
   ];
-  summaryRows.forEach(function(sr){
-    html+='<tr><td style="padding:9px 16px;font-size:13px;font-weight:700;border-bottom:1px solid var(--border);">'+sr.label+'</td>';
-    periods.forEach(function(p){ html+=amtBold(p.d[sr.key],'var(--bg)'); });
-    html+='</tr>';
+  rows2.forEach(function(r){
+    h+='<tr><td style="'+S+'font-weight:600;">'+r.label+'</td>';
+    cols.forEach(function(c){ h+=bold(c[r.key],'var(--bg)'); }); h+='</tr>';
   });
 
   // Validation
-  html+='<tr><td colspan="'+ncol+'" style="padding:6px 16px;font-size:11px;color:var(--muted);border-top:2px solid var(--border);">Validation: Closing Cash = Opening + Net Movement</td></tr>';
-  periods.forEach(function(p,pi){
-    var calc=p.d.openCash+p.d.netMov;
-    var ok=Math.abs(calc-p.d.closeCash)<1;
-    html+='<tr><td colspan="'+ncol+'" style="padding:5px 16px;font-size:11px;background:'+(ok?'var(--green-light)':'var(--danger-light)')+';color:'+(ok?'#065f46':'#991b1b')+';">'
-      +(ok?'✓ '+p.label+' reconciles':'✗ '+p.label+': Calc '+fmtMoney(calc)+' vs BS '+fmtMoney(p.d.closeCash))+'</td></tr>';
+  h+='<tr><td colspan="'+nc+'" style="padding:5px 16px;font-size:11px;color:var(--muted);background:var(--bg);border-top:2px solid var(--border);">Check: Closing Cash = Opening + Net Movement</td></tr>';
+  cols.forEach(function(c){
+    var calc=c.openCash+c.netMov;
+    var ok=Math.abs(calc-c.closeCash)<0.05;
+    h+='<tr><td colspan="'+nc+'" style="padding:4px 16px;font-size:11px;background:'+(ok?'var(--green-light)':'var(--danger-light)')+';color:'+(ok?'#065f46':'#991b1b')+';">'
+      +(ok?'✓ '+c.label+' reconciles':'✗ '+c.label+': Calc='+fmtMoney(calc)+' BS='+fmtMoney(c.closeCash))+'</td></tr>';
   });
 
-  // Unmapped
-  var allUnmapped=[]; periods.forEach(function(p){ p.d.unmapped.forEach(function(n){ if(allUnmapped.indexOf(n)===-1) allUnmapped.push(n); }); });
-  if(allUnmapped.length){
-    html+='<tr><td colspan="'+ncol+'" style="padding:8px 16px;background:var(--amber-light);font-size:12px;color:#92400e;">'
-      +'⚠ '+allUnmapped.length+' unmapped account(s) excluded: '+allUnmapped.join(', ')+'</td></tr>';
-  }
-
-  html+='</tbody></table></div>';
-
-  // Debug info (shows if table rendered correctly)
-  var debugInfo='<div style="margin:8px 16px 0;font-size:11px;color:var(--muted);">Showing '+periods.length+' periods · '
-    +cfMonths[0]+' → '+cfMonths[cfMonths.length-1]
-    +' · WC accounts: '+wcNames.length+' · BS accounts: '+bsData.length+'</div>';
-
-  cfEl.innerHTML=debugInfo+html;
+  h+='</tbody></table></div>';
+  el.innerHTML=h;
 }
 
 function getRestatedPLData(quarter){
@@ -4480,17 +4446,204 @@ function exportSingleCSV(type){
     });
     filename='coa_mapping_'+date+'.csv';
   }else if(type==='rpl'){
-    const rows=document.querySelectorAll('#rplContent tbody tr');
-    csv='Standard COA Category,Total\n';
-    rows.forEach(r=>{const cells=r.querySelectorAll('td');if(cells.length===2)csv+=`"${cells[0].textContent.trim()}","${cells[1].textContent.trim()}"\n`;});
-    filename='restated_pl_'+date+'.csv';
+    exportRestatedExcel('pl'); return;
   }else if(type==='rbs'){
-    const rows=document.querySelectorAll('#rbsContent tbody tr');
-    csv='Standard COA Category,Amount\n';
-    rows.forEach(r=>{const cells=r.querySelectorAll('td');if(cells.length===2)csv+=`"${cells[0].textContent.trim()}","${cells[1].textContent.trim()}"\n`;});
-    filename='restated_bs_'+date+'.csv';
+    exportRestatedExcel('bs'); return;
   }
   if(csv)dlCSV(csv,filename);
+}
+
+// Export Restated P&L or BS as a styled Excel file using SheetJS
+function exportRestatedExcel(type){
+  var date=new Date().toISOString().split('T')[0];
+  var isPL=type==='pl';
+
+  // Get month list
+  var srcData=isPL?csvMultiMonthPL:csvMultiMonthBS;
+  var allM=[];
+  Object.values(srcData).forEach(function(acc){
+    Object.keys(acc.months||{}).forEach(function(m){ if(allM.indexOf(m)<0) allM.push(m); });
+  });
+  allM.sort();
+  var fmtM=function(m){ return new Date(m+'-02').toLocaleDateString('en-SG',{month:'short',year:'2-digit'}); };
+
+  // Build rows: group by COA Mapping, section headers, subtotals, grand total
+  function buildRows(){
+    var rows=[];
+    if(isPL){
+      var secOrder=['Revenue','Cost of Sales','Expense'];
+      var groups={};
+      Object.entries(srcData).forEach(function(p){
+        var grp=p[1].type||'Other';
+        if(!groups[grp]) groups[grp]=[];
+        groups[grp].push(p);
+      });
+      var totalRev={},totalCos={},totalExp={};
+      var allSecs=secOrder.concat(Object.keys(groups).filter(function(g){return secOrder.indexOf(g)<0;}));
+      allSecs.forEach(function(grp){
+        if(!groups[grp]||!groups[grp].length) return;
+        // Section header row
+        rows.push({type:'sectionHdr', label:grp});
+        var secTotals={};
+        groups[grp].forEach(function(p){
+          var name=p[0], acc=p[1];
+          var rrow={type:'account', label:name};
+          allM.forEach(function(m){ rrow[m]=acc.months[m]||0; });
+          rows.push(rrow);
+          allM.forEach(function(m){ secTotals[m]=(secTotals[m]||0)+(acc.months[m]||0); });
+        });
+        // Subtotal
+        var sub={type:'subtotal', label:'Total '+grp};
+        allM.forEach(function(m){ sub[m]=secTotals[m]||0; });
+        rows.push(sub);
+        if(/revenue/i.test(grp)) allM.forEach(function(m){totalRev[m]=secTotals[m]||0;});
+        else if(/cost of sales/i.test(grp)) allM.forEach(function(m){totalCos[m]=secTotals[m]||0;});
+        else allM.forEach(function(m){totalExp[m]=(totalExp[m]||0)+(secTotals[m]||0);});
+      });
+      // Net Profit row
+      var np={type:'grandTotal', label:'NET PROFIT / (LOSS)'};
+      allM.forEach(function(m){ np[m]=(totalRev[m]||0)-Math.abs(totalCos[m]||0)-Math.abs(totalExp[m]||0); });
+      rows.push(np);
+    } else {
+      // BS: sections in order
+      var bsSecOrder=['Bank','Current Assets','Non-Current Assets','Current Liabilities','Non-Current Liabilities','Equity'];
+      var bsGroups={};
+      Object.entries(srcData).forEach(function(p){
+        var grp=p[1].type||'Other';
+        if(!bsGroups[grp]) bsGroups[grp]=[];
+        bsGroups[grp].push(p);
+      });
+      var assetSecs=['Bank','Current Assets','Non-Current Assets'];
+      var liabSecs=['Current Liabilities','Non-Current Liabilities'];
+      var assetTotals={}, liabTotals={}, eqTotals={};
+      var allSecs2=bsSecOrder.concat(Object.keys(bsGroups).filter(function(g){return bsSecOrder.indexOf(g)<0;}));
+      allSecs2.forEach(function(grp){
+        if(!bsGroups[grp]||!bsGroups[grp].length) return;
+        rows.push({type:'sectionHdr', label:grp});
+        var secTot={};
+        bsGroups[grp].forEach(function(p){
+          var rrow={type:'account', label:p[0]};
+          allM.forEach(function(m){ rrow[m]=p[1].months[m]||0; });
+          rows.push(rrow);
+          allM.forEach(function(m){ secTot[m]=(secTot[m]||0)+(p[1].months[m]||0); });
+        });
+        var sub={type:'subtotal', label:'Total '+grp};
+        allM.forEach(function(m){ sub[m]=secTot[m]||0; });
+        rows.push(sub);
+        allM.forEach(function(m){
+          if(assetSecs.indexOf(grp)>=0) assetTotals[m]=(assetTotals[m]||0)+(secTot[m]||0);
+          else if(liabSecs.indexOf(grp)>=0) liabTotals[m]=(liabTotals[m]||0)+(secTot[m]||0);
+          else if(/equity/i.test(grp)) eqTotals[m]=(eqTotals[m]||0)+(secTot[m]||0);
+        });
+        // Insert TOTAL ASSETS after last asset section with data
+        if(assetSecs.indexOf(grp)>=0){
+          var myI=assetSecs.indexOf(grp);
+          var hasLater=assetSecs.slice(myI+1).some(function(k){return bsGroups[k]&&bsGroups[k].length>0;});
+          if(!hasLater){
+            var ta={type:'grandTotal',label:'TOTAL ASSETS'};
+            allM.forEach(function(m){ ta[m]=assetTotals[m]||0; });
+            rows.push(ta);
+            rows.push({type:'spacer',label:''});
+          }
+        }
+      });
+      // TOTAL LIAB & EQUITY
+      var tliabEq={type:'grandTotal',label:"TOTAL LIABILITIES & SHAREHOLDERS' EQUITY"};
+      allM.forEach(function(m){ tliabEq[m]=(liabTotals[m]||0)+(eqTotals[m]||0); });
+      rows.push(tliabEq);
+    }
+    return rows;
+  }
+
+  function doExport(XLSX){
+    var rows=buildRows();
+    var sheetName=isPL?'Restated P&L':'Restated BS';
+    var title=isPL?'Restated Profit & Loss':'Restated Balance Sheet';
+
+    // Build AOA (array of arrays) for the sheet
+    var aoa=[];
+    // Title row
+    aoa.push([title]);
+    aoa.push(['Generated: '+new Date().toLocaleDateString('en-SG')]);
+    aoa.push([]);
+    // Header
+    aoa.push(['Account / Category'].concat(allM.map(fmtM)));
+
+    rows.forEach(function(row){
+      if(row.type==='spacer'){ aoa.push([]); return; }
+      var r=[row.label];
+      allM.forEach(function(m){ r.push(row[m]!==undefined?row[m]:''); });
+      aoa.push(r);
+    });
+
+    var ws=XLSX.utils.aoa_to_sheet(aoa);
+
+    // Column widths
+    ws['!cols']=[{wch:42}].concat(allM.map(function(){return {wch:12};}));
+
+    // Apply styles
+    var titleStyle={font:{bold:true,sz:14},fill:{fgColor:{rgb:'1E3A5F'}},font2:{color:{rgb:'FFFFFF'}}};
+    var hdrStyle={font:{bold:true,sz:10},fill:{fgColor:{rgb:'2563EB'}},alignment:{horizontal:'center'}};
+    var secStyle={font:{bold:true,sz:10},fill:{fgColor:{rgb:'F4F5F7'}}};
+    var subStyle={font:{bold:true},fill:{fgColor:{rgb:'DBEAFE'}}};
+    var grandStyle={font:{bold:true,sz:11},fill:{fgColor:{rgb:'1E3A5F'}}};
+
+    // Style each cell
+    var rowIdx=0;
+    // Title rows (0,1) — navy background white text
+    [0,1].forEach(function(ri){
+      var ref=XLSX.utils.encode_cell({r:ri,c:0});
+      if(ws[ref]) ws[ref].s={font:{bold:true,sz:ri===0?14:10,color:{rgb:'FFFFFF'}},fill:{fgColor:{rgb:'1E3A5F'}}};
+    });
+    // Header row (3, 0-indexed)
+    for(var ci=0;ci<=allM.length;ci++){
+      var ref=XLSX.utils.encode_cell({r:3,c:ci});
+      if(ws[ref]) ws[ref].s={font:{bold:true,sz:10,color:{rgb:'FFFFFF'}},fill:{fgColor:{rgb:'2563EB'}},alignment:{horizontal:ci===0?'left':'center'}};
+    }
+    // Data rows start at row 4
+    var dataRowStart=4;
+    rows.forEach(function(row,ri){
+      var excelRow=dataRowStart+ri;
+      var style=null;
+      if(row.type==='sectionHdr') style={font:{bold:true,sz:10,color:{rgb:'374151'}},fill:{fgColor:{rgb:'F4F5F7'}}};
+      else if(row.type==='subtotal') style={font:{bold:true},fill:{fgColor:{rgb:'DBEAFE'}}};
+      else if(row.type==='grandTotal') style={font:{bold:true,sz:11,color:{rgb:'FFFFFF'}},fill:{fgColor:{rgb:'1E3A5F'}}};
+      if(style){
+        for(var ci2=0;ci2<=allM.length;ci2++){
+          var ref2=XLSX.utils.encode_cell({r:excelRow,c:ci2});
+          if(ws[ref2]) ws[ref2].s=style;
+        }
+      }
+      // Number format for amount cells
+      if(row.type!=='sectionHdr'&&row.type!=='spacer'){
+        for(var ci3=1;ci3<=allM.length;ci3++){
+          var ref3=XLSX.utils.encode_cell({r:excelRow,c:ci3});
+          if(ws[ref3]&&typeof ws[ref3].v==='number'){
+            ws[ref3].z='#,##0.00;[Red]-#,##0.00;"-"';
+            if(!ws[ref3].s) ws[ref3].s={};
+            ws[ref3].s.numFmt='#,##0.00;[Red]-#,##0.00;"-"';
+          }
+        }
+      }
+    });
+
+    var wb=XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb,ws,sheetName);
+    var filename=(isPL?'Restated_PL':'Restated_BS')+'_'+date+'.xlsx';
+    XLSX.writeFile(wb,filename);
+    showMsg('✓ '+title+' exported as '+filename,'success');
+  }
+
+  // Load SheetJS if not already loaded
+  if(typeof XLSX!=='undefined'){
+    doExport(XLSX);
+  } else {
+    var s=document.createElement('script');
+    s.src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+    s.onload=function(){ doExport(XLSX); };
+    s.onerror=function(){ showMsg('Could not load Excel library. Check your internet connection.','error'); };
+    document.head.appendChild(s);
+  }
 }
 
 function exportFullReport(){
