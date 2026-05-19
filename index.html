@@ -473,13 +473,31 @@
 
   <!-- P&L Tab -->
   <div id="tab-pl" class="table-card">
-    <div class="table-header"><div><h3>Profit &amp; Loss <span style="font-size:11px;font-weight:400;color:var(--muted);margin-left:6px;">Raw report — as per Account Name column</span></h3><div class="table-meta" id="plMeta"></div></div><button class="btn btn-secondary btn-sm" onclick="exportSingleCSV('pl')">⬇ Export CSV</button></div>
+    <div class="table-header">
+      <div><h3>Profit &amp; Loss <span style="font-size:11px;font-weight:400;color:var(--muted);margin-left:6px;">Raw report — as per Account Name column</span></h3><div class="table-meta" id="plMeta"></div></div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <div style="display:flex;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:2px;gap:2px;">
+          <button id="plViewSingle" onclick="setRawView('pl','single')" style="padding:4px 10px;border-radius:4px;border:none;font-size:11px;font-weight:600;cursor:pointer;background:var(--accent);color:white;">Totals</button>
+          <button id="plViewTimeseries" onclick="setRawView('pl','timeseries')" style="padding:4px 10px;border-radius:4px;border:none;font-size:11px;font-weight:500;cursor:pointer;background:transparent;color:var(--muted);">Multi-Month</button>
+        </div>
+        <button class="btn btn-secondary btn-sm" onclick="exportSingleCSV('pl')">⬇ Export CSV</button>
+      </div>
+    </div>
     <div id="plContent"></div>
   </div>
 
   <!-- Balance Sheet Tab -->
   <div id="tab-bs" class="table-card" style="display:none;">
-    <div class="table-header"><div><h3>Balance Sheet <span style="font-size:11px;font-weight:400;color:var(--muted);margin-left:6px;">Raw report — as per Account Name column</span></h3><div class="table-meta" id="bsMeta"></div></div><button class="btn btn-secondary btn-sm" onclick="exportSingleCSV('bs')">⬇ Export CSV</button></div>
+    <div class="table-header">
+      <div><h3>Balance Sheet <span style="font-size:11px;font-weight:400;color:var(--muted);margin-left:6px;">Raw report — as per Account Name column</span></h3><div class="table-meta" id="bsMeta"></div></div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <div style="display:flex;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:2px;gap:2px;">
+          <button id="bsViewSingle" onclick="setRawView('bs','single')" style="padding:4px 10px;border-radius:4px;border:none;font-size:11px;font-weight:600;cursor:pointer;background:var(--accent);color:white;">Totals</button>
+          <button id="bsViewTimeseries" onclick="setRawView('bs','timeseries')" style="padding:4px 10px;border-radius:4px;border:none;font-size:11px;font-weight:500;cursor:pointer;background:transparent;color:var(--muted);">Multi-Month</button>
+        </div>
+        <button class="btn btn-secondary btn-sm" onclick="exportSingleCSV('bs')">⬇ Export CSV</button>
+      </div>
+    </div>
     <div id="bsContent"></div>
   </div>
 
@@ -1265,6 +1283,18 @@ async function launchFromCSV(){
 
   plReports=[{Rows:buildReportRows(csvMultiMonthPL)}];
   bsReports=[{Rows:buildReportRows(csvMultiMonthBS)}];
+
+  // Populate the mappings{} object from acc.coa so renderRestatedPL/BS work
+  Object.entries(csvMultiMonthPL).forEach(function([name,acc]){
+    if(acc.coa) mappings[name]=acc.coa;
+  });
+  Object.entries(csvMultiMonthBS).forEach(function([name,acc]){
+    if(acc.coa) mappings[name]=acc.coa;
+  });
+
+  // Auto-select SaaS sector if none selected
+  if(!selectedSector) selectSector('saas');
+
   dataSources.pl=csvPLFileName;
   dataSources.bs=csvBSFileName;
   dataSources.timestamp=new Date().toLocaleString();
@@ -1682,6 +1712,17 @@ function launchDashboard(title,sub){
 // ── Render all ─────────────────────────────────────────────────────────────────
 let rplView='single';
 let rbsView='single';
+let plRawView='single';
+let bsRawView='single';
+
+function setRawView(tab, v){
+  if(tab==='pl'){ plRawView=v; renderPL(); }
+  else           { bsRawView=v; renderBS(); }
+  ['Single','Timeseries'].forEach(function(k){
+    var btn=document.getElementById(tab+'View'+k);
+    if(btn){ btn.style.background=((k.toLowerCase()===v)?'var(--accent)':'transparent'); btn.style.color=((k.toLowerCase()===v)?'white':'var(--muted)'); btn.style.fontWeight=((k.toLowerCase()===v)?'600':'500'); }
+  });
+}
 
 function setRplView(v){
   rplView=v;
@@ -2920,11 +2961,18 @@ function renderPL(){
   var metaEl=document.getElementById('plMeta');
   var entries=Object.entries(csvMultiMonthPL);
   if(!entries.length){
-    // Fallback to Xero report format
     renderReport(plReports,'plContent','plMeta','Source: '+dataSources.pl,true);
     return;
   }
-  // Group by Account Type from the uploaded template
+
+  // Multi-month view
+  if(plRawView==='timeseries'){
+    el.innerHTML=buildTimeSeriesTable(csvMultiMonthPL,'pl');
+    if(metaEl) metaEl.textContent='Raw P&L · Multi-Month · Source: '+dataSources.pl;
+    return;
+  }
+
+  // Totals view — group by Account Type
   var groups={};
   entries.forEach(function(pair){
     var name=pair[0], acc=pair[1];
@@ -2933,7 +2981,7 @@ function renderPL(){
     var total=Object.values(acc.months||{}).reduce(function(s,v){return s+v;},0);
     groups[grp].push({name:name,total:total});
   });
-  var html='<table><thead><tr><th>Account Name</th><th style="text-align:right">Amount</th></tr></thead><tbody>';
+  var html='<table><thead><tr><th>Account Name</th><th style="text-align:right">Total</th></tr></thead><tbody>';
   Object.entries(groups).forEach(function(pair){
     var grp=pair[0], items=pair[1];
     html+='<tr class="section-row"><td colspan="2" style="padding:8px 14px">'+escHtml(grp)+'</td></tr>';
@@ -2957,7 +3005,15 @@ function renderBS(){
     renderReport(bsReports,'bsContent','bsMeta','Source: '+dataSources.bs,false);
     return;
   }
-  // Group by Account Type
+
+  // Multi-month view
+  if(bsRawView==='timeseries'){
+    el.innerHTML=buildTimeSeriesTable(csvMultiMonthBS,'bs');
+    if(metaEl) metaEl.textContent='Raw Balance Sheet · Multi-Month · Source: '+dataSources.bs;
+    return;
+  }
+
+  // Totals view — group by Account Type
   var groups={};
   entries.forEach(function(pair){
     var name=pair[0], acc=pair[1];
@@ -2966,7 +3022,7 @@ function renderBS(){
     var total=Object.values(acc.months||{}).reduce(function(s,v){return s+v;},0);
     groups[grp].push({name:name,total:total});
   });
-  var html='<table><thead><tr><th>Account Name</th><th style="text-align:right">Amount</th></tr></thead><tbody>';
+  var html='<table><thead><tr><th>Account Name</th><th style="text-align:right">Total</th></tr></thead><tbody>';
   Object.entries(groups).forEach(function(pair){
     var grp=pair[0], items=pair[1];
     html+='<tr class="section-row"><td colspan="2" style="padding:8px 14px">'+escHtml(grp)+'</td></tr>';
@@ -3031,7 +3087,14 @@ function renderRestatedPL(){
 
   // ── Determine columns: single period or multi-month ───────────────────────
   var useTimeSeries=rplView==='timeseries'&&Object.keys(csvMultiMonthPL).length>0;
-  var months=useTimeSeries?Object.keys(csvMultiMonthPL).sort():['current'];
+  // Collect all months across all accounts and sort chronologically (oldest first)
+  var allMonthsSet={};
+  if(useTimeSeries){
+    Object.values(csvMultiMonthPL).forEach(function(acc){
+      Object.keys(acc.months||{}).forEach(function(m){allMonthsSet[m]=1;});
+    });
+  }
+  var months=useTimeSeries?Object.keys(allMonthsSet).sort():['current'];
 
   // ── For each column/month, compute amounts ────────────────────────────────
   function computeAmtsForPeriod(monthKey){
@@ -3069,7 +3132,7 @@ function renderRestatedPL(){
   lineItems.forEach(function(item){
     var account=coaData.find(function(a){return a.Name===item.name;})||{AccountID:item.name};
     var key=account.AccountID||item.name;
-    var cat=mappings[key];
+    var cat=mappings[key]||mappings[item.name];
     if(!cat||cat==='[ Not mapped ]'){
       if(item.amt>=0)unmappedIncome.push(item);else unmappedExpense.push(item);
     } else {
@@ -3308,7 +3371,7 @@ function renderRestatedBS(){
 
     const account=coaData.find(function(a){return a.Name===item.name;})||{AccountID:item.name};
     const key=account.AccountID||item.name;
-    const cat=mappings[key];
+    const cat=mappings[key]||mappings[item.name];
     if(!cat||cat==='[ Not mapped ]'){unmappedItems.push(item);}
     else{
       catTotals[cat]=(catTotals[cat]||0)+item.amt;
@@ -3739,7 +3802,7 @@ function getRestatedPLData(quarter){
   }
   lineItems.forEach(item=>{
     const account=coaData.find(a=>a.Name===item.name)||{AccountID:item.name};
-    const cat=mappings[account.AccountID||item.name];
+    const cat=mappings[account.AccountID||item.name]||mappings[item.name];
     if(!cat||cat==='[ Not mapped ]')return;
     result.categories[cat]=(result.categories[cat]||0)+item.amt;
     if(/revenue|income|sales/i.test(cat))result.revenue+=item.amt;
@@ -3768,7 +3831,7 @@ function getRestatedBSData(){
   }
   lineItems.forEach(item=>{
     const account=coaData.find(a=>a.Name===item.name)||{AccountID:item.name};
-    const cat=mappings[account.AccountID||item.name];
+    const cat=mappings[account.AccountID||item.name]||mappings[item.name];
     if(!cat||cat==='[ Not mapped ]')return;
     result.categories[cat]=(result.categories[cat]||0)+item.amt;
     if(/cash|bank/i.test(cat))result.cash+=item.amt;
@@ -4052,6 +4115,8 @@ function switchTab(name,btn){
   var tabEl=document.getElementById('tab-'+name);
   if(tabEl) tabEl.style.display='block';
   btn.classList.add('active');
+  if(name==='pl')  renderPL();
+  if(name==='bs')  renderBS();
   if(name==='rpl') renderRestatedPL();
   if(name==='rbs') renderRestatedBS();
   if(name==='map') renderCOAMappingTab();
